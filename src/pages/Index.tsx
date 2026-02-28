@@ -1,21 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Check, BookOpen, Award, ChevronDown, Calendar, LogOut, LogIn } from 'lucide-react';
+import { Check, BookOpen, Award, ChevronDown, Calendar, LogOut, LogIn, MessageCircle, Sparkles, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { planData } from '@/data/planData';
+import { planOptions, getMonths } from '@/data/planData';
 import CommentSection from '@/components/CommentSection';
+import BibleChat from '@/components/BibleChat';
+import DailyCuriosity from '@/components/DailyCuriosity';
+
+type TabId = 'plan' | 'chat' | 'curiosity';
 
 const Index = () => {
+  const [selectedPlan, setSelectedPlan] = useState(planOptions[1].id); // default 6 months
   const [selectedMonth, setSelectedMonth] = useState(0);
   const [completedDays, setCompletedDays] = useState<Set<string>>(new Set());
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [activeTab, setActiveTab] = useState<TabId>('plan');
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const totalDays = planData.flat().length;
+  const currentPlan = planOptions.find(p => p.id === selectedPlan)!;
+  const months = getMonths(currentPlan.days);
+  const totalDays = currentPlan.days.length;
   const progressPercentage = Math.round((completedDays.size / totalDays) * 100);
+
+  // Reset month when changing plan
+  useEffect(() => {
+    setSelectedMonth(0);
+  }, [selectedPlan]);
 
   // Load completed days from DB
   useEffect(() => {
@@ -45,10 +58,7 @@ const Index = () => {
   }, [user]);
 
   const toggleDay = async (monthIndex: number, dayIndex: number) => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    if (!user) { navigate('/auth'); return; }
 
     const dayId = `${monthIndex}-${dayIndex}`;
     const newCompleted = new Set(completedDays);
@@ -78,12 +88,12 @@ const Index = () => {
   };
 
   const isMonthCompleted = (monthIndex: number) => {
-    return planData[monthIndex].every((_, i) => completedDays.has(`${monthIndex}-${i}`));
+    return months[monthIndex]?.every((_, i) => completedDays.has(`${monthIndex}-${i}`));
   };
 
   const getMonthProgress = (monthIndex: number) => {
-    const total = planData[monthIndex].length;
-    const done = planData[monthIndex].filter((_, i) => completedDays.has(`${monthIndex}-${i}`)).length;
+    const total = months[monthIndex]?.length || 1;
+    const done = months[monthIndex]?.filter((_, i) => completedDays.has(`${monthIndex}-${i}`)).length || 0;
     return Math.round((done / total) * 100);
   };
 
@@ -94,6 +104,12 @@ const Index = () => {
       </div>
     );
   }
+
+  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'plan', label: 'Plano de Leitura', icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'chat', label: 'Pergunte à IA', icon: <Bot className="w-4 h-4" /> },
+    { id: 'curiosity', label: 'Curiosidades', icon: <Sparkles className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans relative overflow-hidden selection:bg-indigo-500/30">
@@ -112,19 +128,12 @@ const Index = () => {
               <span className="text-sm text-slate-400">
                 Olá, <span className="text-indigo-300 font-medium">{displayName || user.email}</span>
               </span>
-              <button
-                onClick={signOut}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-                title="Sair"
-              >
+              <button onClick={signOut} className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all" title="Sair">
                 <LogOut className="w-4 h-4" />
               </button>
             </>
           ) : (
-            <button
-              onClick={() => navigate('/auth')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 hover:bg-indigo-500/30 transition-all text-sm font-medium"
-            >
+            <button onClick={() => navigate('/auth')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 hover:bg-indigo-500/30 transition-all text-sm font-medium">
               <LogIn className="w-4 h-4" />
               Entrar
             </button>
@@ -132,128 +141,163 @@ const Index = () => {
         </div>
 
         {/* Header */}
-        <header className="text-center mb-12 animate-fade-in-down">
+        <header className="text-center mb-10 animate-fade-in-down">
           <div className="inline-flex items-center justify-center p-3 mb-4 rounded-2xl bg-white/5 border border-white/10 shadow-xl backdrop-blur-md">
             <BookOpen className="w-8 h-8 text-indigo-400" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-purple-300">
-            Jornada de 6 Meses
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-3 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-purple-300">
+            Bíblia Cronológica
           </h1>
-          <p className="text-lg md:text-xl text-slate-300/80 max-w-2xl mx-auto font-light">
-            A Bíblia em Ordem Cronológica. Acompanhe o seu progresso diário e mergulhe na história de forma imersiva e sequencial.
+          <p className="text-base md:text-lg text-slate-300/80 max-w-2xl mx-auto font-light">
+            Leia a Bíblia em ordem cronológica com IA para tirar dúvidas e curiosidades diárias.
           </p>
         </header>
 
-        {/* Progress Card */}
-        <div className="mb-12 p-6 rounded-3xl bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl">
-          <div className="flex justify-between items-end mb-4">
-            <div>
-              <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Progresso Global</p>
-              <h2 className="text-3xl font-bold flex items-center gap-2">
-                {progressPercentage}%
-                {progressPercentage === 100 && <Award className="w-8 h-8 text-yellow-400" />}
-              </h2>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-slate-400">
-                <span className="text-white font-semibold">{completedDays.size}</span> / {totalDays} dias
-              </p>
-            </div>
-          </div>
-
-          <div className="h-4 w-full bg-black/30 rounded-full overflow-hidden border border-white/10 p-0.5">
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out relative"
-              style={{ width: `${progressPercentage}%` }}
+        {/* Main Tabs */}
+        <div className="flex gap-2 mb-8 overflow-x-auto scrollbar-hide">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl border text-sm font-medium transition-all whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-indigo-500/20 border-indigo-400/50 text-white shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                  : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+              }`}
             >
-              <div className="absolute inset-0 bg-white/20 rounded-full"></div>
-            </div>
-          </div>
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Month Tabs */}
-        <div className="flex overflow-x-auto gap-3 pb-4 mb-6 scrollbar-hide snap-x">
-          {planData.map((_, index) => {
-            const isCompleted = isMonthCompleted(index);
-            const isSelected = selectedMonth === index;
-            const monthProgress = getMonthProgress(index);
-
-            return (
-              <button
-                key={index}
-                onClick={() => setSelectedMonth(index)}
-                className={`
-                  snap-center whitespace-nowrap px-6 py-4 rounded-2xl border transition-all duration-300 flex items-center gap-3
-                  ${isSelected ? 'bg-indigo-500/20 border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.2)] text-white' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'}
-                  backdrop-blur-md
-                `}
-              >
-                <div className={`p-2 rounded-full ${isSelected ? 'bg-indigo-500/30' : 'bg-black/20'}`}>
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <div className="font-semibold text-base">Mês {index + 1}</div>
-                  <div className="text-xs opacity-70">{monthProgress}% completo</div>
-                </div>
-                {isCompleted && <Check className="w-5 h-5 text-green-400 ml-2" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Reading List */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-          <div className="p-6 border-b border-white/10 bg-white/5">
-            <h3 className="text-2xl font-bold flex items-center gap-2">
-              Leituras do Mês {selectedMonth + 1}
-            </h3>
-          </div>
-
-          <div className="divide-y divide-white/5">
-            {planData[selectedMonth].map((reading, index) => {
-              const dayId = `${selectedMonth}-${index}`;
-              const isDone = completedDays.has(dayId);
-              let globalDayNumber = index + 1;
-              for (let i = 0; i < selectedMonth; i++) {
-                globalDayNumber += planData[i].length;
-              }
-              const isExpanded = expandedDay === dayId;
-
-              return (
-                <div key={index} className={`transition-all duration-300 ${isDone ? 'opacity-60 bg-black/10' : ''}`}>
-                  <div
-                    onClick={() => toggleDay(selectedMonth, index)}
-                    className="group p-4 sm:p-6 flex items-center gap-4 cursor-pointer hover:bg-white/5"
+        {/* Tab content */}
+        {activeTab === 'chat' && <BibleChat />}
+        {activeTab === 'curiosity' && <DailyCuriosity />}
+        {activeTab === 'plan' && (
+          <>
+            {/* Plan Selector */}
+            <div className="mb-8">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Escolha seu plano</p>
+              <div className="grid grid-cols-3 gap-3">
+                {planOptions.map(plan => (
+                  <button
+                    key={plan.id}
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={`p-4 rounded-2xl border text-left transition-all ${
+                      selectedPlan === plan.id
+                        ? 'bg-indigo-500/20 border-indigo-400/50 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
                   >
-                    <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isDone ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'border-white/20 text-transparent group-hover:border-indigo-400/50'}`}>
-                      <Check className={`w-5 h-5 transition-transform duration-300 ${isDone ? 'scale-100' : 'scale-0'}`} />
+                    <div className={`text-lg font-bold ${selectedPlan === plan.id ? 'text-white' : 'text-slate-300'}`}>
+                      {plan.label}
                     </div>
-                    <div className="flex-grow">
-                      <p className={`text-sm font-medium transition-colors duration-300 ${isDone ? 'text-green-400/80' : 'text-indigo-300'}`}>
-                        Dia {globalDayNumber}
-                      </p>
-                      <p className={`text-lg sm:text-xl font-medium transition-all duration-300 ${isDone ? 'line-through decoration-white/30 text-slate-400' : 'text-slate-100'}`}>
-                        {reading}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => toggleExpand(dayId, e)}
-                      className={`flex-shrink-0 p-2 rounded-lg hover:bg-white/10 transition-all ${isExpanded ? 'bg-white/10 text-indigo-300' : 'text-slate-500'}`}
-                    >
-                      <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-                  </div>
+                    <div className="text-xs text-slate-400 mt-1">{plan.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                  {isExpanded && (
-                    <div className="px-4 sm:px-6 pb-4">
-                      <CommentSection monthIndex={selectedMonth} dayIndex={index} user={user} />
-                    </div>
-                  )}
+            {/* Progress Card */}
+            <div className="mb-8 p-6 rounded-3xl bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl">
+              <div className="flex justify-between items-end mb-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-1">Progresso Global</p>
+                  <h2 className="text-3xl font-bold flex items-center gap-2">
+                    {progressPercentage}%
+                    {progressPercentage === 100 && <Award className="w-8 h-8 text-yellow-400" />}
+                  </h2>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-400">
+                    <span className="text-white font-semibold">{completedDays.size}</span> / {totalDays} dias
+                  </p>
+                </div>
+              </div>
+              <div className="h-4 w-full bg-black/30 rounded-full overflow-hidden border border-white/10 p-0.5">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out relative"
+                  style={{ width: `${progressPercentage}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 rounded-full" />
+                </div>
+              </div>
+            </div>
+
+            {/* Month Tabs */}
+            <div className="flex overflow-x-auto gap-3 pb-4 mb-6 scrollbar-hide snap-x">
+              {months.map((_, index) => {
+                const isCompleted = isMonthCompleted(index);
+                const isSelected = selectedMonth === index;
+                const monthProgress = getMonthProgress(index);
+
+                return (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedMonth(index)}
+                    className={`snap-center whitespace-nowrap px-5 py-3 rounded-2xl border transition-all duration-300 flex items-center gap-3 ${
+                      isSelected ? 'bg-indigo-500/20 border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.2)] text-white' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                    } backdrop-blur-md`}
+                  >
+                    <div className={`p-1.5 rounded-full ${isSelected ? 'bg-indigo-500/30' : 'bg-black/20'}`}>
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold text-sm">Mês {index + 1}</div>
+                      <div className="text-xs opacity-70">{monthProgress}%</div>
+                    </div>
+                    {isCompleted && <Check className="w-4 h-4 text-green-400" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Reading List */}
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+              <div className="p-6 border-b border-white/10 bg-white/5">
+                <h3 className="text-xl font-bold">Mês {selectedMonth + 1}</h3>
+              </div>
+              <div className="divide-y divide-white/5">
+                {months[selectedMonth]?.map((reading, index) => {
+                  const dayId = `${selectedMonth}-${index}`;
+                  const isDone = completedDays.has(dayId);
+                  let globalDayNumber = index + 1;
+                  for (let i = 0; i < selectedMonth; i++) globalDayNumber += months[i].length;
+                  const isExpanded = expandedDay === dayId;
+
+                  return (
+                    <div key={index} className={`transition-all duration-300 ${isDone ? 'opacity-60 bg-black/10' : ''}`}>
+                      <div
+                        onClick={() => toggleDay(selectedMonth, index)}
+                        className="group p-4 sm:p-5 flex items-center gap-4 cursor-pointer hover:bg-white/5"
+                      >
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isDone ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'border-white/20 text-transparent group-hover:border-indigo-400/50'}`}>
+                          <Check className={`w-4 h-4 transition-transform duration-300 ${isDone ? 'scale-100' : 'scale-0'}`} />
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <p className={`text-xs font-medium ${isDone ? 'text-green-400/80' : 'text-indigo-300'}`}>Dia {globalDayNumber}</p>
+                          <p className={`text-base font-medium truncate ${isDone ? 'line-through decoration-white/30 text-slate-400' : 'text-slate-100'}`}>{reading}</p>
+                        </div>
+                        <button
+                          onClick={(e) => toggleExpand(dayId, e)}
+                          className={`flex-shrink-0 p-2 rounded-lg hover:bg-white/10 transition-all ${isExpanded ? 'bg-white/10 text-indigo-300' : 'text-slate-500'}`}
+                        >
+                          <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+                      {isExpanded && (
+                        <div className="px-4 sm:px-6 pb-4">
+                          <CommentSection monthIndex={selectedMonth} dayIndex={index} user={user} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
