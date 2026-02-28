@@ -1,69 +1,99 @@
-import { useState } from 'react';
-import { Check, BookOpen, Award, ChevronRight, Calendar } from 'lucide-react';
-
-const planData = [
-  [
-    "Gênesis 1-3", "Gênesis 4-7", "Gênesis 8-11", "Jó 1-5", "Jó 6-9", "Jó 10-13", "Jó 14-17",
-    "Jó 18-21", "Jó 22-24", "Jó 25-28", "Jó 29-31", "Jó 32-34", "Jó 35-37", "Jó 38-39",
-    "Jó 40-42", "Gênesis 12-15", "Gênesis 16-18", "Gênesis 19-21", "Gênesis 22-24", "Gênesis 25-26",
-    "Gênesis 27-29", "Gênesis 30-31", "Gênesis 32-34", "Gênesis 35-37", "Gênesis 38-40",
-    "Gênesis 41-42", "Gênesis 43-45", "Gênesis 46-47", "Gênesis 48-50", "Êxodo 1-3"
-  ],
-  [
-    "Êxodo 4-6", "Êxodo 7-9", "Êxodo 10-12", "Êxodo 13-15", "Êxodo 16-18", "Êxodo 19-21",
-    "Êxodo 22-24", "Êxodo 25-27", "Êxodo 28-29", "Êxodo 30-32", "Êxodo 33-35", "Êxodo 36-38",
-    "Êxodo 39-40", "Levítico 1-4", "Levítico 5-7", "Levítico 8-10", "Levítico 11-13", "Levítico 14-15",
-    "Levítico 16-18", "Levítico 19-21", "Levítico 22-23", "Levítico 24-25", "Levítico 26-27",
-    "Números 1-2", "Números 3-4", "Números 5-6", "Números 7", "Números 8-10", "Números 11-13", "Números 14-15"
-  ],
-  [
-    "Números 16-17", "Números 18-20", "Números 21-22", "Números 23-25", "Números 26-27", "Números 28-30",
-    "Números 31-32", "Números 33-36", "Deuteronômio 1-2", "Deuteronômio 3-4", "Deuteronômio 5-7", "Deuteronômio 8-10",
-    "Deuteronômio 11-13", "Deuteronômio 14-16", "Deuteronômio 17-20", "Deuteronômio 21-23", "Deuteronômio 24-27",
-    "Deuteronômio 28-29", "Deuteronômio 30-31", "Deuteronômio 32-34", "Josué 1-4", "Josué 5-8", "Josué 9-11",
-    "Josué 12-15", "Josué 16-18", "Josué 19-21", "Josué 22-24", "Juízes 1-2", "Juízes 3-5", "Juízes 6-7"
-  ],
-  [
-    "Juízes 8-9", "Juízes 10-12", "Juízes 13-15", "Juízes 16-18", "Juízes 19-21", "Rute 1-4",
-    "1 Samuel 1-3", "1 Samuel 4-8", "1 Samuel 9-12", "1 Samuel 13-14", "1 Samuel 15-17", "1 Samuel 18-20",
-    "1 Samuel 21-24", "1 Samuel 25-27", "1 Samuel 28-31", "2 Samuel 1-3", "2 Samuel 4-7", "2 Samuel 8-12",
-    "2 Samuel 13-15", "2 Samuel 16-18", "2 Samuel 19-21", "2 Samuel 22-24", "Salmos 1-15", "Salmos 16-24",
-    "Salmos 25-34", "Salmos 35-43", "Salmos 44-54", "Salmos 55-64", "Salmos 65-72", "Provérbios 1-5"
-  ],
-  [
-    "Provérbios 6-11", "Provérbios 12-17", "Provérbios 18-22", "Provérbios 23-27", "Provérbios 28-31", "Eclesiastes 1-6",
-    "Eclesiastes 7-12", "Cânticos 1-8", "1 Reis 1-4", "1 Reis 5-8", "1 Reis 9-11", "1 Reis 12-14",
-    "1 Reis 15-17", "1 Reis 18-20", "1 Reis 21-22", "2 Reis 1-3", "2 Reis 4-5", "2 Reis 6-8",
-    "2 Reis 9-11", "2 Reis 12-14", "Isaías 1-4", "Isaías 5-8", "Isaías 9-12", "Isaías 13-17",
-    "Isaías 18-22", "Jeremias 1-3", "Jeremias 4-6", "Jeremias 7-9", "Ezequiel 1-4", "Daniel 1-3"
-  ],
-  [
-    "Esdras 1-3", "Esdras 4-6", "Esdras 7-10", "Neemias 1-3", "Neemias 4-6", "Neemias 7-9",
-    "Neemias 10-13", "Ester 1-5", "Ester 6-10", "Mateus 1-4", "Mateus 5-7", "Mateus 8-10",
-    "Mateus 11-13", "Mateus 14-16", "Mateus 17-19", "Mateus 20-22", "Mateus 23-25", "Mateus 26-28",
-    "Marcos 1-4", "Lucas 1-3", "João 1-3", "Atos 1-4", "Atos 5-8", "Romanos 1-4",
-    "1 Coríntios 1-4", "Gálatas 1-3", "Efésios 1-3", "Hebreus 1-4", "1 Pedro 1-3", "Apocalipse 1-22"
-  ]
-];
+import { useState, useEffect } from 'react';
+import { Check, BookOpen, Award, ChevronDown, Calendar, LogOut, LogIn } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { planData } from '@/data/planData';
+import CommentSection from '@/components/CommentSection';
 
 const Index = () => {
   const [selectedMonth, setSelectedMonth] = useState(0);
   const [completedDays, setCompletedDays] = useState<Set<string>>(new Set());
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
 
-  const totalDays = 180;
+  const totalDays = planData.flat().length;
   const progressPercentage = Math.round((completedDays.size / totalDays) * 100);
 
-  const toggleDay = (monthIndex: number, dayIndex: number) => {
+  // Load completed days from DB
+  useEffect(() => {
+    if (!user) {
+      setCompletedDays(new Set());
+      return;
+    }
+    const loadProgress = async () => {
+      const { data } = await supabase
+        .from('completed_days')
+        .select('month_index, day_index')
+        .eq('user_id', user.id);
+      if (data) {
+        setCompletedDays(new Set(data.map(d => `${d.month_index}-${d.day_index}`)));
+      }
+    };
+    const loadProfile = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', user.id)
+        .single();
+      if (data) setDisplayName(data.display_name || '');
+    };
+    loadProgress();
+    loadProfile();
+  }, [user]);
+
+  const toggleDay = async (monthIndex: number, dayIndex: number) => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
     const dayId = `${monthIndex}-${dayIndex}`;
     const newCompleted = new Set(completedDays);
-    if (newCompleted.has(dayId)) newCompleted.delete(dayId);
-    else newCompleted.add(dayId);
+
+    if (newCompleted.has(dayId)) {
+      newCompleted.delete(dayId);
+      await supabase
+        .from('completed_days')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('month_index', monthIndex)
+        .eq('day_index', dayIndex);
+    } else {
+      newCompleted.add(dayId);
+      await supabase.from('completed_days').insert({
+        user_id: user.id,
+        month_index: monthIndex,
+        day_index: dayIndex,
+      });
+    }
     setCompletedDays(newCompleted);
+  };
+
+  const toggleExpand = (dayId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedDay(expandedDay === dayId ? null : dayId);
   };
 
   const isMonthCompleted = (monthIndex: number) => {
     return planData[monthIndex].every((_, i) => completedDays.has(`${monthIndex}-${i}`));
   };
+
+  const getMonthProgress = (monthIndex: number) => {
+    const total = planData[monthIndex].length;
+    const done = planData[monthIndex].filter((_, i) => completedDays.has(`${monthIndex}-${i}`)).length;
+    return Math.round((done / total) * 100);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans relative overflow-hidden selection:bg-indigo-500/30">
@@ -75,6 +105,32 @@ const Index = () => {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        {/* Top bar */}
+        <div className="flex justify-end items-center mb-6 gap-3">
+          {user ? (
+            <>
+              <span className="text-sm text-slate-400">
+                Olá, <span className="text-indigo-300 font-medium">{displayName || user.email}</span>
+              </span>
+              <button
+                onClick={signOut}
+                className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Sair"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => navigate('/auth')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 hover:bg-indigo-500/30 transition-all text-sm font-medium"
+            >
+              <LogIn className="w-4 h-4" />
+              Entrar
+            </button>
+          )}
+        </div>
+
         {/* Header */}
         <header className="text-center mb-12 animate-fade-in-down">
           <div className="inline-flex items-center justify-center p-3 mb-4 rounded-2xl bg-white/5 border border-white/10 shadow-xl backdrop-blur-md">
@@ -120,6 +176,7 @@ const Index = () => {
           {planData.map((_, index) => {
             const isCompleted = isMonthCompleted(index);
             const isSelected = selectedMonth === index;
+            const monthProgress = getMonthProgress(index);
 
             return (
               <button
@@ -136,7 +193,7 @@ const Index = () => {
                 </div>
                 <div className="text-left">
                   <div className="font-semibold text-base">Mês {index + 1}</div>
-                  <div className="text-xs opacity-70">30 dias</div>
+                  <div className="text-xs opacity-70">{monthProgress}% completo</div>
                 </div>
                 {isCompleted && <Check className="w-5 h-5 text-green-400 ml-2" />}
               </button>
@@ -156,28 +213,42 @@ const Index = () => {
             {planData[selectedMonth].map((reading, index) => {
               const dayId = `${selectedMonth}-${index}`;
               const isDone = completedDays.has(dayId);
-              const globalDayNumber = selectedMonth * 30 + index + 1;
+              let globalDayNumber = index + 1;
+              for (let i = 0; i < selectedMonth; i++) {
+                globalDayNumber += planData[i].length;
+              }
+              const isExpanded = expandedDay === dayId;
 
               return (
-                <div
-                  key={index}
-                  onClick={() => toggleDay(selectedMonth, index)}
-                  className={`group p-4 sm:p-6 flex items-center gap-4 cursor-pointer transition-all duration-300 hover:bg-white/5 ${isDone ? 'opacity-60 bg-black/10' : ''}`}
-                >
-                  <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isDone ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'border-white/20 text-transparent group-hover:border-indigo-400/50'}`}>
-                    <Check className={`w-5 h-5 transition-transform duration-300 ${isDone ? 'scale-100' : 'scale-0'}`} />
+                <div key={index} className={`transition-all duration-300 ${isDone ? 'opacity-60 bg-black/10' : ''}`}>
+                  <div
+                    onClick={() => toggleDay(selectedMonth, index)}
+                    className="group p-4 sm:p-6 flex items-center gap-4 cursor-pointer hover:bg-white/5"
+                  >
+                    <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isDone ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'border-white/20 text-transparent group-hover:border-indigo-400/50'}`}>
+                      <Check className={`w-5 h-5 transition-transform duration-300 ${isDone ? 'scale-100' : 'scale-0'}`} />
+                    </div>
+                    <div className="flex-grow">
+                      <p className={`text-sm font-medium transition-colors duration-300 ${isDone ? 'text-green-400/80' : 'text-indigo-300'}`}>
+                        Dia {globalDayNumber}
+                      </p>
+                      <p className={`text-lg sm:text-xl font-medium transition-all duration-300 ${isDone ? 'line-through decoration-white/30 text-slate-400' : 'text-slate-100'}`}>
+                        {reading}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => toggleExpand(dayId, e)}
+                      className={`flex-shrink-0 p-2 rounded-lg hover:bg-white/10 transition-all ${isExpanded ? 'bg-white/10 text-indigo-300' : 'text-slate-500'}`}
+                    >
+                      <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
                   </div>
-                  <div className="flex-grow">
-                    <p className={`text-sm font-medium transition-colors duration-300 ${isDone ? 'text-green-400/80' : 'text-indigo-300'}`}>
-                      Dia {globalDayNumber}
-                    </p>
-                    <p className={`text-lg sm:text-xl font-medium transition-all duration-300 ${isDone ? 'line-through decoration-white/30 text-slate-400' : 'text-slate-100'}`}>
-                      {reading}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <ChevronRight className="w-6 h-6 text-slate-500" />
-                  </div>
+
+                  {isExpanded && (
+                    <div className="px-4 sm:px-6 pb-4">
+                      <CommentSection monthIndex={selectedMonth} dayIndex={index} user={user} />
+                    </div>
+                  )}
                 </div>
               );
             })}
