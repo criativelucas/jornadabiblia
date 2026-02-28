@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      chapter_tags: {
+        Row: {
+          chapter_key: string
+          created_at: string
+          id: string
+          tag: string
+          user_id: string
+        }
+        Insert: {
+          chapter_key: string
+          created_at?: string
+          id?: string
+          tag: string
+          user_id: string
+        }
+        Update: {
+          chapter_key?: string
+          created_at?: string
+          id?: string
+          tag?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
@@ -47,6 +71,7 @@ export type Database = {
           day_index: number
           id: string
           month_index: number
+          plan_id: string
           user_id: string
         }
         Insert: {
@@ -54,6 +79,7 @@ export type Database = {
           day_index: number
           id?: string
           month_index: number
+          plan_id?: string
           user_id: string
         }
         Update: {
@@ -61,6 +87,7 @@ export type Database = {
           day_index?: number
           id?: string
           month_index?: number
+          plan_id?: string
           user_id?: string
         }
         Relationships: []
@@ -70,18 +97,39 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          last_read_date: string | null
+          last_verse_shown_date: string | null
+          longest_streak: number
+          plan_start_date: string | null
+          selected_plan: string
+          streak: number
+          unlocked_milestones: number[]
           user_id: string
         }
         Insert: {
           created_at?: string
           display_name?: string
           id?: string
+          last_read_date?: string | null
+          last_verse_shown_date?: string | null
+          longest_streak?: number
+          plan_start_date?: string | null
+          selected_plan?: string
+          streak?: number
+          unlocked_milestones?: number[]
           user_id: string
         }
         Update: {
           created_at?: string
           display_name?: string
           id?: string
+          last_read_date?: string | null
+          last_verse_shown_date?: string | null
+          longest_streak?: number
+          plan_start_date?: string | null
+          selected_plan?: string
+          streak?: number
+          unlocked_milestones?: number[]
           user_id?: string
         }
         Relationships: []

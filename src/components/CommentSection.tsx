@@ -9,7 +9,6 @@ interface Comment {
   user_id: string;
   content: string;
   created_at: string;
-  profile?: { display_name: string };
 }
 
 interface CommentSectionProps {
@@ -25,34 +24,20 @@ const CommentSection = ({ monthIndex, dayIndex, user }: CommentSectionProps) => 
 
   useEffect(() => {
     fetchComments();
-  }, [monthIndex, dayIndex]);
+  }, [monthIndex, dayIndex, user]);
 
   const fetchComments = async () => {
+    if (!user) { setComments([]); return; }
+
     const { data, error } = await supabase
       .from('comments')
       .select('id, user_id, content, created_at')
       .eq('month_index', monthIndex)
       .eq('day_index', dayIndex)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: true });
 
-    if (error) return;
-
-    // Fetch profiles for these comments
-    const userIds = [...new Set((data || []).map(c => c.user_id))];
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name]) || []);
-      setComments((data || []).map(c => ({
-        ...c,
-        profile: { display_name: profileMap.get(c.user_id) || 'Anônimo' }
-      })));
-    } else {
-      setComments([]);
-    }
+    if (!error && data) setComments(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,7 +70,7 @@ const CommentSection = ({ monthIndex, dayIndex, user }: CommentSectionProps) => 
     <div className="mt-3 pt-3 border-t border-white/5" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-2 mb-3 text-sm text-slate-400">
         <MessageCircle className="w-4 h-4" />
-        <span>{comments.length} comentário{comments.length !== 1 ? 's' : ''}</span>
+        <span>Minhas anotações ({comments.length})</span>
       </div>
 
       {comments.length > 0 && (
@@ -93,17 +78,14 @@ const CommentSection = ({ monthIndex, dayIndex, user }: CommentSectionProps) => 
           {comments.map((c) => (
             <div key={c.id} className="flex items-start gap-2 p-2 rounded-lg bg-white/5 text-sm">
               <div className="flex-grow min-w-0">
-                <span className="font-semibold text-indigo-300">{c.profile?.display_name}</span>
-                <p className="text-slate-300 mt-0.5 break-words">{c.content}</p>
+                <p className="text-slate-300 break-words">{c.content}</p>
                 <p className="text-xs text-slate-500 mt-1">
                   {new Date(c.created_at).toLocaleDateString('pt-BR')}
                 </p>
               </div>
-              {user?.id === c.user_id && (
-                <button onClick={() => handleDelete(c.id)} className="flex-shrink-0 p-1 text-slate-500 hover:text-red-400 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button onClick={() => handleDelete(c.id)} className="flex-shrink-0 p-1 text-slate-500 hover:text-red-400 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
         </div>
@@ -115,7 +97,7 @@ const CommentSection = ({ monthIndex, dayIndex, user }: CommentSectionProps) => 
             type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Escreva um comentário..."
+            placeholder="Sua anotação pessoal..."
             maxLength={1000}
             className="flex-grow px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-400/50 transition-all"
           />
@@ -128,7 +110,7 @@ const CommentSection = ({ monthIndex, dayIndex, user }: CommentSectionProps) => 
           </button>
         </form>
       ) : (
-        <p className="text-xs text-slate-500 italic">Faça login para comentar.</p>
+        <p className="text-xs text-slate-500 italic">Faça login para adicionar anotações.</p>
       )}
     </div>
   );
