@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, RefreshCw, Loader2, ChevronDown } from 'lucide-react';
-
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
+import { Sparkles, ChevronDown, X } from 'lucide-react';
 
 const presetCuriosities = [
   { titulo: "O livro mais longo", texto: "Salmos tem 150 capítulos e 2.461 versículos — o maior livro da Bíblia." },
@@ -15,55 +13,48 @@ const presetCuriosities = [
 ];
 
 const DailyCuriosity = () => {
-  const [aiCuriosity, setAiCuriosity] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-  const [history, setHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [highlighted, setHighlighted] = useState<typeof presetCuriosities[0] | null>(null);
+  const [shownIndices, setShownIndices] = useState<Set<number>>(new Set());
 
-  const fetchCuriosity = async () => {
-    if (isLoading) return;
-    setIsLoading(true);
-    setAiCuriosity('');
-    const msgs = [...history, { role: 'user' as const, content: 'Me conte uma curiosidade bíblica fascinante!' }];
-    try {
-      const resp = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: msgs, type: 'curiosity' }),
-      });
-      if (!resp.ok || !resp.body) throw new Error('Erro ao buscar curiosidade');
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '', text = '', done = false;
-      while (!done) {
-        const { done: rDone, value } = await reader.read();
-        if (rDone) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') { done = true; break; }
-          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { text += c; setAiCuriosity(text); } } catch {}
-        }
-      }
-      setHistory([...msgs, { role: 'assistant', content: text }]);
-    } catch (e: any) { setAiCuriosity(`Erro: ${e.message}`); }
-    finally { setIsLoading(false); }
+  const discoverNew = () => {
+    const available = presetCuriosities.map((_, i) => i).filter(i => !shownIndices.has(i));
+    const pool = available.length > 0 ? available : presetCuriosities.map((_, i) => i);
+    if (available.length === 0) setShownIndices(new Set());
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    setShownIndices(prev => new Set(prev).add(pick));
+    setHighlighted(presetCuriosities[pick]);
   };
 
   return (
     <div className="space-y-4">
+      {/* Discover button */}
+      <button
+        onClick={discoverNew}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-[10px] bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all"
+      >
+        <Sparkles className="w-4 h-4" />
+        Descubra algo novo!
+      </button>
+
+      {/* Highlighted curiosity card */}
+      {highlighted && (
+        <div className="relative bg-primary/[0.08] border border-primary/20 rounded-[14px] p-[18px] animate-fade-in-down">
+          <button
+            onClick={() => setHighlighted(null)}
+            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <h4 className="text-sm font-bold text-primary mb-1.5 pr-6">{highlighted.titulo}</h4>
+          <p className="text-sm text-muted-foreground leading-relaxed">{highlighted.texto}</p>
+        </div>
+      )}
+
+      {/* Fixed list */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-border">
-          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Descubra algo novo!
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">Fatos fascinantes sobre a Bíblia</p>
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Sabia que...</p>
         </div>
         <div className="divide-y divide-border">
           {presetCuriosities.map((c, i) => (
@@ -79,18 +70,6 @@ const DailyCuriosity = () => {
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="p-4 flex items-center justify-between">
-          <p className="text-sm font-medium text-foreground">Curiosidade por IA</p>
-          <button onClick={fetchCuriosity} disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 disabled:opacity-40 transition-all text-xs font-medium">
-            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            {aiCuriosity ? 'Nova' : 'Gerar'}
-          </button>
-        </div>
-        {aiCuriosity && <div className="px-4 pb-4"><p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{aiCuriosity}</p></div>}
       </div>
     </div>
   );
