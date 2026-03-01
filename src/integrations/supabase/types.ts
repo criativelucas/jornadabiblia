@@ -92,6 +92,33 @@ export type Database = {
         }
         Relationships: []
       }
+      gallery_photos: {
+        Row: {
+          book: string
+          caption: string | null
+          created_at: string
+          file_path: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          book: string
+          caption?: string | null
+          created_at?: string
+          file_path: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          book?: string
+          caption?: string | null
+          created_at?: string
+          file_path?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
