@@ -18,6 +18,8 @@ serve(async (req) => {
 Formato: comece com um título curto em negrito, depois um parágrafo explicando a curiosidade de forma envolvente e acessível. 
 Inclua a referência bíblica quando aplicável. Seja criativo e varie os temas (história, cultura, linguística, arqueologia, geografia, personagens, números, animais, etc).
 Não repita curiosidades anteriores da conversa.`
+      : type === "mindmap"
+      ? `Você é um especialista em estudos bíblicos. Gere mapas mentais estruturados em JSON para livros da Bíblia. Responda APENAS com JSON válido, sem texto extra.`
       : `Você é um teólogo e estudioso bíblico experiente que responde dúvidas sobre a Bíblia em português brasileiro.
 Seja preciso, cite versículos relevantes, e explique de forma clara e acessível.
 Se a pergunta não for relacionada à Bíblia ou teologia, educadamente redirecione para temas bíblicos.

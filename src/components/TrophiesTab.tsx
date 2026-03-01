@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { BookOpen, CheckCircle2 } from 'lucide-react';
+import { BookOpen, CheckCircle2, Award } from 'lucide-react';
 import { bibleBooks, getReadChaptersByBook } from '@/data/bibleBooks';
 
-interface Props { completedDays: Set<string>; allDays: string[]; months: string[][]; }
+interface Props {
+  completedDays: Set<string>;
+  allDays: string[];
+  months: string[][];
+  onBookClick?: (bookName: string) => void;
+}
 type Filter = 'all' | 'AT' | 'NT' | 'done';
 
-const TrophiesTab = ({ completedDays, allDays, months }: Props) => {
+const TrophiesTab = ({ completedDays, allDays, months, onBookClick }: Props) => {
   const [filter, setFilter] = useState<Filter>('all');
   const readChapters = getReadChaptersByBook(completedDays, allDays, months);
 
@@ -39,7 +44,7 @@ const TrophiesTab = ({ completedDays, allDays, months }: Props) => {
       <div className="flex gap-2 overflow-x-auto scrollbar-hide">
         {filters.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
-            className={`px-4 py-2 rounded-full text-xs font-medium border whitespace-nowrap transition-all ${filter === f.id ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border whitespace-nowrap transition-all ${filter === f.id ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
             {f.label}
           </button>
         ))}
@@ -52,7 +57,11 @@ const TrophiesTab = ({ completedDays, allDays, months }: Props) => {
           const progress = Math.min(100, (read / book.chapters) * 100);
 
           return (
-            <div key={book.name} className={`relative p-3 rounded-xl border text-center transition-all ${isDone ? 'bg-primary/5 border-primary/20' : 'bg-card border-border'}`}>
+            <button
+              key={book.name}
+              onClick={() => isDone && onBookClick?.(book.name)}
+              className={`relative p-3 rounded-xl border text-center transition-all ${isDone ? 'bg-primary/5 border-primary/20 cursor-pointer hover:bg-primary/10' : 'bg-card border-border'}`}
+            >
               {isDone && <CheckCircle2 className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-lime" />}
               <BookOpen className={`w-6 h-6 mx-auto ${isDone ? 'text-primary' : 'text-muted-foreground/40'}`} />
               <p className="text-[10px] font-medium text-foreground mt-1.5 truncate">{book.name}</p>
@@ -67,15 +76,12 @@ const TrophiesTab = ({ completedDays, allDays, months }: Props) => {
                   <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
                 </div>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
     </div>
   );
 };
-
-// Need Award icon
-import { Award } from 'lucide-react';
 
 export default TrophiesTab;
