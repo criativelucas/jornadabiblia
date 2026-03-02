@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { RefreshCw, Loader2, Trash2, Plus, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { RefreshCw, Loader2, Trash2, Plus, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
 
 interface MindMapNode {
   id: string;
@@ -28,12 +29,17 @@ interface Props {
   userId: string;
 }
 
+const removeAccents = (str: string) =>
+  str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-');
+
 const MindMapView = ({ bookName, userId }: Props) => {
   const [data, setData] = useState<MindMapData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   const storageKey = `user:${userId}:mindmap:${bookName}`;
 
@@ -79,7 +85,6 @@ const MindMapView = ({ bookName, userId }: Props) => {
         }
       }
 
-      // Extract JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('Resposta inválida da IA');
       const mapData = JSON.parse(jsonMatch[0]) as MindMapData;
@@ -96,6 +101,27 @@ const MindMapView = ({ bookName, userId }: Props) => {
     if (data) {
       localStorage.setItem(storageKey, JSON.stringify(data));
       toast.success('Mapa mental salvo!');
+    }
+  };
+
+  const downloadMap = async () => {
+    if (!mapRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(mapRef.current, {
+        backgroundColor: null,
+        useCORS: true,
+        scale: 2,
+      });
+      const link = document.createElement('a');
+      link.download = `mapa-mental-${removeAccents(bookName)}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Imagem baixada!');
+    } catch {
+      toast.error('Erro ao gerar imagem.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -154,7 +180,7 @@ const MindMapView = ({ bookName, userId }: Props) => {
     return (
       <div className="p-8 text-center bg-card border border-border rounded-2xl">
         <p className="text-sm text-muted-foreground mb-3">Não foi possível gerar o mapa.</p>
-        <button onClick={generateMap} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+        <button onClick={generateMap} className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] bg-primary text-primary-foreground text-sm font-medium">
           <RefreshCw className="w-4 h-4" /> Tentar novamente
         </button>
       </div>
@@ -168,17 +194,26 @@ const MindMapView = ({ bookName, userId }: Props) => {
       <div className="flex items-center justify-between">
         <h3 className="text-base font-bold text-foreground">Mapa Mental — {bookName}</h3>
         <div className="flex gap-2">
-          <button onClick={handleRegenerate} className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition-all" title="Regenerar">
+          <button onClick={handleRegenerate} className="p-2 rounded-[10px] text-muted-foreground hover:bg-muted transition-all" title="Regenerar">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={saveMap} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+          <button
+            onClick={downloadMap}
+            disabled={downloading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-border text-foreground text-xs font-medium hover:bg-muted transition-all disabled:opacity-50"
+            title="Baixar"
+          >
+            {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            Baixar
+          </button>
+          <button onClick={saveMap} className="px-3 py-1.5 rounded-[10px] bg-primary text-primary-foreground text-xs font-medium">
             Salvar
           </button>
         </div>
       </div>
 
       {/* Tree layout */}
-      <div className="bg-card border border-border rounded-2xl p-4 overflow-x-auto">
+      <div ref={mapRef} className="bg-card border border-border rounded-2xl p-4 overflow-x-auto">
         {/* Center node */}
         <div className="flex justify-center mb-6">
           <div className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-sm">
