@@ -40,14 +40,14 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
     <div className="flex flex-col h-full">
       {/* Logo area */}
       <div className="p-4 flex items-center gap-3 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
           <Calendar className="w-4 h-4 text-primary-foreground" />
         </div>
-        <span className="text-sm font-semibold text-foreground lg:block hidden">Bíblia Cronológica</span>
+        <span className="text-sm font-semibold text-foreground">Bíblia Cronológica</span>
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
         {navItems.map(item => {
           const isActive = activeSection === item.id;
           const Icon = item.icon;
@@ -55,14 +55,14 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
             <button
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-150 ${
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
-              <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-              <span className="lg:block hidden">{item.label}</span>
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span className="whitespace-nowrap">{item.label}</span>
             </button>
           );
         })}
@@ -73,26 +73,26 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
         {mounted && (
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
-            {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
-            <span className="lg:block hidden">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
+            {theme === 'dark' ? <Sun className="w-5 h-5 flex-shrink-0" /> : <Moon className="w-5 h-5 flex-shrink-0" />}
+            <span className="whitespace-nowrap">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
           </button>
         )}
         {isLoggedIn && (
           <>
             <div className="flex items-center gap-3 px-3 py-2">
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                 {displayName?.charAt(0)?.toUpperCase() || '?'}
               </div>
-              <span className="text-xs text-foreground truncate lg:block hidden">{displayName || 'Usuário'}</span>
+              <span className="text-xs text-foreground truncate">{displayName || 'Usuário'}</span>
             </div>
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
             >
-              <LogOut className="w-[18px] h-[18px]" />
-              <span className="lg:block hidden">Sair</span>
+              <LogOut className="w-5 h-5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Sair</span>
             </button>
           </>
         )}
@@ -105,7 +105,8 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-card border border-border text-foreground shadow-sm"
+        className="lg:hidden fixed top-4 left-4 z-[51] p-2 rounded-lg bg-card border border-border text-foreground shadow-sm"
+        aria-label="Abrir menu"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -126,12 +127,31 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
         )}
       </div>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay + drawer */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border shadow-xl">
-            <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-4 text-muted-foreground">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            style={{ zIndex: 49 }}
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Drawer */}
+          <div
+            className="absolute left-0 top-0 bottom-0 bg-card border-r border-border shadow-xl flex flex-col"
+            style={{
+              width: '240px',
+              zIndex: 50,
+              transform: 'translateX(0)',
+              opacity: 1,
+              visibility: 'visible',
+            }}
+          >
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10"
+              aria-label="Fechar menu"
+            >
               <X className="w-5 h-5" />
             </button>
             {sidebarContent}
@@ -141,7 +161,70 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
 
       {/* Desktop sidebar */}
       <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-16 xl:w-56 bg-card border-r border-border z-40 flex-col">
-        {sidebarContent}
+        <div className="flex flex-col h-full">
+          {/* Logo area */}
+          <div className="p-4 flex items-center gap-3 border-b border-border">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="text-sm font-semibold text-foreground hidden xl:block">Bíblia Cronológica</span>
+          </div>
+
+          {/* Nav items */}
+          <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
+            {navItems.map(item => {
+              const isActive = activeSection === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNav(item.id)}
+                  title={item.label}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-150 ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="hidden xl:block whitespace-nowrap">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="p-3 border-t border-border space-y-2">
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5 flex-shrink-0" /> : <Moon className="w-5 h-5 flex-shrink-0" />}
+                <span className="hidden xl:block whitespace-nowrap">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
+              </button>
+            )}
+            {isLoggedIn && (
+              <>
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                    {displayName?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <span className="text-xs text-foreground truncate hidden xl:block">{displayName || 'Usuário'}</span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  title="Sair"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+                >
+                  <LogOut className="w-5 h-5 flex-shrink-0" />
+                  <span className="hidden xl:block whitespace-nowrap">Sair</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );
