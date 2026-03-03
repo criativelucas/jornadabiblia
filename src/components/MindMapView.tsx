@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Loader2, Trash2, Plus, Check, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
+import ConfirmModal from './ConfirmModal';
 
 interface MindMapNode {
   id: string;
@@ -39,6 +40,7 @@ const MindMapView = ({ bookName, userId }: Props) => {
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
   const storageKey = `user:${userId}:mindmap:${bookName}`;
@@ -108,11 +110,7 @@ const MindMapView = ({ bookName, userId }: Props) => {
     if (!mapRef.current) return;
     setDownloading(true);
     try {
-      const canvas = await html2canvas(mapRef.current, {
-        backgroundColor: null,
-        useCORS: true,
-        scale: 2,
-      });
+      const canvas = await html2canvas(mapRef.current, { backgroundColor: null, useCORS: true, scale: 2 });
       const link = document.createElement('a');
       link.download = `mapa-mental-${removeAccents(bookName)}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -125,10 +123,7 @@ const MindMapView = ({ bookName, userId }: Props) => {
     }
   };
 
-  const startEdit = (nodeId: string, currentLabel: string) => {
-    setEditingNode(nodeId);
-    setEditText(currentLabel);
-  };
+  const startEdit = (nodeId: string, currentLabel: string) => { setEditingNode(nodeId); setEditText(currentLabel); };
 
   const confirmEdit = () => {
     if (!data || !editingNode || !editText.trim()) return;
@@ -142,27 +137,23 @@ const MindMapView = ({ bookName, userId }: Props) => {
 
   const deleteNode = (nodeId: string) => {
     if (!data) return;
-    const updated = { ...data, nos: data.nos.filter(n => n.id !== nodeId).map(n => ({
-      ...n, filhos: n.filhos.filter(f => f.id !== nodeId),
-    }))};
+    const updated = { ...data, nos: data.nos.filter(n => n.id !== nodeId).map(n => ({ ...n, filhos: n.filhos.filter(f => f.id !== nodeId) }))};
     setData(updated);
   };
 
   const addChild = (parentId: string) => {
     if (!data) return;
     const newId = `child_${Date.now()}`;
-    const updated = { ...data, nos: data.nos.map(n =>
-      n.id === parentId ? { ...n, filhos: [...n.filhos, { id: newId, label: 'Novo tópico' }] } : n
-    )};
+    const updated = { ...data, nos: data.nos.map(n => n.id === parentId ? { ...n, filhos: [...n.filhos, { id: newId, label: 'Novo tópico' }] } : n) };
     setData(updated);
     startEdit(newId, 'Novo tópico');
   };
 
-  const handleRegenerate = () => {
-    if (confirm('Isso substituirá suas edições. Continuar?')) {
-      localStorage.removeItem(storageKey);
-      generateMap();
-    }
+  const handleRegenerate = () => setShowRegenConfirm(true);
+  const doRegenerate = () => {
+    setShowRegenConfirm(false);
+    localStorage.removeItem(storageKey);
+    generateMap();
   };
 
   if (loading) {
@@ -191,18 +182,23 @@ const MindMapView = ({ bookName, userId }: Props) => {
 
   return (
     <div className="space-y-4">
+      <ConfirmModal
+        isOpen={showRegenConfirm}
+        title="Regenerar mapa?"
+        message="Isso substituirá todas as suas edições. Esta ação não pode ser desfeita."
+        confirmLabel="Regenerar"
+        onConfirm={doRegenerate}
+        onCancel={() => setShowRegenConfirm(false)}
+        variant="danger"
+      />
+
       <div className="flex items-center justify-between">
         <h3 className="text-base font-bold text-foreground">Mapa Mental — {bookName}</h3>
         <div className="flex gap-2">
           <button onClick={handleRegenerate} className="p-2 rounded-[10px] text-muted-foreground hover:bg-muted transition-all" title="Regenerar">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button
-            onClick={downloadMap}
-            disabled={downloading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-border text-foreground text-xs font-medium hover:bg-muted transition-all disabled:opacity-50"
-            title="Baixar"
-          >
+          <button onClick={downloadMap} disabled={downloading} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-border text-foreground text-xs font-medium hover:bg-muted transition-all disabled:opacity-50" title="Baixar">
             {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             Baixar
           </button>
@@ -212,16 +208,10 @@ const MindMapView = ({ bookName, userId }: Props) => {
         </div>
       </div>
 
-      {/* Tree layout */}
       <div ref={mapRef} className="bg-card border border-border rounded-2xl p-4 overflow-x-auto">
-        {/* Center node */}
         <div className="flex justify-center mb-6">
-          <div className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-sm">
-            {data.centro}
-          </div>
+          <div className="px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-sm">{data.centro}</div>
         </div>
-
-        {/* Main nodes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {data.nos.map(node => {
             const colors = typeColors[node.tipo] || typeColors.tema;
@@ -230,37 +220,29 @@ const MindMapView = ({ bookName, userId }: Props) => {
                 <div className="flex items-center justify-between gap-1">
                   {editingNode === node.id ? (
                     <div className="flex items-center gap-1 flex-grow">
-                      <input value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmEdit()}
-                        className="flex-grow px-2 py-1 text-sm rounded bg-background border border-border text-foreground" autoFocus />
+                      <input value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmEdit()} className="flex-grow px-2 py-1 text-sm rounded bg-background border border-border text-foreground" autoFocus />
                       <button onClick={confirmEdit} className="p-1 text-primary"><Check className="w-3.5 h-3.5" /></button>
                     </div>
                   ) : (
-                    <button onClick={() => startEdit(node.id, node.label)} className="text-sm font-semibold text-foreground text-left flex-grow">
-                      {node.label}
-                    </button>
+                    <button onClick={() => startEdit(node.id, node.label)} className="text-sm font-semibold text-foreground text-left flex-grow">{node.label}</button>
                   )}
                   <div className="flex items-center gap-0.5 flex-shrink-0">
                     <button onClick={() => addChild(node.id)} className="p-1 text-muted-foreground hover:text-primary"><Plus className="w-3 h-3" /></button>
                     <button onClick={() => deleteNode(node.id)} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 </div>
-                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.border + '20', color: colors.border }}>
-                  {node.tipo}
-                </span>
+                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ backgroundColor: colors.border + '20', color: colors.border }}>{node.tipo}</span>
                 {node.filhos.length > 0 && (
                   <div className="space-y-1 pl-2 border-l-2" style={{ borderColor: colors.border + '30' }}>
                     {node.filhos.map(filho => (
                       <div key={filho.id} className="flex items-center justify-between gap-1">
                         {editingNode === filho.id ? (
                           <div className="flex items-center gap-1 flex-grow">
-                            <input value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmEdit()}
-                              className="flex-grow px-2 py-0.5 text-xs rounded bg-background border border-border text-foreground" autoFocus />
+                            <input value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmEdit()} className="flex-grow px-2 py-0.5 text-xs rounded bg-background border border-border text-foreground" autoFocus />
                             <button onClick={confirmEdit} className="p-0.5 text-primary"><Check className="w-3 h-3" /></button>
                           </div>
                         ) : (
-                          <button onClick={() => startEdit(filho.id, filho.label)} className="text-xs text-muted-foreground text-left flex-grow hover:text-foreground transition-colors">
-                            {filho.label}
-                          </button>
+                          <button onClick={() => startEdit(filho.id, filho.label)} className="text-xs text-muted-foreground text-left flex-grow hover:text-foreground transition-colors">{filho.label}</button>
                         )}
                         <button onClick={() => deleteNode(filho.id)} className="p-0.5 text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-2.5 h-2.5" /></button>
                       </div>
