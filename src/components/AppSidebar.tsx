@@ -13,9 +13,11 @@ import {
   Menu,
   X,
   Bot,
+  Camera,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type SectionId = "home" | "plans" | "trophies" | "achieve" | "panorama" | "chat" | "facts" | "gallery";
 
@@ -26,6 +28,9 @@ interface Props {
   onLogout: () => void;
   isLoggedIn: boolean;
   streak: number;
+  userId?: string; // ← novo: passar user?.id do Index.tsx
+  avatarUrl?: string; // ← novo: passar avatarUrl do Index.tsx (opcional, busca internamente)
+  onAvatarChange?: (url: string) => void; // ← novo: callback quando avatar é atualizado
 }
 
 const navItems: { id: SectionId; label: string; icon: React.ElementType }[] = [
@@ -39,7 +44,119 @@ const navItems: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "gallery", label: "Galeria", icon: Image },
 ];
 
-const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLoggedIn, streak }: Props) => {
+// ─── Avatar component ──────────────────────────────────────────────────────────
+const UserAvatar = ({
+  displayName,
+  userId,
+  avatarUrl: externalUrl,
+  onAvatarChange,
+  size = "sm",
+}: {
+  displayName: string;
+  userId?: string;
+  avatarUrl?: string;
+  onAvatarChange?: (url: string) => void;
+  size?: "sm" | "md";
+}) => {
+  const [localUrl, setLocalUrl] = useState<string | null>(externalUrl || null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Fetch avatar from profile on mount
+  useEffect(() => {
+    if (!userId || externalUrl) return;
+    supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("user_id", userId)
+      .single()
+      .then(({ data }) => {
+        if (data && (data as any).avatar_url) setLocalUrl((data as any).avatar_url);
+      });
+  }, [userId, externalUrl]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Imagem muito grande. Máximo 3 MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `avatars/${userId}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      // Add cache-buster so the browser reloads the image
+      const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: finalUrl } as any)
+        .eq("user_id", userId);
+
+      setLocalUrl(finalUrl);
+      onAvatarChange?.(finalUrl);
+    } catch (err) {
+      console.error("Erro ao fazer upload:", err);
+      alert("Erro ao salvar a imagem. Verifique se o bucket 'avatars' existe no Supabase.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const dim = size === "md" ? "w-9 h-9" : "w-7 h-7";
+  const textSize = size === "md" ? "text-sm" : "text-xs";
+  const initials = displayName?.charAt(0)?.toUpperCase() || "?";
+
+  return (
+    <div
+      className={`relative flex-shrink-0 group ${userId ? "cursor-pointer" : ""}`}
+      onClick={() => userId && fileRef.current?.click()}
+    >
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+
+      <div
+        className={`${dim} rounded-full overflow-hidden flex items-center justify-center bg-primary/20 border border-primary/30`}
+      >
+        {uploading ? (
+          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        ) : localUrl ? (
+          <img src={localUrl} alt={displayName} className="w-full h-full object-cover" />
+        ) : (
+          <span className={`${textSize} font-bold text-primary`}>{initials}</span>
+        )}
+      </div>
+
+      {/* Camera overlay on hover */}
+      {userId && !uploading && (
+        <div
+          className={`absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity`}
+        >
+          <Camera className="w-3 h-3 text-white" />
+        </div>
+      )}
+    </div>
+  );
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
+const AppSidebar = ({
+  activeSection,
+  onNavigate,
+  displayName,
+  onLogout,
+  isLoggedIn,
+  streak,
+  userId,
+  avatarUrl,
+  onAvatarChange,
+}: Props) => {
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -55,7 +172,7 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Logo area */}
+      {/* Logo */}
       <div className="p-4 flex items-center gap-3 border-b border-border">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
           <Calendar className="w-4 h-4 text-primary-foreground" />
@@ -63,7 +180,7 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
         <span className="text-sm font-semibold text-foreground">Jornada Bíblica</span>
       </div>
 
-      {/* Nav items */}
+      {/* Nav */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => {
           const isActive = activeSection === item.id;
@@ -99,9 +216,12 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
         {isLoggedIn && (
           <>
             <div className="flex items-center gap-3 px-3 py-2">
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                {displayName?.charAt(0)?.toUpperCase() || "?"}
-              </div>
+              <UserAvatar
+                displayName={displayName}
+                userId={userId}
+                avatarUrl={avatarUrl}
+                onAvatarChange={onAvatarChange}
+              />
               <span className="text-xs text-foreground truncate">{displayName || "Usuário"}</span>
             </div>
             <button
@@ -128,7 +248,7 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Mobile topbar with streak */}
+      {/* Mobile topbar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-14">
         <span className="text-sm font-semibold text-foreground">
           {navItems.find((n) => n.id === activeSection)?.label || "Início"}
@@ -147,18 +267,10 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
       {/* Mobile overlay + drawer */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" style={{ zIndex: 49 }} onClick={() => setMobileOpen(false)} />
-          {/* Drawer */}
           <div
             className="absolute left-0 top-0 bottom-0 bg-card border-r border-border shadow-xl flex flex-col"
-            style={{
-              width: "240px",
-              zIndex: 50,
-              transform: "translateX(0)",
-              opacity: 1,
-              visibility: "visible",
-            }}
+            style={{ width: "240px", zIndex: 50 }}
           >
             <button
               onClick={() => setMobileOpen(false)}
@@ -175,7 +287,7 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
       {/* Desktop sidebar */}
       <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-16 xl:w-56 bg-card border-r border-border z-40 flex-col">
         <div className="flex flex-col h-full">
-          {/* Logo area */}
+          {/* Logo */}
           <div className="p-4 flex items-center gap-3 border-b border-border">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
               <Calendar className="w-4 h-4 text-primary-foreground" />
@@ -183,7 +295,7 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
             <span className="text-sm font-semibold text-foreground hidden xl:block">Jornada Bíblica</span>
           </div>
 
-          {/* Nav items */}
+          {/* Nav */}
           <nav className="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
             {navItems.map((item) => {
               const isActive = activeSection === item.id;
@@ -227,9 +339,12 @@ const AppSidebar = ({ activeSection, onNavigate, displayName, onLogout, isLogged
             {isLoggedIn && (
               <>
                 <div className="flex items-center gap-3 px-3 py-2">
-                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                    {displayName?.charAt(0)?.toUpperCase() || "?"}
-                  </div>
+                  <UserAvatar
+                    displayName={displayName}
+                    userId={userId}
+                    avatarUrl={avatarUrl}
+                    onAvatarChange={onAvatarChange}
+                  />
                   <span className="text-xs text-foreground truncate hidden xl:block">{displayName || "Usuário"}</span>
                 </div>
                 <button

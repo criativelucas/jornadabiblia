@@ -309,7 +309,13 @@ const Index = () => {
       try {
         await supabase
           .from("completed_days")
-          .insert({ user_id: user.id, month_index: monthIndex, day_index: dayIndex, plan_id: selectedPlan } as any);
+          .insert({
+            user_id: user.id,
+            month_index: monthIndex,
+            day_index: dayIndex,
+            plan_id: selectedPlan,
+            read_date: getTodayStr(),
+          } as any);
         let newStreak = streak;
         let newLongest = longestStreak;
         let newUnlocked = [...unlockedMilestones];

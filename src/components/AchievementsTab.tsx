@@ -59,15 +59,10 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
 
     const fetchData = async () => {
       // Read dates: from completed_days created_at timestamps
-      const { data: daysData } = await supabase.from("completed_days").select("created_at").eq("user_id", user.id);
+      const { data: daysData } = await supabase.from("completed_days").select("read_date").eq("user_id", user.id);
 
       if (daysData) {
-        const dates = new Set(
-          daysData.map((r) => {
-            const d = new Date(r.created_at);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          }),
-        );
+        const dates = new Set(daysData.map((r) => (r as any).read_date as string).filter(Boolean));
         setReadDates(dates);
       }
 
