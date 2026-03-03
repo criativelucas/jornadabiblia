@@ -1,11 +1,36 @@
 import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, CheckCircle2 } from 'lucide-react';
 import { milestones } from '@/data/streakMilestones';
+import type { SectionId } from './AppSidebar';
 
 const iconMap: Record<string, React.ElementType> = { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown };
 
-interface Props { streak: number; longestStreak: number; unlockedMilestones: number[]; }
+interface Props {
+  streak: number;
+  longestStreak: number;
+  unlockedMilestones: number[];
+  onNavigate?: (section: SectionId) => void;
+}
 
-const AchievementsTab = ({ streak, longestStreak, unlockedMilestones }: Props) => {
+const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate }: Props) => {
+  if (unlockedMilestones.length === 0 && streak === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="p-8 rounded-2xl bg-card border border-border text-center">
+          <Zap className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground mb-4">Nenhuma conquista ainda.</p>
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate("plans")}
+              className="px-5 py-2.5 rounded-[10px] bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all"
+            >
+              Marcar leitura de hoje →
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Stats */}

@@ -15,6 +15,7 @@ import { bibleBooks } from "@/data/bibleBooks";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import ConfirmModal from "./ConfirmModal";
 
 interface GalleryPhoto {
   id: string;
@@ -118,8 +119,9 @@ const GalleryTab = () => {
     }
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleDeletePhoto = async (photoId: string) => {
-    if (!confirm("Deseja remover esta foto?")) return;
     const { data: photoData } = await supabase.from("gallery_photos").select("file_path").eq("id", photoId).single();
     if (photoData) {
       await supabase.storage.from("gallery").remove([photoData.file_path]);
@@ -128,6 +130,7 @@ const GalleryTab = () => {
     setPhotos((prev) => prev.filter((p) => p.id !== photoId));
     setAllPhotoCounts((prev) => ({ ...prev, [selectedBook]: Math.max(0, (prev[selectedBook] || 1) - 1) }));
     setFullscreen(null);
+    setDeleteConfirmId(null);
     toast.success("Foto removida.");
   };
 
@@ -188,6 +191,15 @@ const GalleryTab = () => {
 
   return (
     <div className="space-y-4">
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Remover foto?"
+        message="Deseja remover esta foto da galeria? Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={() => deleteConfirmId && handleDeletePhoto(deleteConfirmId)}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
       <div>
         <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
           <ImageIcon className="w-5 h-5 text-primary" />
@@ -234,7 +246,15 @@ const GalleryTab = () => {
       ) : photos.length === 0 ? (
         <div className="bg-card border border-border rounded-2xl p-8 text-center">
           <ImageOff className="w-10 h-10 mx-auto opacity-30 text-muted-foreground mb-3" />
-          <p className="text-muted-foreground text-sm">Nenhuma foto para {selectedBook}.</p>
+          <p className="text-muted-foreground text-sm mb-3">Nenhuma imagem disponível para este livro ainda.</p>
+          {isAdmin && (
+            <button
+              onClick={() => { setUploadBook(selectedBook); setShowUpload(true); }}
+              className="px-4 py-2 rounded-[10px] bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-all"
+            >
+              Adicionar imagem +
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -269,7 +289,7 @@ const GalleryTab = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleDeletePhoto(fullscreen.id);
+                setDeleteConfirmId(fullscreen.id);
               }}
               className="absolute top-4 left-4 text-white/70 hover:text-red-400 z-10"
             >

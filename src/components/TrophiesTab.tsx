@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { BookOpen, CheckCircle2, Award } from 'lucide-react';
 import { bibleBooks, getReadChaptersByBook } from '@/data/bibleBooks';
+import type { SectionId } from './AppSidebar';
 
 interface Props {
   completedDays: Set<string>;
   allDays: string[];
   months: string[][];
   onBookClick?: (bookName: string) => void;
+  onNavigate?: (section: SectionId) => void;
 }
 type Filter = 'all' | 'AT' | 'NT' | 'done';
 
-const TrophiesTab = ({ completedDays, allDays, months, onBookClick }: Props) => {
+const TrophiesTab = ({ completedDays, allDays, months, onBookClick, onNavigate }: Props) => {
   const [filter, setFilter] = useState<Filter>('all');
   const readChapters = getReadChaptersByBook(completedDays, allDays, months);
 
@@ -50,36 +52,51 @@ const TrophiesTab = ({ completedDays, allDays, months, onBookClick }: Props) => 
         ))}
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
-        {filtered.map(book => {
-          const read = getBookProgress(book.name);
-          const isDone = read >= book.chapters;
-          const progress = Math.min(100, (read / book.chapters) * 100);
-
-          return (
+      {filter === 'done' && completedBooks.length === 0 ? (
+        <div className="p-8 rounded-2xl bg-card border border-border text-center">
+          <BookOpen className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground mb-4">Nenhum livro concluído ainda.</p>
+          {onNavigate && (
             <button
-              key={book.name}
-              onClick={() => isDone && onBookClick?.(book.name)}
-              className={`relative p-3 rounded-xl border text-center transition-all ${isDone ? 'bg-primary/5 border-primary/20 cursor-pointer hover:bg-primary/10' : 'bg-card border-border'}`}
+              onClick={() => onNavigate("plans")}
+              className="px-5 py-2.5 rounded-[10px] bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all"
             >
-              {isDone && <CheckCircle2 className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-lime" />}
-              <BookOpen className={`w-6 h-6 mx-auto ${isDone ? 'text-primary' : 'text-muted-foreground/40'}`} />
-              <p className="text-[10px] font-medium text-foreground mt-1.5 truncate">{book.name}</p>
-              <p className="text-[9px] text-muted-foreground">{read}/{book.chapters}</p>
-              <div className="mt-1">
-                <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${book.testament === 'AT' ? 'bg-blue-500/10 text-blue-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                  {book.testament}
-                </span>
-              </div>
-              {!isDone && (
-                <div className="h-1 w-full bg-muted rounded-full overflow-hidden mt-1.5">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
-                </div>
-              )}
+              Começar pelo Gênesis →
             </button>
-          );
-        })}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+          {filtered.map(book => {
+            const read = getBookProgress(book.name);
+            const isDone = read >= book.chapters;
+            const progress = Math.min(100, (read / book.chapters) * 100);
+
+            return (
+              <button
+                key={book.name}
+                onClick={() => isDone && onBookClick?.(book.name)}
+                className={`relative p-3 rounded-xl border text-center transition-all ${isDone ? 'bg-primary/5 border-primary/20 cursor-pointer hover:bg-primary/10' : 'bg-card border-border'}`}
+              >
+                {isDone && <CheckCircle2 className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-lime" />}
+                <BookOpen className={`w-6 h-6 mx-auto ${isDone ? 'text-primary' : 'text-muted-foreground/40'}`} />
+                <p className="text-[10px] font-medium text-foreground mt-1.5 truncate">{book.name}</p>
+                <p className="text-[9px] text-muted-foreground">{read}/{book.chapters}</p>
+                <div className="mt-1">
+                  <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${book.testament === 'AT' ? 'bg-blue-500/10 text-blue-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                    {book.testament}
+                  </span>
+                </div>
+                {!isDone && (
+                  <div className="h-1 w-full bg-muted rounded-full overflow-hidden mt-1.5">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

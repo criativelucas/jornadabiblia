@@ -25,6 +25,7 @@ import DailyVerseModal from "@/components/DailyVerseModal";
 import MilestoneUnlockModal from "@/components/MilestoneUnlockModal";
 import BookTrophyModal from "@/components/BookTrophyModal";
 import MindMapView from "@/components/MindMapView";
+import ConfirmModal from "@/components/ConfirmModal";
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
 import { toast } from "sonner";
@@ -269,65 +270,83 @@ const Index = () => {
     toast.success(`Plano criado! Meta: ${perDay} capítulos/dia 📖`);
   };
 
+  // ── Confirm modal state ─────────────────────────────────────────
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string; message: string; confirmLabel: string; variant: "danger" | "default"; onConfirm: () => void;
+  } | null>(null);
+
   const toggleDay = async (monthIndex: number, dayIndex: number) => {
     if (!user) {
       navigate("/auth");
       return;
     }
     const dayId = `${monthIndex}-${dayIndex}`;
+    const prev = new Set(completedDays);
     const newCompleted = new Set(completedDays);
     const today = getTodayStr();
     const yesterday = getYesterdayStr();
+
     if (newCompleted.has(dayId)) {
       newCompleted.delete(dayId);
-      await supabase
-        .from("completed_days")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("month_index", monthIndex)
-        .eq("day_index", dayIndex)
-        .eq("plan_id", selectedPlan);
+      setCompletedDays(newCompleted); // Optimistic
+      try {
+        await supabase
+          .from("completed_days")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("month_index", monthIndex)
+          .eq("day_index", dayIndex)
+          .eq("plan_id", selectedPlan);
+      } catch {
+        setCompletedDays(prev);
+        toast.error("Erro ao salvar. Tente novamente.");
+      }
     } else {
       newCompleted.add(dayId);
-      await supabase
-        .from("completed_days")
-        .insert({ user_id: user.id, month_index: monthIndex, day_index: dayIndex, plan_id: selectedPlan } as any);
-      let newStreak = streak;
-      let newLongest = longestStreak;
-      let newUnlocked = [...unlockedMilestones];
-      if (lastReadDate !== today) {
-        newStreak = lastReadDate === yesterday ? streak + 1 : 1;
-        if (newStreak > newLongest) newLongest = newStreak;
-        let newMilestone: Milestone | null = null;
-        for (const m of milestones) {
-          if (newStreak >= m.dias && !newUnlocked.includes(m.dias)) {
-            newUnlocked.push(m.dias);
-            newMilestone = m;
-          }
-        }
-        setStreak(newStreak);
-        setLongestStreak(newLongest);
-        setLastReadDate(today);
-        setUnlockedMilestones(newUnlocked);
+      setCompletedDays(newCompleted); // Optimistic
+      try {
         await supabase
-          .from("profiles")
-          .update({
-            streak: newStreak,
-            longest_streak: newLongest,
-            last_read_date: today,
-            unlocked_milestones: newUnlocked,
-            plan_start_date: planStartDate || today,
-          } as any)
-          .eq("user_id", user.id);
-        if (!planStartDate) setPlanStartDate(today);
-        if (newMilestone) setPendingMilestone(newMilestone);
+          .from("completed_days")
+          .insert({ user_id: user.id, month_index: monthIndex, day_index: dayIndex, plan_id: selectedPlan } as any);
+        let newStreak = streak;
+        let newLongest = longestStreak;
+        let newUnlocked = [...unlockedMilestones];
+        if (lastReadDate !== today) {
+          newStreak = lastReadDate === yesterday ? streak + 1 : 1;
+          if (newStreak > newLongest) newLongest = newStreak;
+          let newMilestone: Milestone | null = null;
+          for (const m of milestones) {
+            if (newStreak >= m.dias && !newUnlocked.includes(m.dias)) {
+              newUnlocked.push(m.dias);
+              newMilestone = m;
+            }
+          }
+          setStreak(newStreak);
+          setLongestStreak(newLongest);
+          setLastReadDate(today);
+          setUnlockedMilestones(newUnlocked);
+          await supabase
+            .from("profiles")
+            .update({
+              streak: newStreak,
+              longest_streak: newLongest,
+              last_read_date: today,
+              unlocked_milestones: newUnlocked,
+              plan_start_date: planStartDate || today,
+            } as any)
+            .eq("user_id", user.id);
+          if (!planStartDate) setPlanStartDate(today);
+          if (newMilestone) setPendingMilestone(newMilestone);
+        }
+        checkBookCompletion(newCompleted);
+      } catch {
+        setCompletedDays(prev);
+        toast.error("Erro ao salvar. Tente novamente.");
       }
-      checkBookCompletion(newCompleted);
     }
-    setCompletedDays(newCompleted);
   };
 
-  const markMonthComplete = async (monthIndex: number) => {
+  const markMonthComplete = (monthIndex: number) => {
     if (!user) {
       navigate("/auth");
       return;
@@ -336,37 +355,46 @@ const Index = () => {
     if (!month) return;
     const unread = month.map((_, i) => i).filter((i) => !completedDays.has(`${monthIndex}-${i}`));
     if (unread.length === 0) return;
-    if (!confirm(`Marcar todos os ${unread.length} dias restantes deste mês como lidos?`)) return;
-    const newCompleted = new Set(completedDays);
-    const inserts = unread.map((i) => ({
-      user_id: user.id,
-      month_index: monthIndex,
-      day_index: i,
-      plan_id: selectedPlan,
-    }));
-    await supabase.from("completed_days").insert(inserts as any);
-    unread.forEach((i) => newCompleted.add(`${monthIndex}-${i}`));
-    const today = getTodayStr();
-    const yesterday = getYesterdayStr();
-    if (lastReadDate !== today) {
-      const newStreak = lastReadDate === yesterday ? streak + 1 : 1;
-      const newLongest = Math.max(newStreak, longestStreak);
-      setStreak(newStreak);
-      setLongestStreak(newLongest);
-      setLastReadDate(today);
-      await supabase
-        .from("profiles")
-        .update({
-          streak: newStreak,
-          longest_streak: newLongest,
-          last_read_date: today,
-          plan_start_date: planStartDate || today,
-        } as any)
-        .eq("user_id", user.id);
-    }
-    checkBookCompletion(newCompleted);
-    setCompletedDays(newCompleted);
-    toast.success(`Mês ${monthIndex + 1} marcado como lido!`);
+
+    setConfirmModal({
+      title: "Concluir mês?",
+      message: `Marcar todos os ${unread.length} dias restantes deste mês como lidos?`,
+      confirmLabel: "Marcar todos",
+      variant: "default",
+      onConfirm: async () => {
+        setConfirmModal(null);
+        const newCompleted = new Set(completedDays);
+        const inserts = unread.map((i) => ({
+          user_id: user!.id,
+          month_index: monthIndex,
+          day_index: i,
+          plan_id: selectedPlan,
+        }));
+        await supabase.from("completed_days").insert(inserts as any);
+        unread.forEach((i) => newCompleted.add(`${monthIndex}-${i}`));
+        const today = getTodayStr();
+        const yesterday = getYesterdayStr();
+        if (lastReadDate !== today) {
+          const newStreak = lastReadDate === yesterday ? streak + 1 : 1;
+          const newLongest = Math.max(newStreak, longestStreak);
+          setStreak(newStreak);
+          setLongestStreak(newLongest);
+          setLastReadDate(today);
+          await supabase
+            .from("profiles")
+            .update({
+              streak: newStreak,
+              longest_streak: newLongest,
+              last_read_date: today,
+              plan_start_date: planStartDate || today,
+            } as any)
+            .eq("user_id", user!.id);
+        }
+        checkBookCompletion(newCompleted);
+        setCompletedDays(newCompleted);
+        toast.success(`Mês ${monthIndex + 1} marcado como lido!`);
+      },
+    });
   };
 
   const toggleExpand = (dayId: string, e: React.MouseEvent) => {
@@ -461,6 +489,17 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {confirmModal && (
+        <ConfirmModal
+          isOpen
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmLabel={confirmModal.confirmLabel}
+          variant={confirmModal.variant}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
       {showVerseModal && <DailyVerseModal onClose={() => setShowVerseModal(false)} />}
       {pendingMilestone && !pendingBookTrophy && (
         <MilestoneUnlockModal milestone={pendingMilestone} onClose={() => setPendingMilestone(null)} />
@@ -535,6 +574,7 @@ const Index = () => {
 
           {!mindMapBook && (
             <>
+              <div key={activeSection} className="section-enter">
               {activeSection === "chat" && <BibleChat />}
               {activeSection === "facts" && <DailyCuriosity />}
               {activeSection === "achieve" && (
@@ -542,6 +582,7 @@ const Index = () => {
                   streak={streak}
                   longestStreak={longestStreak}
                   unlockedMilestones={unlockedMilestones}
+                  onNavigate={setActiveSection}
                 />
               )}
               {activeSection === "trophies" && (
@@ -550,6 +591,7 @@ const Index = () => {
                   allDays={activeDays}
                   months={months}
                   onBookClick={(name) => user && setMindMapBook(name)}
+                  onNavigate={setActiveSection}
                 />
               )}
               {activeSection === "panorama" && (
@@ -1049,6 +1091,7 @@ const Index = () => {
                   )}
                 </>
               )}
+              </div>
             </>
           )}
         </div>
