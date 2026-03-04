@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Award } from "lucide-react";
+import { playBookComplete } from "@/utils/sounds";
 
 interface Props {
   bookName: string;
@@ -78,6 +79,7 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
+    playBookComplete();
     // Pequeno delay para o modal aparecer antes do confetti
     const t = setTimeout(() => {
       if (canvasRef.current) launchConfetti(canvasRef.current);
