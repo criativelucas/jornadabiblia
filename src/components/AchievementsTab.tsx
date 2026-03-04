@@ -3,6 +3,7 @@ import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, 
 import { milestones } from "@/data/streakMilestones";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/Skeleton";
 import type { SectionId } from "./AppSidebar";
 
 const iconMap: Record<string, React.ElementType> = { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown };
@@ -29,9 +30,8 @@ function getLast365Days(): string[] {
 }
 
 function getWeeks(days: string[], readSet: Set<string>) {
-  // Pad start so first day aligns to its weekday (0=Sun)
   const firstDate = new Date(days[0]);
-  const startPad = firstDate.getDay(); // 0–6
+  const startPad = firstDate.getDay();
   const paddedDays: (string | null)[] = [...Array(startPad).fill(null), ...days];
   const weeks: (string | null)[][] = [];
   for (let i = 0; i < paddedDays.length; i += 7) {
@@ -50,7 +50,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
   const [percentile, setPercentile] = useState<number | null>(null);
   const [loadingHeatmap, setLoadingHeatmap] = useState(true);
 
-  // Fetch read dates and percentile
   useEffect(() => {
     if (!user) {
       setLoadingHeatmap(false);
@@ -58,7 +57,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
     }
 
     const fetchData = async () => {
-      // Read dates: from completed_days created_at timestamps
       const { data: daysData } = await supabase.from("completed_days").select("read_date").eq("user_id", user.id);
 
       if (daysData) {
@@ -66,7 +64,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         setReadDates(dates);
       }
 
-      // Percentile: count users with streak <= current user's streak
       if (streak > 0) {
         const { count: totalCount } = await supabase.from("profiles").select("*", { count: "exact", head: true });
 
@@ -91,7 +88,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
   const weeks = getWeeks(allDays, readDates);
   const totalRead = readDates.size;
 
-  // Month label positions (week index where each month starts)
   const monthPositions: { label: string; weekIndex: number }[] = [];
   let lastMonth = -1;
   weeks.forEach((week, wi) => {
@@ -105,7 +101,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
     }
   });
 
-  if (unlockedMilestones.length === 0 && streak === 0 && totalRead === 0) {
+  if (unlockedMilestones.length === 0 && streak === 0 && totalRead === 0 && !loadingHeatmap) {
     return (
       <div className="space-y-6">
         <div className="p-8 rounded-2xl bg-card border border-border text-center">
@@ -130,17 +126,25 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
       <div className="grid grid-cols-2 gap-3">
         <div className="p-5 rounded-2xl bg-card border border-border">
           <p className="text-xs text-muted-foreground font-medium mb-1">Sequência atual</p>
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-500" fill="currentColor" />
-            <span className="text-2xl font-bold text-foreground">{streak}</span>
-          </div>
+          {loadingHeatmap ? (
+            <Skeleton className="skeleton-shimmer h-8 w-16 mt-1" />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-orange-500" fill="currentColor" />
+              <span className="text-2xl font-bold text-foreground">{streak}</span>
+            </div>
+          )}
         </div>
         <div className="p-5 rounded-2xl bg-card border border-border">
           <p className="text-xs text-muted-foreground font-medium mb-1">Maior sequência</p>
-          <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-primary" />
-            <span className="text-2xl font-bold text-foreground">{longestStreak}</span>
-          </div>
+          {loadingHeatmap ? (
+            <Skeleton className="skeleton-shimmer h-8 w-16 mt-1" />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              <span className="text-2xl font-bold text-foreground">{longestStreak}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -177,8 +181,27 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
 
         {loadingHeatmap ? (
-          <div className="h-24 flex items-center justify-center">
-            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-2">
+            {/* Month labels skeleton */}
+            <div className="flex gap-0.5">
+              {[...Array(12)].map((_, i) => (
+                <Skeleton key={i} className="skeleton-shimmer h-3 flex-1 rounded" />
+              ))}
+            </div>
+            {/* Grid skeleton */}
+            <div className="flex gap-0.5">
+              {[...Array(53)].map((_, wi) => (
+                <div key={wi} className="flex flex-col gap-0.5">
+                  {[...Array(7)].map((_, di) => (
+                    <Skeleton
+                      key={di}
+                      className="skeleton-shimmer rounded-[2px]"
+                      style={{ width: 11, height: 11 } as React.CSSProperties}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto scrollbar-hide">
