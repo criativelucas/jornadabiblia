@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, startTransition } from "react";
 import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X } from "lucide-react";
+import { playCheckSound } from "@/utils/sounds";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -303,8 +304,9 @@ const Index = () => {
     } else {
       newCompleted.add(dayId);
       setCompletedDays(newCompleted);
-      // ── Haptic feedback no mobile ──────────────────────────────────
-      if (typeof navigator !== "undefined") navigator.vibrate?.(40);
+      // ── Haptic + sound feedback ────────────────────────────────────
+      if (typeof navigator !== "undefined") navigator.vibrate?.([30, 20, 60]);
+      playCheckSound();
       // ──────────────────────────────────────────────────────────────
       try {
         await supabase

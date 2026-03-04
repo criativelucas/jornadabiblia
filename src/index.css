@@ -77,6 +77,15 @@
   animation: trophy-pulse 1.6s ease-in-out infinite;
 }
 
+/* ─── Pulse glow no botão de check ────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); }
+}
+.check-btn-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
 @tailwind components;
 @tailwind utilities;
 
