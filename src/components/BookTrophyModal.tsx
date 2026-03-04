@@ -8,6 +8,8 @@ interface Props {
   totalChapters: number;
   onClose: () => void;
   onViewMindMap?: () => void;
+  queuePosition?: number;
+  queueTotal?: number;
 }
 
 const bookMessages: Record<string, string> = {
@@ -73,19 +75,28 @@ function launchConfetti(canvas: HTMLCanvasElement) {
 }
 // ──────────────────────────────────────────────────────────────────────
 
-const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMindMap }: Props) => {
+const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMindMap, queuePosition, queueTotal }: Props) => {
   const [visible, setVisible] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     playBookComplete();
-    // Pequeno delay para o modal aparecer antes do confetti
     const t = setTimeout(() => {
       if (canvasRef.current) launchConfetti(canvasRef.current);
     }, 200);
+
+    // Easter egg: Apocalipse theme
+    if (bookName === "Apocalipse") {
+      document.body.classList.add("apocalypse-theme");
+      const timer = setTimeout(() => {
+        document.body.classList.remove("apocalypse-theme");
+      }, 30000);
+      return () => { clearTimeout(t); clearTimeout(timer); document.body.classList.remove("apocalypse-theme"); };
+    }
+
     return () => clearTimeout(t);
-  }, []);
+  }, [bookName]);
 
   const handleClose = () => {
     setVisible(false);
@@ -112,8 +123,41 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/[0.12] text-primary text-[10px] font-bold uppercase tracking-[0.08em]">
             <Award className="w-3.5 h-3.5" />
             Troféu Desbloqueado
+            {queueTotal && queueTotal > 1 && (
+              <span className="ml-1 text-muted-foreground">
+                ({queuePosition} de {queueTotal})
+              </span>
+            )}
           </span>
         </div>
+
+        {/* Easter egg: Jonas waves */}
+        {bookName === "Jonas" && (
+          <div className="absolute bottom-0 left-0 right-0 h-16 overflow-hidden rounded-b-3xl pointer-events-none">
+            <div className="absolute bottom-0 left-0 w-[200%] h-8 bg-blue-500/30 rounded-[40%]" style={{ animation: "wave 3s ease-in-out infinite" }} />
+            <div className="absolute bottom-0 left-0 w-[200%] h-6 bg-blue-500/20 rounded-[40%]" style={{ animation: "wave 3.5s ease-in-out infinite 0.5s" }} />
+          </div>
+        )}
+
+        {/* Easter egg: Salmos stars */}
+        {bookName === "Salmos" && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+            {Array.from({ length: 15 }).map((_, i) => (
+              <span
+                key={i}
+                className="absolute text-yellow-400"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `-10px`,
+                  fontSize: `${10 + Math.random() * 8}px`,
+                  animation: `star-fall ${2 + Math.random() * 3}s linear ${Math.random() * 2}s infinite`,
+                }}
+              >
+                ✦
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Icon com pulse */}
         <div className="w-24 h-24 rounded-full mx-auto mb-5 flex items-center justify-center bg-primary/10 border border-primary/20 animate-trophy-pulse">

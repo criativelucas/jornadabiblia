@@ -27,6 +27,10 @@ import MilestoneUnlockModal from "@/components/MilestoneUnlockModal";
 import BookTrophyModal from "@/components/BookTrophyModal";
 import MindMapView from "@/components/MindMapView";
 import ConfirmModal from "@/components/ConfirmModal";
+import DynamicGreeting from "@/components/DynamicGreeting";
+import StreakTree from "@/components/StreakTree";
+import NextAchievement from "@/components/NextAchievement";
+import WeeklyRanking from "@/components/WeeklyRanking";
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
 import { toast } from "sonner";
@@ -72,11 +76,9 @@ const Index = () => {
   const [planStartDate, setPlanStartDate] = useState("");
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [pendingMilestone, setPendingMilestone] = useState<Milestone | null>(null);
-  const [pendingBookTrophy, setPendingBookTrophy] = useState<{
-    name: string;
-    category: string;
-    chapters: number;
-  } | null>(null);
+  const [trophyQueue, setTrophyQueue] = useState<
+    { name: string; category: string; chapters: number }[]
+  >([]);
   const [mindMapBook, setMindMapBook] = useState<string | null>(null);
 
   // ── Custom plan states ────────────────────────────────────────────
@@ -191,13 +193,16 @@ const Index = () => {
 
   const checkBookCompletion = (newCompleted: Set<string>) => {
     const newRead = getReadChaptersByBook(newCompleted, activeDays, months);
+    const newTrophies: { name: string; category: string; chapters: number }[] = [];
     for (const book of bibleBooks) {
       const prevRead = readChapters.get(book.name)?.size || 0;
       const newReadCount = newRead.get(book.name)?.size || 0;
       if (prevRead < book.chapters && newReadCount >= book.chapters) {
-        setPendingBookTrophy({ name: book.name, category: book.category, chapters: book.chapters });
-        return;
+        newTrophies.push({ name: book.name, category: book.category, chapters: book.chapters });
       }
+    }
+    if (newTrophies.length > 0) {
+      setTrophyQueue((prev) => [...prev, ...newTrophies]);
     }
   };
 
@@ -509,22 +514,25 @@ const Index = () => {
         />
       )}
       {showVerseModal && <DailyVerseModal onClose={() => setShowVerseModal(false)} />}
-      {pendingMilestone && !pendingBookTrophy && (
+      {pendingMilestone && trophyQueue.length === 0 && (
         <MilestoneUnlockModal milestone={pendingMilestone} onClose={() => setPendingMilestone(null)} />
       )}
-      {pendingBookTrophy && (
+      {trophyQueue.length > 0 && (
         <BookTrophyModal
-          bookName={pendingBookTrophy.name}
-          category={pendingBookTrophy.category}
-          totalChapters={pendingBookTrophy.chapters}
+          bookName={trophyQueue[0].name}
+          category={trophyQueue[0].category}
+          totalChapters={trophyQueue[0].chapters}
+          queuePosition={1}
+          queueTotal={trophyQueue.length}
           onClose={() => {
-            setPendingBookTrophy(null);
+            setTrophyQueue((prev) => prev.slice(1));
           }}
           onViewMindMap={
             user
               ? () => {
-                  setPendingBookTrophy(null);
-                  setMindMapBook(pendingBookTrophy.name);
+                  const bookName = trophyQueue[0].name;
+                  setTrophyQueue((prev) => prev.slice(1));
+                  setMindMapBook(bookName);
                 }
               : undefined
           }
@@ -586,12 +594,15 @@ const Index = () => {
                 {activeSection === "chat" && <BibleChat />}
                 {activeSection === "facts" && <DailyCuriosity />}
                 {activeSection === "achieve" && (
-                  <AchievementsTab
-                    streak={streak}
-                    longestStreak={longestStreak}
-                    unlockedMilestones={unlockedMilestones}
-                    onNavigate={setActiveSection}
-                  />
+                  <div className="space-y-8">
+                    <AchievementsTab
+                      streak={streak}
+                      longestStreak={longestStreak}
+                      unlockedMilestones={unlockedMilestones}
+                      onNavigate={setActiveSection}
+                    />
+                    <WeeklyRanking currentUserId={user?.id} />
+                  </div>
                 )}
                 {activeSection === "trophies" && (
                   <TrophiesTab
@@ -610,6 +621,8 @@ const Index = () => {
                 {/* ── HOME ───────────────────────────────────────────── */}
                 {activeSection === "home" && (
                   <>
+                    <DynamicGreeting displayName={displayName} />
+                    <StreakTree streak={streak} />
                     {recovery && (
                       <RecoveryBanner
                         behindChapters={recovery.behind}
@@ -617,6 +630,7 @@ const Index = () => {
                         daysRemaining={recovery.remaining}
                       />
                     )}
+                    <NextAchievement completedDays={completedDays} allDays={activeDays} months={months} />
                     <div className="mb-5 p-5 rounded-2xl bg-card border border-border">
                       <div className="flex justify-between items-end mb-3">
                         <div>

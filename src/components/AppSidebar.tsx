@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import {
   Home,
   Calendar,
@@ -157,6 +158,7 @@ const AppSidebar = ({
   avatarUrl,
   onAvatarChange,
 }: Props) => {
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -215,7 +217,10 @@ const AppSidebar = ({
         )}
         {isLoggedIn && (
           <>
-            <div className="flex items-center gap-3 px-3 py-2">
+            <div
+              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted rounded-[10px] transition-all"
+              onClick={() => navigate("/profile")}
+            >
               <UserAvatar
                 displayName={displayName}
                 userId={userId}
@@ -338,7 +343,10 @@ const AppSidebar = ({
             )}
             {isLoggedIn && (
               <>
-                <div className="flex items-center gap-3 px-3 py-2">
+                <div
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted rounded-[10px] transition-all"
+                  onClick={() => navigate("/profile")}
+                >
                   <UserAvatar
                     displayName={displayName}
                     userId={userId}
