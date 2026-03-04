@@ -103,7 +103,7 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-/* ─── Sway (folhas da árvore) ─────────────────────────────── */
+/* ─── Sway animation para folhas da árvore ────────────────── */
 @keyframes sway {
   0%,
   100% {
@@ -129,7 +129,7 @@
   animation: sway-reverse 3.5s ease-in-out infinite;
 }
 
-/* ─── Wave (easter egg Jonas) ─────────────────────────────── */
+/* ─── Wave animation (easter egg Jonas) ───────────────────── */
 @keyframes wave {
   0% {
     transform: translateX(0) scaleY(1);
@@ -142,7 +142,7 @@
   }
 }
 
-/* ─── Apocalypse theme ────────────────────────────────────── */
+/* ─── Apocalypse theme override ───────────────────────────── */
 .apocalypse-theme {
   --primary: 0 84% 55%;
   --background: 0 10% 8%;
@@ -150,7 +150,7 @@
   transition: all 1.5s ease;
 }
 
-/* ─── Star fall (easter egg Salmos) ──────────────────────── */
+/* ─── Star fall (easter egg Salmos) ───────────────────────── */
 @keyframes star-fall {
   0% {
     transform: translateY(-20px) rotate(0deg);
