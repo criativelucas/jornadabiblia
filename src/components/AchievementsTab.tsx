@@ -15,7 +15,6 @@ interface Props {
   onNavigate?: (section: SectionId) => void;
 }
 
-// ─── Heatmap helpers ───────────────────────────────────────────────────────────
 function getLast365Days(): string[] {
   const days: string[] = [];
   const today = new Date();
@@ -32,17 +31,13 @@ function getLast365Days(): string[] {
 function getWeeks(days: string[], readSet: Set<string>) {
   const firstDate = new Date(days[0]);
   const startPad = firstDate.getDay();
-  const paddedDays: (string | null)[] = [...Array(startPad).fill(null), ...days];
+  const padded: (string | null)[] = [...Array(startPad).fill(null), ...days];
   const weeks: (string | null)[][] = [];
-  for (let i = 0; i < paddedDays.length; i += 7) {
-    weeks.push(paddedDays.slice(i, i + 7));
-  }
+  for (let i = 0; i < padded.length; i += 7) weeks.push(padded.slice(i, i + 7));
   return weeks;
 }
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-// ──────────────────────────────────────────────────────────────────────────────
 
 const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate }: Props) => {
   const { user } = useAuth();
@@ -55,32 +50,21 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
       setLoadingHeatmap(false);
       return;
     }
-
     const fetchData = async () => {
       const { data: daysData } = await supabase.from("completed_days").select("read_date").eq("user_id", user.id);
-
       if (daysData) {
-        const dates = new Set(daysData.map((r) => (r as any).read_date as string).filter(Boolean));
-        setReadDates(dates);
+        setReadDates(new Set(daysData.map((r) => (r as any).read_date as string).filter(Boolean)));
       }
-
       if (streak > 0) {
         const { count: totalCount } = await supabase.from("profiles").select("*", { count: "exact", head: true });
-
         const { count: belowCount } = await supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
           .lte("streak", streak);
-
-        if (totalCount && belowCount && totalCount > 1) {
-          const pct = Math.round((belowCount / totalCount) * 100);
-          setPercentile(pct);
-        }
+        if (totalCount && belowCount && totalCount > 1) setPercentile(Math.round((belowCount / totalCount) * 100));
       }
-
       setLoadingHeatmap(false);
     };
-
     fetchData();
   }, [user, streak]);
 
@@ -122,7 +106,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
 
   return (
     <div className="space-y-6">
-      {/* ── Stats ────────────────────────────────────────────────────── */}
+      {/* ── Stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-5 rounded-2xl bg-card border border-border">
           <p className="text-xs text-muted-foreground font-medium mb-1">Sequência atual</p>
@@ -148,7 +132,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       </div>
 
-      {/* ── Percentil ────────────────────────────────────────────────── */}
+      {/* ── Percentil ─────────────────────────────────────────── */}
       {percentile !== null && percentile >= 10 && (
         <div className="p-4 rounded-2xl bg-primary/[0.07] border border-primary/20 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
@@ -165,7 +149,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       )}
 
-      {/* ── Heatmap anual ────────────────────────────────────────────── */}
+      {/* ── Heatmap anual ─────────────────────────────────────── */}
       <div className="p-4 rounded-2xl bg-card border border-border">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Leituras no ano</p>
@@ -181,23 +165,19 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
 
         {loadingHeatmap ? (
-          <div className="space-y-2">
-            {/* Month labels skeleton */}
+          <div className="space-y-1.5 overflow-hidden">
+            {/* Month label skeletons */}
             <div className="flex gap-0.5">
               {[...Array(12)].map((_, i) => (
-                <Skeleton key={i} className="skeleton-shimmer h-3 flex-1 rounded" />
+                <Skeleton key={i} className="skeleton-shimmer h-2.5 flex-1 rounded" />
               ))}
             </div>
-            {/* Grid skeleton */}
+            {/* Grid skeletons */}
             <div className="flex gap-0.5">
               {[...Array(53)].map((_, wi) => (
                 <div key={wi} className="flex flex-col gap-0.5">
                   {[...Array(7)].map((_, di) => (
-                    <Skeleton
-                      key={di}
-                      className="skeleton-shimmer rounded-[2px]"
-                      style={{ width: 11, height: 11 } as React.CSSProperties}
-                    />
+                    <Skeleton key={di} className="skeleton-shimmer rounded-[2px]" style={{ width: 11, height: 11 }} />
                   ))}
                 </div>
               ))}
@@ -224,7 +204,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
                   );
                 })}
               </div>
-
               {/* Grid */}
               <div className="flex" style={{ gap: "2px" }}>
                 {weeks.map((week, wi) => (
@@ -252,7 +231,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
                   </div>
                 ))}
               </div>
-
               {/* Legend */}
               <div className="flex items-center gap-2 mt-2 justify-end">
                 <span className="text-[9px] text-muted-foreground">Menos</span>
@@ -275,7 +253,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         )}
       </div>
 
-      {/* ── Próximos marcos ──────────────────────────────────────────── */}
+      {/* ── Próximos marcos ───────────────────────────────────── */}
       {streak > 0 && (
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Próximos marcos</p>
@@ -306,7 +284,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       )}
 
-      {/* ── Lista de conquistas ───────────────────────────────────────── */}
+      {/* ── Lista de conquistas ───────────────────────────────── */}
       <div className="space-y-2">
         {milestones.map((m) => {
           const unlocked = unlockedMilestones.includes(m.dias);
