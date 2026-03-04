@@ -14,6 +14,7 @@ import {
 } from "@/data/planData";
 import { milestones } from "@/data/streakMilestones";
 import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
+import { MonthCardSkeleton } from "@/components/Skeleton";
 import CommentSection from "@/components/CommentSection";
 import BibleChat from "@/components/BibleChat";
 import DailyCuriosity from "@/components/DailyCuriosity";
@@ -54,7 +55,6 @@ const iconMap: Record<string, React.ElementType> = {
   Music: Award,
   Crown: Award,
 };
-
 const SCOPE_LABELS: Record<string, string> = {
   biblia: "Bíblia inteira",
   at: "Antigo Testamento",
@@ -76,10 +76,9 @@ const Index = () => {
   const [planStartDate, setPlanStartDate] = useState("");
   const [showVerseModal, setShowVerseModal] = useState(false);
   const [pendingMilestone, setPendingMilestone] = useState<Milestone | null>(null);
-  const [trophyQueue, setTrophyQueue] = useState<
-    { name: string; category: string; chapters: number }[]
-  >([]);
+  const [trophyQueue, setTrophyQueue] = useState<{ name: string; category: string; chapters: number }[]>([]);
   const [mindMapBook, setMindMapBook] = useState<string | null>(null);
+  const [progressLoading, setProgressLoading] = useState(true);
 
   // ── Custom plan states ────────────────────────────────────────────
   const [customConfig, setCustomConfig] = useState<CustomPlanConfig | null>(null);
@@ -95,7 +94,6 @@ const Index = () => {
   const navigate = useNavigate();
 
   const currentPlan = planOptions.find((p) => p.id === selectedPlan) || planOptions[1];
-
   const activeDays = useMemo(
     () => (selectedPlan === "custom" ? customDays : currentPlan.days),
     [selectedPlan, customDays, currentPlan],
@@ -110,7 +108,6 @@ const Index = () => {
     () => getReadChaptersByBook(completedDays, activeDays, months),
     [completedDays, activeDays, months],
   );
-
   const totalChaptersInPlan = useMemo(() => {
     if (selectedPlan === "custom" && customConfig) return getTotalChaptersForConfig(customConfig);
     return 1189;
@@ -118,18 +115,15 @@ const Index = () => {
 
   const recovery = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
-    const totalPlanDays = activeDays.length;
     const start = new Date(planStartDate);
-    const now = new Date();
-    const elapsed = Math.floor((now.getTime() - start.getTime()) / 86400000);
-    if (elapsed <= 0 || elapsed >= totalPlanDays) return null;
-    const expectedChapters = Math.round((elapsed / totalPlanDays) * totalChaptersInPlan);
-    const chaptersRead = Math.round((completedDays.size / totalPlanDays) * totalChaptersInPlan);
-    const behind = expectedChapters - chaptersRead;
+    const elapsed = Math.floor((new Date().getTime() - start.getTime()) / 86400000);
+    if (elapsed <= 0 || elapsed >= activeDays.length) return null;
+    const expected = Math.round((elapsed / activeDays.length) * totalChaptersInPlan);
+    const read = Math.round((completedDays.size / activeDays.length) * totalChaptersInPlan);
+    const behind = expected - read;
     if (behind < 15) return null;
-    const remaining = totalPlanDays - elapsed;
-    const newDaily = Math.ceil((totalChaptersInPlan - chaptersRead) / remaining);
-    return { behind, newDaily, remaining };
+    const remaining = activeDays.length - elapsed;
+    return { behind, newDaily: Math.ceil((totalChaptersInPlan - read) / remaining), remaining };
   }, [completedDays, planStartDate, activeDays, totalChaptersInPlan]);
 
   useEffect(() => {
@@ -181,12 +175,14 @@ const Index = () => {
   useEffect(() => {
     if (!user) return;
     const loadProgress = async () => {
+      setProgressLoading(true);
       const { data } = await supabase
         .from("completed_days")
         .select("month_index, day_index")
         .eq("user_id", user.id)
         .eq("plan_id", selectedPlan);
       if (data) setCompletedDays(new Set(data.map((d) => `${d.month_index}-${d.day_index}`)));
+      setProgressLoading(false);
     };
     loadProgress();
   }, [user, selectedPlan]);
@@ -197,13 +193,10 @@ const Index = () => {
     for (const book of bibleBooks) {
       const prevRead = readChapters.get(book.name)?.size || 0;
       const newReadCount = newRead.get(book.name)?.size || 0;
-      if (prevRead < book.chapters && newReadCount >= book.chapters) {
+      if (prevRead < book.chapters && newReadCount >= book.chapters)
         newTrophies.push({ name: book.name, category: book.category, chapters: book.chapters });
-      }
     }
-    if (newTrophies.length > 0) {
-      setTrophyQueue((prev) => [...prev, ...newTrophies]);
-    }
+    if (newTrophies.length > 0) setTrophyQueue((prev) => [...prev, ...newTrophies]);
   };
 
   const handlePlanChange = async (planId: string) => {
@@ -221,12 +214,11 @@ const Index = () => {
 
   const handleStartDateChange = async (val: string) => {
     setPlanStartDate(val);
-    if (user) {
+    if (user)
       await supabase
         .from("profiles")
         .update({ plan_start_date: val } as any)
         .eq("user_id", user.id);
-    }
   };
 
   const handleActivateCustomPlan = async () => {
@@ -240,14 +232,12 @@ const Index = () => {
         : formDurationUnit === "meses"
           ? formDuration * 30
           : formDuration;
-
     const config: CustomPlanConfig = {
       scope: formScope,
       selectedBooks: formScope === "livros" ? formBooks : [],
       durationDays: durationInDays,
       startDate: formStartDate,
     };
-
     const days = generateCustomDays(config);
     setCustomConfig(config);
     setCustomDays(days);
@@ -255,7 +245,6 @@ const Index = () => {
     setPlanStartDate(formStartDate);
     setShowCustomForm(false);
     setSelectedMonth(0);
-
     if (user) {
       await supabase
         .from("profiles")
@@ -266,10 +255,8 @@ const Index = () => {
         } as any)
         .eq("user_id", user.id);
     }
-
     const totalCh = getTotalChaptersForConfig(config);
-    const perDay = Math.ceil(totalCh / Math.max(durationInDays, 1));
-    toast.success(`Plano criado! Meta: ${perDay} capítulos/dia 📖`);
+    toast.success(`Plano criado! Meta: ${Math.ceil(totalCh / Math.max(durationInDays, 1))} capítulos/dia 📖`);
   };
 
   const [confirmModal, setConfirmModal] = useState<{
@@ -309,20 +296,16 @@ const Index = () => {
     } else {
       newCompleted.add(dayId);
       setCompletedDays(newCompleted);
-      // ── Haptic + sound feedback ────────────────────────────────────
       if (typeof navigator !== "undefined") navigator.vibrate?.([30, 20, 60]);
       playCheckSound();
-      // ──────────────────────────────────────────────────────────────
       try {
-        await supabase
-          .from("completed_days")
-          .insert({
-            user_id: user.id,
-            month_index: monthIndex,
-            day_index: dayIndex,
-            plan_id: selectedPlan,
-            read_date: getTodayStr(),
-          } as any);
+        await supabase.from("completed_days").insert({
+          user_id: user.id,
+          month_index: monthIndex,
+          day_index: dayIndex,
+          plan_id: selectedPlan,
+          read_date: getTodayStr(),
+        } as any);
         let newStreak = streak;
         let newLongest = longestStreak;
         let newUnlocked = [...unlockedMilestones];
@@ -370,7 +353,6 @@ const Index = () => {
     if (!month) return;
     const unread = month.map((_, i) => i).filter((i) => !completedDays.has(`${monthIndex}-${i}`));
     if (unread.length === 0) return;
-
     setConfirmModal({
       title: "Concluir mês?",
       message: `Marcar todos os ${unread.length} dias restantes deste mês como lidos?`,
@@ -425,39 +407,35 @@ const Index = () => {
 
   const recentAchievements = useMemo(() => {
     const achievements: { type: "streak" | "book"; label: string; icon: string; color: string }[] = [];
-    const sortedMilestones = [...milestones]
+    [...milestones]
       .filter((m) => unlockedMilestones.includes(m.dias))
-      .sort((a, b) => b.dias - a.dias);
-    sortedMilestones.slice(0, 3).forEach((m) => {
-      achievements.push({ type: "streak", label: m.titulo, icon: m.icon, color: m.cor });
-    });
-    const completedBooks = bibleBooks.filter((b) => (readChapters.get(b.name)?.size || 0) >= b.chapters);
-    completedBooks.slice(-3).forEach((b) => {
-      if (achievements.length < 3)
-        achievements.push({ type: "book", label: b.name, icon: "BookOpen", color: "#1A56FF" });
-    });
+      .sort((a, b) => b.dias - a.dias)
+      .slice(0, 3)
+      .forEach((m) => achievements.push({ type: "streak", label: m.titulo, icon: m.icon, color: m.cor }));
+    bibleBooks
+      .filter((b) => (readChapters.get(b.name)?.size || 0) >= b.chapters)
+      .slice(-3)
+      .forEach((b) => {
+        if (achievements.length < 3)
+          achievements.push({ type: "book", label: b.name, icon: "BookOpen", color: "#1A56FF" });
+      });
     return achievements.slice(0, 3);
   }, [unlockedMilestones, readChapters]);
 
   const dailyGoal = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
-    const totalPlanDays = activeDays.length;
-    const start = new Date(planStartDate);
-    const now = new Date();
-    const elapsed = Math.floor((now.getTime() - start.getTime()) / 86400000);
-    const remaining = totalPlanDays - elapsed;
+    const elapsed = Math.floor((new Date().getTime() - new Date(planStartDate).getTime()) / 86400000);
+    const remaining = activeDays.length - elapsed;
     if (remaining <= 0) return null;
-    const chaptersRead = Math.round((completedDays.size / totalPlanDays) * totalChaptersInPlan);
-    const chaptersLeft = totalChaptersInPlan - chaptersRead;
-    return Math.ceil(chaptersLeft / remaining);
+    const chaptersRead = Math.round((completedDays.size / activeDays.length) * totalChaptersInPlan);
+    return Math.ceil((totalChaptersInPlan - chaptersRead) / remaining);
   }, [completedDays, planStartDate, activeDays, totalChaptersInPlan]);
 
   const daysRemaining = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
     const elapsed = Math.floor((new Date().getTime() - new Date(planStartDate).getTime()) / 86400000);
     const rem = activeDays.length - elapsed;
-    if (rem < 0) return 0;
-    return rem;
+    return rem < 0 ? 0 : rem;
   }, [planStartDate, activeDays]);
 
   const formPreview = useMemo(() => {
@@ -496,7 +474,6 @@ const Index = () => {
     facts: "Descobertas",
     gallery: "Galeria",
   };
-
   const planLabel =
     selectedPlan === "custom" && customConfig ? `Meu Plano · ${SCOPE_LABELS[customConfig.scope]}` : currentPlan.label;
 
@@ -524,15 +501,13 @@ const Index = () => {
           totalChapters={trophyQueue[0].chapters}
           queuePosition={1}
           queueTotal={trophyQueue.length}
-          onClose={() => {
-            setTrophyQueue((prev) => prev.slice(1));
-          }}
+          onClose={() => setTrophyQueue((prev) => prev.slice(1))}
           onViewMindMap={
             user
               ? () => {
-                  const bookName = trophyQueue[0].name;
-                  setTrophyQueue((prev) => prev.slice(1));
-                  setMindMapBook(bookName);
+                  const n = trophyQueue[0].name;
+                  setTrophyQueue((p) => p.slice(1));
+                  setMindMapBook(n);
                 }
               : undefined
           }
@@ -549,9 +524,9 @@ const Index = () => {
         isLoggedIn={!!user}
         streak={streak}
       />
+
       <main className="lg:ml-16 xl:ml-56 pt-16 lg:pt-0 min-h-screen">
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          {/* Desktop header */}
           <div className="hidden lg:flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-foreground">{sectionTitle[activeSection]}</h1>
             <div className="flex items-center gap-3">
@@ -578,7 +553,6 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Mind Map View */}
           {mindMapBook && user && (
             <div className="mb-6">
               <button onClick={() => setMindMapBook(null)} className="text-xs text-primary mb-3 hover:underline">
@@ -589,461 +563,455 @@ const Index = () => {
           )}
 
           {!mindMapBook && (
-            <>
-              <div key={activeSection} className="section-enter">
-                {activeSection === "chat" && <BibleChat />}
-                {activeSection === "facts" && <DailyCuriosity />}
-                {activeSection === "achieve" && (
-                  <div className="space-y-8">
-                    <AchievementsTab
-                      streak={streak}
-                      longestStreak={longestStreak}
-                      unlockedMilestones={unlockedMilestones}
-                      onNavigate={setActiveSection}
-                    />
-                    <WeeklyRanking currentUserId={user?.id} />
-                  </div>
-                )}
-                {activeSection === "trophies" && (
-                  <TrophiesTab
-                    completedDays={completedDays}
-                    allDays={activeDays}
-                    months={months}
-                    onBookClick={(name) => user && setMindMapBook(name)}
+            <div key={activeSection} className="section-enter">
+              {activeSection === "chat" && <BibleChat />}
+              {activeSection === "facts" && <DailyCuriosity />}
+              {activeSection === "achieve" && (
+                <div className="space-y-8">
+                  <AchievementsTab
+                    streak={streak}
+                    longestStreak={longestStreak}
+                    unlockedMilestones={unlockedMilestones}
                     onNavigate={setActiveSection}
                   />
-                )}
-                {activeSection === "panorama" && (
-                  <PanoramaTab completedDays={completedDays} allDays={activeDays} months={months} />
-                )}
-                {activeSection === "gallery" && <GalleryTab />}
+                  <WeeklyRanking currentUserId={user?.id} />
+                </div>
+              )}
+              {activeSection === "trophies" && (
+                <TrophiesTab
+                  completedDays={completedDays}
+                  allDays={activeDays}
+                  months={months}
+                  onBookClick={(name) => user && setMindMapBook(name)}
+                  onNavigate={setActiveSection}
+                />
+              )}
+              {activeSection === "panorama" && (
+                <PanoramaTab completedDays={completedDays} allDays={activeDays} months={months} />
+              )}
+              {activeSection === "gallery" && <GalleryTab />}
 
-                {/* ── HOME ───────────────────────────────────────────── */}
-                {activeSection === "home" && (
-                  <>
-                    <DynamicGreeting displayName={displayName} />
-                    <StreakTree streak={streak} />
-                    {recovery && (
-                      <RecoveryBanner
-                        behindChapters={recovery.behind}
-                        newDailyGoal={recovery.newDaily}
-                        daysRemaining={recovery.remaining}
+              {/* ── HOME ─────────────────────────────────────────── */}
+              {activeSection === "home" && (
+                <>
+                  <DynamicGreeting displayName={displayName} />
+                  <StreakTree streak={streak} />
+                  {recovery && (
+                    <RecoveryBanner
+                      behindChapters={recovery.behind}
+                      newDailyGoal={recovery.newDaily}
+                      daysRemaining={recovery.remaining}
+                    />
+                  )}
+                  <NextAchievement completedDays={completedDays} allDays={activeDays} months={months} />
+
+                  <div className="mb-5 p-5 rounded-2xl bg-card border border-border">
+                    <div className="flex justify-between items-end mb-3">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                          Progresso Global
+                        </p>
+                        <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                          {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-lime" />}
+                        </h2>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="text-foreground font-semibold">{completedDays.size}</span> / {totalDays} dias
+                      </p>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out progress-shimmer"
+                        style={{ width: `${progressPercentage}%` }}
                       />
-                    )}
-                    <NextAchievement completedDays={completedDays} allDays={activeDays} months={months} />
-                    <div className="mb-5 p-5 rounded-2xl bg-card border border-border">
-                      <div className="flex justify-between items-end mb-3">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                            Progresso Global
+                    </div>
+                  </div>
+
+                  <div className="mb-5 p-5 rounded-2xl bg-card border border-border border-l-4 border-l-primary">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-grow">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          <p className="text-sm font-bold text-foreground">{planLabel}</p>
+                        </div>
+                        {planStartDate && (
+                          <p className="text-[11px] text-muted-foreground mb-2">
+                            Iniciado em {new Date(planStartDate).toLocaleDateString("pt-BR")}
+                            {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} dias restantes`}
+                            {daysRemaining === 0 && " · Prazo encerrado"}
                           </p>
-                          <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                            {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-lime" />}
-                          </h2>
+                        )}
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-2">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all progress-shimmer"
+                            style={{ width: `${progressPercentage}%` }}
+                          />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          <span className="text-foreground font-semibold">{completedDays.size}</span> / {totalDays} dias
-                        </p>
-                      </div>
-                      {/* ── Shimmer na barra principal ── */}
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-1000 ease-out progress-shimmer"
-                          style={{ width: `${progressPercentage}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Active Plan Summary */}
-                    <div className="mb-5 p-5 rounded-2xl bg-card border border-border border-l-4 border-l-primary">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-grow">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Calendar className="w-4 h-4 text-primary" />
-                            <p className="text-sm font-bold text-foreground">{planLabel}</p>
-                          </div>
-                          {planStartDate && (
-                            <p className="text-[11px] text-muted-foreground mb-2">
-                              Iniciado em {new Date(planStartDate).toLocaleDateString("pt-BR")}
-                              {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} dias restantes`}
-                              {daysRemaining === 0 && " · Prazo encerrado"}
-                            </p>
-                          )}
-                          {/* ── Shimmer na barra do plano ── */}
-                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-2">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all progress-shimmer"
-                              style={{ width: `${progressPercentage}%` }}
-                            />
-                          </div>
-                          {dailyGoal && dailyGoal > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              → Hoje:{" "}
-                              <span className={`font-bold ${recovery ? "text-amber-500" : "text-primary"}`}>
-                                {dailyGoal}
-                              </span>{" "}
-                              capítulos para ler
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setActiveSection("plans")}
-                        className="text-xs text-primary font-medium mt-3 hover:underline"
-                      >
-                        Ver plano completo →
-                      </button>
-                    </div>
-
-                    {/* Recent Achievements */}
-                    <div className="mb-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
-                          Suas Conquistas
-                        </p>
-                        {recentAchievements.length > 0 && (
-                          <button
-                            onClick={() => setActiveSection("achieve")}
-                            className="text-xs text-primary font-medium hover:underline"
-                          >
-                            Ver todas →
-                          </button>
+                        {dailyGoal && dailyGoal > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            → Hoje:{" "}
+                            <span className={`font-bold ${recovery ? "text-amber-500" : "text-primary"}`}>
+                              {dailyGoal}
+                            </span>{" "}
+                            capítulos para ler
+                          </p>
                         )}
                       </div>
-                      {recentAchievements.length === 0 ? (
-                        <div className="p-5 rounded-2xl bg-card border border-border text-center">
-                          <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
-                          <p className="text-xs text-muted-foreground">Nenhuma conquista ainda. Continue lendo!</p>
-                        </div>
-                      ) : (
-                        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
-                          {recentAchievements.map((a, i) => (
-                            <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20">
-                              <div
-                                className="w-12 h-12 rounded-full flex items-center justify-center"
-                                style={{ backgroundColor: a.color + "20" }}
-                              >
-                                {a.type === "book" ? (
-                                  <BookOpen className="w-5 h-5" style={{ color: a.color }} />
-                                ) : (
-                                  <Flame className="w-5 h-5" style={{ color: a.color }} />
-                                )}
-                              </div>
-                              <p className="text-[10px] text-foreground font-medium text-center truncate w-full">
-                                {a.label}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  </>
-                )}
+                    <button
+                      onClick={() => setActiveSection("plans")}
+                      className="text-xs text-primary font-medium mt-3 hover:underline"
+                    >
+                      Ver plano completo →
+                    </button>
+                  </div>
 
-                {/* ── PLANS ──────────────────────────────────────────── */}
-                {activeSection === "plans" && (
-                  <>
-                    {recovery && (
-                      <RecoveryBanner
-                        behindChapters={recovery.behind}
-                        newDailyGoal={recovery.newDaily}
-                        daysRemaining={recovery.remaining}
-                      />
-                    )}
-
-                    {/* Plan Selector */}
-                    <div className="mb-5">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                        Escolha seu plano
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                        Suas Conquistas
                       </p>
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        {planOptions
-                          .filter((p) => p.id !== "custom")
-                          .map((plan) => (
-                            <button
-                              key={plan.id}
-                              onClick={() => handlePlanChange(plan.id)}
-                              className={`p-3 rounded-2xl border text-left transition-all ${selectedPlan === plan.id ? "bg-primary/10 border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"}`}
-                            >
-                              <div
-                                className={`text-base font-bold ${selectedPlan === plan.id ? "text-primary" : "text-foreground"}`}
-                              >
-                                {plan.label}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
-                                {plan.description}
-                              </div>
-                            </button>
-                          ))}
-                      </div>
-
-                      {!showCustomForm && selectedPlan !== "custom" && (
+                      {recentAchievements.length > 0 && (
                         <button
-                          onClick={() => {
-                            setFormStartDate(planStartDate || getTodayStr());
-                            setShowCustomForm(true);
-                          }}
-                          className="w-full p-3 rounded-2xl border border-dashed border-border bg-card text-muted-foreground text-sm hover:bg-muted transition-all flex items-center justify-center gap-2"
+                          onClick={() => setActiveSection("achieve")}
+                          className="text-xs text-primary font-medium hover:underline"
                         >
-                          <Plus className="w-4 h-4" /> Criar plano personalizado
+                          Ver todas →
                         </button>
                       )}
-
-                      {selectedPlan === "custom" && customConfig && !showCustomForm && (
-                        <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-bold text-primary">Meu Plano Personalizado</span>
-                            <button
-                              onClick={() => {
-                                setFormScope(customConfig.scope);
-                                setFormBooks(customConfig.selectedBooks);
-                                setFormDuration(customConfig.durationDays);
-                                setFormDurationUnit("dias");
-                                setFormStartDate(planStartDate || getTodayStr());
-                                setShowCustomForm(true);
-                              }}
-                              className="text-xs text-muted-foreground hover:text-foreground"
+                    </div>
+                    {recentAchievements.length === 0 ? (
+                      <div className="p-5 rounded-2xl bg-card border border-border text-center">
+                        <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
+                        <p className="text-xs text-muted-foreground">Nenhuma conquista ainda. Continue lendo!</p>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+                        {recentAchievements.map((a, i) => (
+                          <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20">
+                            <div
+                              className="w-12 h-12 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: a.color + "20" }}
                             >
-                              Editar
-                            </button>
+                              {a.type === "book" ? (
+                                <BookOpen className="w-5 h-5" style={{ color: a.color }} />
+                              ) : (
+                                <Flame className="w-5 h-5" style={{ color: a.color }} />
+                              )}
+                            </div>
+                            <p className="text-[10px] text-foreground font-medium text-center truncate w-full">
+                              {a.label}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {SCOPE_LABELS[customConfig.scope]} · {customConfig.durationDays} dias
-                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* ── PLANS ────────────────────────────────────────── */}
+              {activeSection === "plans" && (
+                <>
+                  {recovery && (
+                    <RecoveryBanner
+                      behindChapters={recovery.behind}
+                      newDailyGoal={recovery.newDaily}
+                      daysRemaining={recovery.remaining}
+                    />
+                  )}
+
+                  <div className="mb-5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Escolha seu plano
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {planOptions
+                        .filter((p) => p.id !== "custom")
+                        .map((plan) => (
+                          <button
+                            key={plan.id}
+                            onClick={() => handlePlanChange(plan.id)}
+                            className={`p-3 rounded-2xl border text-left transition-all ${selectedPlan === plan.id ? "bg-primary/10 border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"}`}
+                          >
+                            <div
+                              className={`text-base font-bold ${selectedPlan === plan.id ? "text-primary" : "text-foreground"}`}
+                            >
+                              {plan.label}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
+                              {plan.description}
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+
+                    {!showCustomForm && selectedPlan !== "custom" && (
+                      <button
+                        onClick={() => {
+                          setFormStartDate(planStartDate || getTodayStr());
+                          setShowCustomForm(true);
+                        }}
+                        className="w-full p-3 rounded-2xl border border-dashed border-border bg-card text-muted-foreground text-sm hover:bg-muted transition-all flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" /> Criar plano personalizado
+                      </button>
+                    )}
+
+                    {selectedPlan === "custom" && customConfig && !showCustomForm && (
+                      <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-bold text-primary">Meu Plano Personalizado</span>
+                          <button
+                            onClick={() => {
+                              setFormScope(customConfig.scope);
+                              setFormBooks(customConfig.selectedBooks);
+                              setFormDuration(customConfig.durationDays);
+                              setFormDurationUnit("dias");
+                              setFormStartDate(planStartDate || getTodayStr());
+                              setShowCustomForm(true);
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Editar
+                          </button>
                         </div>
-                      )}
+                        <p className="text-xs text-muted-foreground">
+                          {SCOPE_LABELS[customConfig.scope]} · {customConfig.durationDays} dias
+                        </p>
+                      </div>
+                    )}
 
-                      {showCustomForm && (
-                        <div className="p-4 rounded-2xl border border-border bg-card space-y-4 mt-3">
-                          <div className="flex justify-between items-center">
-                            <h3 className="font-bold text-sm text-foreground">Plano personalizado</h3>
-                            <button onClick={() => setShowCustomForm(false)} className="text-muted-foreground">
-                              <X className="w-4 h-4" />
-                            </button>
+                    {showCustomForm && (
+                      <div className="p-4 rounded-2xl border border-border bg-card space-y-4 mt-3">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-bold text-sm text-foreground">Plano personalizado</h3>
+                          <button onClick={() => setShowCustomForm(false)} className="text-muted-foreground">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-2">O que você quer ler?</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: "biblia", label: "Bíblia inteira" },
+                              { id: "at", label: "Antigo Testamento" },
+                              { id: "nt", label: "Novo Testamento" },
+                              { id: "livros", label: "Livros específicos" },
+                            ].map((s) => (
+                              <button
+                                key={s.id}
+                                onClick={() => setFormScope(s.id as any)}
+                                className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${formScope === s.id ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted border-border text-muted-foreground hover:bg-card"}`}
+                              >
+                                {s.label}
+                              </button>
+                            ))}
                           </div>
-
+                        </div>
+                        {formScope === "livros" && (
                           <div>
-                            <label className="text-xs text-muted-foreground block mb-2">O que você quer ler?</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {[
-                                { id: "biblia", label: "Bíblia inteira" },
-                                { id: "at", label: "Antigo Testamento" },
-                                { id: "nt", label: "Novo Testamento" },
-                                { id: "livros", label: "Livros específicos" },
-                              ].map((s) => (
-                                <button
-                                  key={s.id}
-                                  onClick={() => setFormScope(s.id as any)}
-                                  className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${formScope === s.id ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted border-border text-muted-foreground hover:bg-card"}`}
-                                >
-                                  {s.label}
-                                </button>
+                            <label className="text-xs text-muted-foreground block mb-2">
+                              {formBooks.length} livro{formBooks.length !== 1 ? "s" : ""} ·{" "}
+                              {BIBLE_BOOKS_DATA.filter((b) => formBooks.includes(b.name)).reduce(
+                                (s, b) => s + b.chapters,
+                                0,
+                              )}{" "}
+                              capítulos
+                            </label>
+                            <div className="max-h-52 overflow-y-auto border border-border rounded-xl p-3 space-y-2 bg-muted/30">
+                              {(["AT", "NT"] as const).map((testament) => (
+                                <div key={testament}>
+                                  <button
+                                    onClick={() => {
+                                      const bks = BIBLE_BOOKS_DATA.filter((b) => b.testament === testament).map(
+                                        (b) => b.name,
+                                      );
+                                      const allSel = bks.every((b) => formBooks.includes(b));
+                                      setFormBooks((prev) =>
+                                        allSel ? prev.filter((b) => !bks.includes(b)) : [...new Set([...prev, ...bks])],
+                                      );
+                                    }}
+                                    className="text-xs font-bold text-muted-foreground py-1 w-full text-left hover:text-foreground"
+                                  >
+                                    {testament === "AT" ? "— Antigo Testamento" : "— Novo Testamento"}
+                                  </button>
+                                  {BIBLE_BOOKS_DATA.filter((b) => b.testament === testament).map((b) => (
+                                    <label
+                                      key={b.name}
+                                      className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-muted rounded px-1"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formBooks.includes(b.name)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) setFormBooks((p) => [...p, b.name]);
+                                          else setFormBooks((p) => p.filter((n) => n !== b.name));
+                                        }}
+                                        className="accent-primary w-3 h-3"
+                                      />
+                                      <span className="text-xs text-foreground flex-grow">{b.name}</span>
+                                      <span className="text-[10px] text-muted-foreground">{b.chapters}</span>
+                                    </label>
+                                  ))}
+                                </div>
                               ))}
                             </div>
                           </div>
-
-                          {formScope === "livros" && (
-                            <div>
-                              <label className="text-xs text-muted-foreground block mb-2">
-                                {formBooks.length} livro{formBooks.length !== 1 ? "s" : ""} ·{" "}
-                                {BIBLE_BOOKS_DATA.filter((b) => formBooks.includes(b.name)).reduce(
-                                  (s, b) => s + b.chapters,
-                                  0,
-                                )}{" "}
-                                capítulos
-                              </label>
-                              <div className="max-h-52 overflow-y-auto border border-border rounded-xl p-3 space-y-2 bg-muted/30">
-                                {(["AT", "NT"] as const).map((testament) => (
-                                  <div key={testament}>
-                                    <button
-                                      onClick={() => {
-                                        const bks = BIBLE_BOOKS_DATA.filter((b) => b.testament === testament).map(
-                                          (b) => b.name,
-                                        );
-                                        const allSel = bks.every((b) => formBooks.includes(b));
-                                        setFormBooks((prev) =>
-                                          allSel
-                                            ? prev.filter((b) => !bks.includes(b))
-                                            : [...new Set([...prev, ...bks])],
-                                        );
-                                      }}
-                                      className="text-xs font-bold text-muted-foreground py-1 w-full text-left hover:text-foreground"
-                                    >
-                                      {testament === "AT" ? "— Antigo Testamento" : "— Novo Testamento"}
-                                    </button>
-                                    {BIBLE_BOOKS_DATA.filter((b) => b.testament === testament).map((b) => (
-                                      <label
-                                        key={b.name}
-                                        className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-muted rounded px-1"
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={formBooks.includes(b.name)}
-                                          onChange={(e) => {
-                                            if (e.target.checked) setFormBooks((p) => [...p, b.name]);
-                                            else setFormBooks((p) => p.filter((n) => n !== b.name));
-                                          }}
-                                          className="accent-primary w-3 h-3"
-                                        />
-                                        <span className="text-xs text-foreground flex-grow">{b.name}</span>
-                                        <span className="text-[10px] text-muted-foreground">{b.chapters}</span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <label className="text-xs text-muted-foreground block mb-2">Em quanto tempo?</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="number"
-                                min={7}
-                                max={1825}
-                                value={formDuration}
-                                onChange={(e) => setFormDuration(Math.max(1, Number(e.target.value)))}
-                                className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:border-primary/50"
-                              />
-                              <select
-                                value={formDurationUnit}
-                                onChange={(e) => setFormDurationUnit(e.target.value as any)}
-                                className="px-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none"
-                              >
-                                <option value="dias">dias</option>
-                                <option value="semanas">semanas</option>
-                                <option value="meses">meses</option>
-                              </select>
-                            </div>
-                            <p
-                              className={`text-xs mt-2 font-medium ${formPreview.perDay > 20 ? "text-amber-500" : "text-primary"}`}
-                            >
-                              Meta: {formPreview.perDay} capítulo{formPreview.perDay !== 1 ? "s" : ""}/dia ·{" "}
-                              {formPreview.total} capítulos no total
-                              {formPreview.perDay > 20 ? " — ritmo bastante intenso ⚡" : ""}
-                            </p>
-                          </div>
-
-                          <div>
-                            <label className="text-xs text-muted-foreground block mb-2">Quando começa?</label>
+                        )}
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-2">Em quanto tempo?</label>
+                          <div className="flex gap-2">
                             <input
-                              type="date"
-                              value={formStartDate}
-                              onChange={(e) => setFormStartDate(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:border-primary/50"
+                              type="number"
+                              min={7}
+                              max={1825}
+                              value={formDuration}
+                              onChange={(e) => setFormDuration(Math.max(1, Number(e.target.value)))}
+                              className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:border-primary/50"
                             />
+                            <select
+                              value={formDurationUnit}
+                              onChange={(e) => setFormDurationUnit(e.target.value as any)}
+                              className="px-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none"
+                            >
+                              <option value="dias">dias</option>
+                              <option value="semanas">semanas</option>
+                              <option value="meses">meses</option>
+                            </select>
                           </div>
-
-                          <button
-                            onClick={handleActivateCustomPlan}
-                            disabled={formScope === "livros" && formBooks.length === 0}
-                            className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+                          <p
+                            className={`text-xs mt-2 font-medium ${formPreview.perDay > 20 ? "text-amber-500" : "text-primary"}`}
                           >
-                            Criar plano
-                          </button>
+                            Meta: {formPreview.perDay} capítulo{formPreview.perDay !== 1 ? "s" : ""}/dia ·{" "}
+                            {formPreview.total} capítulos no total
+                            {formPreview.perDay > 20 ? " — ritmo bastante intenso ⚡" : ""}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-2">Quando começa?</label>
+                          <input
+                            type="date"
+                            value={formStartDate}
+                            onChange={(e) => setFormStartDate(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:border-primary/50"
+                          />
+                        </div>
+                        <button
+                          onClick={handleActivateCustomPlan}
+                          disabled={formScope === "livros" && formBooks.length === 0}
+                          className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+                        >
+                          Criar plano
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedPlan !== "custom" && (
+                    <div className="mb-5 p-4 rounded-2xl bg-card border border-border flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
+                      <div className="flex-grow min-w-0">
+                        <label className="text-xs text-muted-foreground block mb-1">Data de início do plano</label>
+                        <input
+                          type="date"
+                          value={planStartDate || getTodayStr()}
+                          onChange={(e) => handleStartDateChange(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg border border-border bg-muted text-foreground text-sm focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                      {daysRemaining !== null && (
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs font-medium text-foreground">
+                            {daysRemaining > 0 ? daysRemaining : "0"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {daysRemaining > 0 ? "dias restantes" : "encerrado"}
+                          </p>
                         </div>
                       )}
                     </div>
+                  )}
 
-                    {selectedPlan !== "custom" && (
-                      <div className="mb-5 p-4 rounded-2xl bg-card border border-border flex items-center gap-3">
-                        <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
-                        <div className="flex-grow min-w-0">
-                          <label className="text-xs text-muted-foreground block mb-1">Data de início do plano</label>
-                          <input
-                            type="date"
-                            value={planStartDate || getTodayStr()}
-                            onChange={(e) => handleStartDateChange(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-border bg-muted text-foreground text-sm focus:outline-none focus:border-primary/50"
-                          />
-                        </div>
-                        {daysRemaining !== null && (
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xs font-medium text-foreground">
-                              {daysRemaining > 0 ? `${daysRemaining}` : "0"}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {daysRemaining > 0 ? "dias restantes" : "encerrado"}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── Shimmer na barra de progresso da aba Planos ── */}
-                    <div className="mb-6 p-5 rounded-2xl bg-card border border-border">
-                      <div className="flex justify-between items-end mb-3">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                            Progresso Global
-                          </p>
-                          <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                            {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-lime" />}
-                          </h2>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          <span className="text-foreground font-semibold">{completedDays.size}</span> / {totalDays} dias
+                  <div className="mb-6 p-5 rounded-2xl bg-card border border-border">
+                    <div className="flex justify-between items-end mb-3">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                          Progresso Global
                         </p>
+                        <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                          {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-lime" />}
+                        </h2>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-1000 ease-out progress-shimmer"
-                          style={{ width: `${progressPercentage}%` }}
-                        />
-                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="text-foreground font-semibold">{completedDays.size}</span> / {totalDays} dias
+                      </p>
                     </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out progress-shimmer"
+                        style={{ width: `${progressPercentage}%` }}
+                      />
+                    </div>
+                  </div>
 
-                    {/* Month Tabs */}
-                    {months.length > 0 &&
-                      (activeTargetMonths === 12 ? (
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-5">
-                          {months.map((_, index) => {
-                            const completed = isMonthCompleted(index);
-                            const selected = selectedMonth === index;
-                            const mp = getMonthProgress(index);
-                            return (
-                              <button
-                                key={index}
-                                onClick={() => setSelectedMonth(index)}
-                                className={`p-3 rounded-xl border transition-all text-center ${selected ? "bg-primary/10 border-primary/30 text-primary" : completed ? "bg-card border-lime/30" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
-                              >
+                  {/* Month Tabs */}
+                  {months.length > 0 &&
+                    (activeTargetMonths === 12 ? (
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-5">
+                        {months.map((_, index) => {
+                          const completed = isMonthCompleted(index);
+                          const selected = selectedMonth === index;
+                          const mp = getMonthProgress(index);
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => setSelectedMonth(index)}
+                              className={`p-3 rounded-xl border transition-all text-center ${selected ? "bg-primary/10 border-primary/30 text-primary" : completed ? "bg-card border-lime/30" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
+                            >
+                              <div className="font-semibold text-xs">Mês {index + 1}</div>
+                              <div className="text-[10px] opacity-70 mt-0.5">{mp}%</div>
+                              {completed && <Check className="w-3 h-3 text-lime mx-auto mt-1" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className="flex overflow-x-auto gap-2 pb-3 mb-5 scrollbar-hide snap-x"
+                        style={{ WebkitOverflowScrolling: "touch" }}
+                      >
+                        {months.map((_, index) => {
+                          const completed = isMonthCompleted(index);
+                          const selected = selectedMonth === index;
+                          const mp = getMonthProgress(index);
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => setSelectedMonth(index)}
+                              className={`snap-start flex-shrink-0 min-w-[120px] px-4 py-2.5 rounded-xl border transition-all flex items-center gap-2 ${selected ? "bg-primary/10 border-primary/30 text-primary" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              <div className="text-left">
                                 <div className="font-semibold text-xs">Mês {index + 1}</div>
-                                <div className="text-[10px] opacity-70 mt-0.5">{mp}%</div>
-                                {completed && <Check className="w-3 h-3 text-lime mx-auto mt-1" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div
-                          className="flex overflow-x-auto gap-2 pb-3 mb-5 scrollbar-hide snap-x"
-                          style={{ WebkitOverflowScrolling: "touch" }}
-                        >
-                          {months.map((_, index) => {
-                            const completed = isMonthCompleted(index);
-                            const selected = selectedMonth === index;
-                            const mp = getMonthProgress(index);
-                            return (
-                              <button
-                                key={index}
-                                onClick={() => setSelectedMonth(index)}
-                                className={`snap-start flex-shrink-0 min-w-[120px] px-4 py-2.5 rounded-xl border transition-all flex items-center gap-2 ${selected ? "bg-primary/10 border-primary/30 text-primary" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
-                              >
-                                <Calendar className="w-3.5 h-3.5" />
-                                <div className="text-left">
-                                  <div className="font-semibold text-xs">Mês {index + 1}</div>
-                                  <div className="text-[10px] opacity-70">{mp}%</div>
-                                </div>
-                                {completed && <Check className="w-3.5 h-3.5 text-lime" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ))}
+                                <div className="text-[10px] opacity-70">{mp}%</div>
+                              </div>
+                              {completed && <Check className="w-3.5 h-3.5 text-lime" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
 
-                    {/* Reading List */}
-                    {months[selectedMonth] && (
+                  {/* Reading List */}
+                  {progressLoading ? (
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <MonthCardSkeleton key={i} />
+                      ))}
+                    </div>
+                  ) : (
+                    months[selectedMonth] && (
                       <div className="bg-card border border-border rounded-2xl overflow-hidden">
                         <div className="p-4 border-b border-border flex items-center justify-between">
                           <h3 className="text-base font-bold text-foreground">Mês {selectedMonth + 1}</h3>
@@ -1052,8 +1020,7 @@ const Index = () => {
                               onClick={() => markMonthComplete(selectedMonth)}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all"
                             >
-                              <CheckCheck className="w-3.5 h-3.5" />
-                              Concluir mês
+                              <CheckCheck className="w-3.5 h-3.5" /> Concluir mês
                             </button>
                           )}
                         </div>
@@ -1106,11 +1073,11 @@ const Index = () => {
                           })}
                         </div>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </>
+                    )
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
       </main>
