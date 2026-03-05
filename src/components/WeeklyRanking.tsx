@@ -1,160 +1,175 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Flame, Trophy, Crown } from "lucide-react";
-import { RankingSkeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { Trophy, Zap, BookOpen } from "lucide-react";
 
-const MEDAL_STYLES = [
-  { border: "border-yellow-500/40", bg: "bg-yellow-500/10", icon: "🥇" },
-  { border: "border-gray-400/40", bg: "bg-gray-400/10", icon: "🥈" },
-  { border: "border-amber-700/40", bg: "bg-amber-700/10", icon: "🥉" },
-];
-
-interface RankedUser {
+interface Entry {
   user_id: string;
   display_name: string;
+  avatar_url: string | null;
+  weekly_points: number;
   chapters_this_week: number;
+  quiz_bonus: number;
 }
 
-const WeeklyRanking = ({ currentUserId }: { currentUserId?: string }) => {
-  const [ranking, setRanking] = useState<RankedUser[]>([]);
+const MEDAL = ["🥇", "🥈", "🥉"];
+
+export default function WeeklyRanking() {
+  const { user } = useAuth();
+  const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRanking = async () => {
-      setLoading(true);
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const dateStr = sevenDaysAgo.toISOString().split("T")[0];
-
-      // Get completed_days in last 7 days grouped by user
-      const { data: days } = await supabase
-        .from("completed_days")
-        .select("user_id")
-        .gte("read_date", dateStr);
-
-      if (!days || days.length === 0) {
-        setRanking([]);
-        setLoading(false);
-        return;
-      }
-
-      // Count per user
-      const counts = new Map<string, number>();
-      for (const d of days) {
-        counts.set(d.user_id, (counts.get(d.user_id) || 0) + 1);
-      }
-
-      // Get profiles for those users
-      const userIds = [...counts.keys()];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, display_name")
-        .in("user_id", userIds);
-
-      const profileMap = new Map<string, string>();
-      for (const p of profiles || []) {
-        profileMap.set(p.user_id, p.display_name || "Leitor");
-      }
-
-      const ranked: RankedUser[] = [...counts.entries()]
-        .map(([uid, count]) => ({
-          user_id: uid,
-          display_name: profileMap.get(uid) || "Leitor",
-          chapters_this_week: count,
-        }))
-        .sort((a, b) => b.chapters_this_week - a.chapters_this_week)
-        .slice(0, 10);
-
-      setRanking(ranked);
+    const load = async () => {
+      const { data } = await supabase
+        .from("weekly_ranking")
+        .select("*")
+        .order("weekly_points", { ascending: false })
+        .limit(20);
+      setEntries((data as Entry[]) ?? []);
       setLoading(false);
     };
-
-    fetchRanking();
+    load();
   }, []);
-
-  const currentUserRank = useMemo(() => {
-    if (!currentUserId) return null;
-    const idx = ranking.findIndex((r) => r.user_id === currentUserId);
-    return idx >= 0 ? idx + 1 : null;
-  }, [ranking, currentUserId]);
 
   if (loading) {
     return (
       <div className="space-y-2 p-4">
         {[...Array(5)].map((_, i) => (
-          <RankingSkeleton key={i} />
-        ))}
-      </div>
-    );
-  }
-
-  if (ranking.length === 0) {
-    return (
-      <div className="p-8 rounded-2xl bg-card border border-border text-center">
-        <Trophy className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-        <p className="text-sm text-muted-foreground">Nenhuma leitura registrada esta semana.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Crown className="w-5 h-5 text-primary" />
-        <h3 className="text-base font-bold text-foreground">Ranking Semanal</h3>
-      </div>
-
-      {/* Top 3 */}
-      <div className="grid grid-cols-3 gap-2">
-        {ranking.slice(0, 3).map((user, i) => (
-          <div
-            key={user.user_id}
-            className={`p-4 rounded-2xl border text-center transition-all ${MEDAL_STYLES[i].border} ${MEDAL_STYLES[i].bg} ${
-              user.user_id === currentUserId ? "ring-2 ring-primary/30" : ""
-            }`}
-          >
-            <span className="text-2xl">{MEDAL_STYLES[i].icon}</span>
-            <p className="text-xs font-bold text-foreground mt-1 truncate">{user.display_name}</p>
-            <p className="text-lg font-black text-foreground">{user.chapters_this_week}</p>
-            <p className="text-[10px] text-muted-foreground">capítulos</p>
+          <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-muted/30 animate-pulse">
+            <div className="w-8 h-8 rounded-full bg-muted" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-24 bg-muted rounded" />
+              <div className="h-2 w-16 bg-muted rounded" />
+            </div>
+            <div className="h-4 w-10 bg-muted rounded" />
           </div>
         ))}
       </div>
+    );
+  }
 
-      {/* 4th–10th */}
-      {ranking.length > 3 && (
-        <div className="rounded-2xl bg-card border border-border divide-y divide-border overflow-hidden">
-          {ranking.slice(3).map((user, i) => (
-            <div
-              key={user.user_id}
-              className={`flex items-center gap-3 px-4 py-3 ${
-                user.user_id === currentUserId ? "bg-primary/5" : ""
-              }`}
-            >
-              <span className="text-sm font-bold text-muted-foreground w-6 text-center">{i + 4}</span>
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-primary">
-                  {user.display_name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <p className="text-sm font-medium text-foreground flex-grow truncate">{user.display_name}</p>
-              <div className="flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-sm font-bold text-foreground">{user.chapters_this_week}</span>
-              </div>
+  if (entries.length === 0) {
+    return (
+      <div className="p-8 text-center text-sm text-muted-foreground">
+        Nenhuma leitura registrada essa semana ainda. Seja o primeiro! 📖
+      </div>
+    );
+  }
+
+  const topThree = entries.slice(0, 3);
+  const rest = entries.slice(3);
+  const myRank = entries.findIndex((e) => e.user_id === user?.id);
+
+  return (
+    <div className="p-4 space-y-3">
+      {/* Legenda de pontuação */}
+      <div className="flex gap-3 text-[10px] text-muted-foreground mb-1">
+        <span className="flex items-center gap-1">
+          <BookOpen className="w-3 h-3" /> capítulo = 10 pts
+        </span>
+        <span className="flex items-center gap-1">
+          <Zap className="w-3 h-3 text-primary" /> resposta certa = 25 pts
+        </span>
+      </div>
+
+      {/* Top 3 destaque */}
+      <div className="flex items-end justify-center gap-2 mb-4">
+        {/* 2º lugar */}
+        {topThree[1] && (
+          <div className="flex flex-col items-center gap-1 w-[30%]">
+            <Avatar entry={topThree[1]} size="md" />
+            <span className="text-lg">🥈</span>
+            <p className="text-[10px] font-semibold text-foreground truncate max-w-full text-center">
+              {topThree[1].display_name}
+            </p>
+            <p className="text-xs font-bold text-primary">{topThree[1].weekly_points} pts</p>
+          </div>
+        )}
+        {/* 1º lugar */}
+        {topThree[0] && (
+          <div className="flex flex-col items-center gap-1 w-[36%] -mb-1">
+            <div className="relative">
+              <Avatar entry={topThree[0]} size="lg" />
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-xl">👑</span>
             </div>
-          ))}
+            <span className="text-xl">🥇</span>
+            <p className="text-[11px] font-bold text-foreground truncate max-w-full text-center">
+              {topThree[0].display_name}
+            </p>
+            <p className="text-sm font-bold text-primary">{topThree[0].weekly_points} pts</p>
+          </div>
+        )}
+        {/* 3º lugar */}
+        {topThree[2] && (
+          <div className="flex flex-col items-center gap-1 w-[30%]">
+            <Avatar entry={topThree[2]} size="md" />
+            <span className="text-lg">🥉</span>
+            <p className="text-[10px] font-semibold text-foreground truncate max-w-full text-center">
+              {topThree[2].display_name}
+            </p>
+            <p className="text-xs font-bold text-primary">{topThree[2].weekly_points} pts</p>
+          </div>
+        )}
+      </div>
+
+      {/* Restante */}
+      {rest.length > 0 && (
+        <div className="space-y-1.5">
+          {rest.map((entry, i) => {
+            const rank = i + 4;
+            const isMe = entry.user_id === user?.id;
+            return (
+              <div
+                key={entry.user_id}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
+                  isMe ? "bg-primary/10 border-primary/30" : "bg-muted/20 border-transparent"
+                }`}
+              >
+                <span className="text-xs font-bold text-muted-foreground w-5 text-center">{rank}</span>
+                <Avatar entry={entry} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-semibold truncate ${isMe ? "text-primary" : "text-foreground"}`}>
+                    {entry.display_name} {isMe && "(você)"}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {entry.chapters_this_week} cap. · +{entry.quiz_bonus} quiz
+                  </p>
+                </div>
+                <p className={`text-xs font-bold ${isMe ? "text-primary" : "text-foreground"}`}>
+                  {entry.weekly_points} pts
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Current user position */}
-      {currentUserRank && currentUserRank > 3 && (
-        <p className="text-xs text-center text-muted-foreground">
-          Você está em <span className="font-bold text-foreground">{currentUserRank}º</span> lugar
-        </p>
+      {/* Minha posição se fora do top */}
+      {myRank >= 3 && (
+        <div className="mt-2 text-center text-xs text-muted-foreground">
+          Sua posição: <span className="font-bold text-foreground">#{myRank + 1}</span>
+        </div>
+      )}
+
+      {/* Reset info */}
+      <p className="text-center text-[10px] text-muted-foreground pt-1">🔄 Ranking reseta toda segunda-feira</p>
+    </div>
+  );
+}
+
+// ─── Avatar helper ────────────────────────────────────────────────────────────
+function Avatar({ entry, size }: { entry: Entry; size: "sm" | "md" | "lg" }) {
+  const sz = size === "lg" ? "w-14 h-14 text-lg" : size === "md" ? "w-10 h-10 text-sm" : "w-7 h-7 text-xs";
+  return (
+    <div
+      className={`${sz} rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary overflow-hidden shrink-0`}
+    >
+      {entry.avatar_url ? (
+        <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
+      ) : (
+        (entry.display_name || "?").charAt(0).toUpperCase()
       )}
     </div>
   );
-};
-
-export default WeeklyRanking;
+}
