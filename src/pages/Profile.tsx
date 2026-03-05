@@ -47,7 +47,7 @@ const Profile = () => {
       const { data: prof } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
       if (prof) {
         setProfile(prof);
-        setAvatarUrl(prof.avatar_url || null);
+        setAvatarUrl((prof as any).avatar_url || null);
       }
 
       const { data: days } = await supabase
@@ -116,7 +116,10 @@ const Profile = () => {
       await supabase.storage.from("avatars").upload(`public/${user.id}.jpg`, file, { upsert: true });
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(`public/${user.id}.jpg`);
       const newUrl = urlData.publicUrl + `?t=${Date.now()}`;
-      await supabase.from("profiles").update({ avatar_url: newUrl }).eq("user_id", user.id);
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: newUrl } as any)
+        .eq("user_id", user.id);
       setAvatarUrl(newUrl);
     } finally {
       setAvatarUploading(false);
