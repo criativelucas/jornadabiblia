@@ -205,7 +205,12 @@ const Profile = () => {
           <div className="relative cursor-pointer group" onClick={handleAvatarClick}>
             <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/30 overflow-hidden flex items-center justify-center">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt="avatar"
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarUrl(null)}
+                />
               ) : (
                 <span className="text-2xl font-bold text-primary">
                   {(profile.display_name || "?").charAt(0).toUpperCase()}
@@ -236,6 +241,30 @@ const Profile = () => {
             )}
           </div>
         </div>
+
+        {/* Badges conquistadas — logo abaixo do header */}
+        {unlockedList.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-foreground">🏆 Conquistas desbloqueadas</h3>
+              <span className="text-xs text-muted-foreground">
+                {unlockedList.length} de {milestones.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {unlockedList.map((m) => {
+                const Icon = iconMap[m.icon] || Trophy;
+                return (
+                  <div key={m.dias} className="p-4 rounded-2xl border border-primary/30 bg-primary/10 text-center">
+                    <Icon className="w-8 h-8 mx-auto mb-2" style={{ color: m.cor }} />
+                    <p className="text-xs font-semibold text-foreground truncate">{m.titulo}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{m.dias} dias</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Stats cards */}
         <div className="grid grid-cols-3 gap-3 mb-8">
@@ -305,39 +334,7 @@ const Profile = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Badges conquistadas */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-foreground">🏆 Conquistas desbloqueadas</h3>
-            <span className="text-xs text-muted-foreground">
-              {unlockedList.length} de {milestones.length}
-            </span>
-          </div>
-
-          {unlockedList.length === 0 ? (
-            <div className="p-6 rounded-2xl border border-border bg-muted/20 text-center">
-              <p className="text-sm text-muted-foreground">🌱 Sua primeira conquista está chegando. Continue lendo!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {unlockedList.map((m) => {
-                const Icon = iconMap[m.icon] || Trophy;
-                return (
-                  <div
-                    key={m.dias}
-                    className="p-4 rounded-2xl border border-primary/30 bg-primary/10 text-center relative"
-                  >
-                    <Icon className="w-8 h-8 mx-auto mb-2" style={{ color: m.cor }} />
-                    <p className="text-xs font-semibold text-foreground truncate">{m.titulo}</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5">{m.dias} dias</p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Badges bloqueadas */}
+        {/* Badges bloqueadas — no final */}
         {lockedList.length > 0 && (
           <div className="mb-8">
             <h3 className="text-sm font-bold text-muted-foreground mb-3">🔒 Ainda por conquistar</h3>
