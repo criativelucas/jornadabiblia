@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, Award } from "lucide-react";
 import { playBookComplete } from "@/utils/sounds";
 import { shareBookAchievement } from "@/utils/shareAchievement";
+import QuizModal from "@/components/QuizModal";
 
 interface Props {
   bookName: string;
@@ -29,7 +30,6 @@ const bookMessages: Record<string, string> = {
 
 const defaultMessage = "Mais um livro dominado. Continue assim!";
 
-// ─── Confetti leve, sem dependência externa ────────────────────────────
 function launchConfetti(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext("2d")!;
   canvas.width = window.innerWidth;
@@ -54,20 +54,17 @@ function launchConfetti(canvas: HTMLCanvasElement) {
   const draw = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     frame++;
-
     for (const p of particles) {
       p.tiltAngle += p.tiltSpeed;
       p.y += p.d;
       p.tilt = Math.sin(p.tiltAngle) * 12;
       p.opacity = Math.max(0, 1 - frame / totalFrames);
-
       ctx.beginPath();
       ctx.globalAlpha = p.opacity;
       ctx.fillStyle = p.color;
       ctx.ellipse(p.x + p.tilt, p.y, p.r, p.r * 0.5, p.tiltAngle, 0, Math.PI * 2);
       ctx.fill();
     }
-
     ctx.globalAlpha = 1;
     if (frame < totalFrames) requestAnimationFrame(draw);
     else ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -75,10 +72,19 @@ function launchConfetti(canvas: HTMLCanvasElement) {
 
   requestAnimationFrame(draw);
 }
-// ──────────────────────────────────────────────────────────────────────
 
-const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMindMap, queuePosition, queueTotal, streak = 0 }: Props) => {
+const BookTrophyModal = ({
+  bookName,
+  category,
+  totalChapters,
+  onClose,
+  onViewMindMap,
+  queuePosition,
+  queueTotal,
+  streak = 0,
+}: Props) => {
   const [visible, setVisible] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -88,13 +94,16 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
       if (canvasRef.current) launchConfetti(canvasRef.current);
     }, 200);
 
-    // Easter egg: Apocalipse theme
     if (bookName === "Apocalipse") {
       document.body.classList.add("apocalypse-theme");
       const timer = setTimeout(() => {
         document.body.classList.remove("apocalypse-theme");
       }, 30000);
-      return () => { clearTimeout(t); clearTimeout(timer); document.body.classList.remove("apocalypse-theme"); };
+      return () => {
+        clearTimeout(t);
+        clearTimeout(timer);
+        document.body.classList.remove("apocalypse-theme");
+      };
     }
 
     return () => clearTimeout(t);
@@ -105,14 +114,21 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
     setTimeout(onClose, 150);
   };
 
+  // Abre o quiz; ao fechar o quiz, fecha o trophy modal
+  const handleContinue = () => {
+    setShowQuiz(true);
+  };
+
+  if (showQuiz) {
+    return <QuizModal bookName={bookName} onClose={handleClose} />;
+  }
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
       onClick={handleClose}
     >
-      {/* Canvas de confetti — pointer-events none para não bloquear cliques */}
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 51 }} />
-
       <div className="absolute inset-0 bg-black/60 backdrop-blur-[12px]" />
 
       <div
@@ -136,8 +152,14 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
         {/* Easter egg: Jonas waves */}
         {bookName === "Jonas" && (
           <div className="absolute bottom-0 left-0 right-0 h-16 overflow-hidden rounded-b-3xl pointer-events-none">
-            <div className="absolute bottom-0 left-0 w-[200%] h-8 bg-blue-500/30 rounded-[40%]" style={{ animation: "wave 3s ease-in-out infinite" }} />
-            <div className="absolute bottom-0 left-0 w-[200%] h-6 bg-blue-500/20 rounded-[40%]" style={{ animation: "wave 3.5s ease-in-out infinite 0.5s" }} />
+            <div
+              className="absolute bottom-0 left-0 w-[200%] h-8 bg-blue-500/30 rounded-[40%]"
+              style={{ animation: "wave 3s ease-in-out infinite" }}
+            />
+            <div
+              className="absolute bottom-0 left-0 w-[200%] h-6 bg-blue-500/20 rounded-[40%]"
+              style={{ animation: "wave 3.5s ease-in-out infinite 0.5s" }}
+            />
           </div>
         )}
 
@@ -161,27 +183,39 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
           </div>
         )}
 
-        {/* Icon com pulse */}
+        {/* Icon */}
         <div className="w-24 h-24 rounded-full mx-auto mb-5 flex items-center justify-center bg-primary/10 border border-primary/20 animate-trophy-pulse">
           <BookOpen className="w-14 h-14 text-primary" />
         </div>
 
-        {/* Title */}
         <h3 className="text-[22px] font-bold text-foreground mb-1">{bookName}</h3>
         <p className="text-[13px] text-muted-foreground mb-4">
           {category} • {totalChapters} capítulos
         </p>
-
-        {/* Message */}
         <p className="text-sm text-muted-foreground leading-relaxed mb-6">{bookMessages[bookName] || defaultMessage}</p>
+
+        {/* Quiz CTA */}
+        <div className="mb-4 p-3 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3 text-left">
+          <span className="text-2xl">🧠</span>
+          <div>
+            <p className="text-xs font-bold text-foreground">Quiz sobre {bookName}</p>
+            <p className="text-[10px] text-muted-foreground">3 perguntas · ganhe até +75 pts no ranking</p>
+          </div>
+        </div>
 
         {/* Actions */}
         <div className="space-y-2.5">
           <button
-            onClick={handleClose}
+            onClick={handleContinue}
             className="w-full py-3 rounded-[10px] font-semibold text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           >
-            Continuar lendo →
+            Fazer o quiz 🧠
+          </button>
+          <button
+            onClick={handleClose}
+            className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
+          >
+            Pular →
           </button>
           {onViewMindMap && (
             <button
@@ -192,6 +226,7 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
               className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
             >
               Ver mapa mental 🗺️
+{" "}
             </button>
           )}
           <button
