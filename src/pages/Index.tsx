@@ -592,7 +592,7 @@ const Index = () => {
                     unlockedMilestones={unlockedMilestones}
                     onNavigate={setActiveSection}
                   />
-                  <WeeklyRanking currentUserId={user?.id} />
+                  <WeeklyRanking />
                 </div>
               )}
               {activeSection === "trophies" && (
@@ -620,7 +620,10 @@ const Index = () => {
                         <p className="text-sm font-bold text-foreground">Recupere sua sequência</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Leia hoje e mantenha sua jornada viva</p>
                       </div>
-                      <button onClick={() => setShowStreakRecoveryBanner(false)} className="text-muted-foreground hover:text-foreground">
+                      <button
+                        onClick={() => setShowStreakRecoveryBanner(false)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
@@ -702,7 +705,7 @@ const Index = () => {
                         Suas Conquistas
                       </p>
                       {recentAchievements.length > 0 && (
-                         <button
+                        <button
                           onClick={() => navigateTo("achieve")}
                           className="text-xs text-primary font-medium hover:underline"
                         >
