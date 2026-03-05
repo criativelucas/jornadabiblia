@@ -14,7 +14,7 @@ import {
 } from "@/data/planData";
 import { milestones } from "@/data/streakMilestones";
 import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
-import { MonthCardSkeleton } from "@/components/Skeleton";
+import { MonthCardSkeleton } from "@/components/ui/skeleton";
 import CommentSection from "@/components/CommentSection";
 import BibleChat from "@/components/BibleChat";
 import DailyCuriosity from "@/components/DailyCuriosity";
@@ -79,6 +79,7 @@ const Index = () => {
   const [trophyQueue, setTrophyQueue] = useState<{ name: string; category: string; chapters: number }[]>([]);
   const [mindMapBook, setMindMapBook] = useState<string | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
+  const [showStreakRecoveryBanner, setShowStreakRecoveryBanner] = useState(false);
 
   // ── Custom plan states ────────────────────────────────────────────
   const [customConfig, setCustomConfig] = useState<CustomPlanConfig | null>(null);
@@ -92,6 +93,17 @@ const Index = () => {
 
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // View Transitions API for smooth section switches
+  const navigateTo = (section: SectionId) => {
+    if (!(document as any).startViewTransition) {
+      setActiveSection(section);
+      return;
+    }
+    (document as any).startViewTransition(() => {
+      setActiveSection(section);
+    });
+  };
 
   const currentPlan = planOptions.find((p) => p.id === selectedPlan) || planOptions[1];
   const activeDays = useMemo(
@@ -160,6 +172,11 @@ const Index = () => {
           setCustomDays(generateCustomDays(cfg));
         }
         const today = getTodayStr();
+        const yesterday = getYesterdayStr();
+        // Check streak recovery eligibility
+        if (d.last_read_date && d.last_read_date !== today && d.last_read_date !== yesterday && (d.streak || 0) > 0) {
+          setShowStreakRecoveryBanner(true);
+        }
         if (d.last_verse_shown_date !== today) {
           setShowVerseModal(true);
           await supabase
@@ -501,6 +518,7 @@ const Index = () => {
           totalChapters={trophyQueue[0].chapters}
           queuePosition={1}
           queueTotal={trophyQueue.length}
+          streak={streak}
           onClose={() => setTrophyQueue((prev) => prev.slice(1))}
           onViewMindMap={
             user
@@ -516,7 +534,7 @@ const Index = () => {
       <AppSidebar
         activeSection={activeSection}
         onNavigate={(s) => {
-          setActiveSection(s);
+          navigateTo(s);
           setMindMapBook(null);
         }}
         displayName={displayName}
@@ -532,7 +550,7 @@ const Index = () => {
             <div className="flex items-center gap-3">
               {streak > 0 && (
                 <button
-                  onClick={() => setActiveSection("achieve")}
+                  onClick={() => navigateTo("achieve")}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-500 text-sm font-bold"
                 >
                   <Flame className="w-4 h-4" /> {streak}
@@ -595,6 +613,18 @@ const Index = () => {
               {activeSection === "home" && (
                 <>
                   <DynamicGreeting displayName={displayName} />
+                  {showStreakRecoveryBanner && (
+                    <div className="mb-5 p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-3 animate-fade-in-down">
+                      <span className="text-2xl">🌿</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-foreground">Recupere sua sequência</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Leia hoje e mantenha sua jornada viva</p>
+                      </div>
+                      <button onClick={() => setShowStreakRecoveryBanner(false)} className="text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                   <StreakTree streak={streak} />
                   {recovery && (
                     <RecoveryBanner
@@ -659,7 +689,7 @@ const Index = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => setActiveSection("plans")}
+                      onClick={() => navigateTo("plans")}
                       className="text-xs text-primary font-medium mt-3 hover:underline"
                     >
                       Ver plano completo →
@@ -672,8 +702,8 @@ const Index = () => {
                         Suas Conquistas
                       </p>
                       {recentAchievements.length > 0 && (
-                        <button
-                          onClick={() => setActiveSection("achieve")}
+                         <button
+                          onClick={() => navigateTo("achieve")}
                           className="text-xs text-primary font-medium hover:underline"
                         >
                           Ver todas →

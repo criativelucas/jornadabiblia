@@ -3,7 +3,7 @@ import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, 
 import { milestones } from "@/data/streakMilestones";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Skeleton } from "@/components/Skeleton";
+import { Skeleton, RankingSkeleton } from "@/components/ui/skeleton";
 import type { SectionId } from "./AppSidebar";
 
 const iconMap: Record<string, React.ElementType> = { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown };

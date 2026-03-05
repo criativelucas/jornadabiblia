@@ -1,7 +1,22 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 @tailwind base;
 
-/* ─── Section transition ──────────────────────────────────── */
+/* ─── View Transitions API ────────────────────────────────── */
+::view-transition-old(root) {
+  animation: 220ms cubic-bezier(0.4, 0, 0.2, 1) both slide-out;
+}
+::view-transition-new(root) {
+  animation: 220ms cubic-bezier(0.4, 0, 0.2, 1) both slide-in;
+}
+@keyframes slide-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-18px); }
+}
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* Fallback para browsers sem suporte */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -10,6 +25,11 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+@supports not (view-transition-name: none) {
+  .section-enter {
+    animation: fadeIn 180ms ease-out;
   }
 }
 .section-enter {

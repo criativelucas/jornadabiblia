@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Flame, Trophy, Crown } from "lucide-react";
+import { RankingSkeleton } from "@/components/ui/skeleton";
 
 const MEDAL_STYLES = [
   { border: "border-yellow-500/40", bg: "bg-yellow-500/10", icon: "🥇" },
@@ -79,8 +80,10 @@ const WeeklyRanking = ({ currentUserId }: { currentUserId?: string }) => {
 
   if (loading) {
     return (
-      <div className="p-8 flex justify-center">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-2 p-4">
+        {[...Array(5)].map((_, i) => (
+          <RankingSkeleton key={i} />
+        ))}
       </div>
     );
   }

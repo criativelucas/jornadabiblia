@@ -125,12 +125,15 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          daily_goal_minutes: number | null
           display_name: string
           id: string
           last_read_date: string | null
           last_verse_shown_date: string | null
           longest_streak: number
+          onboarding_complete: boolean | null
           plan_start_date: string | null
+          reading_objective: string | null
           selected_plan: string
           streak: number
           unlocked_milestones: number[]
@@ -138,12 +141,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          daily_goal_minutes?: number | null
           display_name?: string
           id?: string
           last_read_date?: string | null
           last_verse_shown_date?: string | null
           longest_streak?: number
+          onboarding_complete?: boolean | null
           plan_start_date?: string | null
+          reading_objective?: string | null
           selected_plan?: string
           streak?: number
           unlocked_milestones?: number[]
@@ -151,12 +157,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          daily_goal_minutes?: number | null
           display_name?: string
           id?: string
           last_read_date?: string | null
           last_verse_shown_date?: string | null
           longest_streak?: number
+          onboarding_complete?: boolean | null
           plan_start_date?: string | null
+          reading_objective?: string | null
           selected_plan?: string
           streak?: number
           unlocked_milestones?: number[]
