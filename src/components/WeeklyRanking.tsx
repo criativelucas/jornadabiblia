@@ -21,12 +21,12 @@ export default function WeeklyRanking() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("weekly_ranking")
         .select("*")
         .order("weekly_points", { ascending: false })
         .limit(20);
-      setEntries((data as Entry[]) ?? []);
+      setEntries((data as unknown as Entry[]) ?? []);
       setLoading(false);
     };
     load();
