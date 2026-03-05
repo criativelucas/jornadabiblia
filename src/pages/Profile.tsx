@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
 import { milestones } from "@/data/streakMilestones";
 import { getMonths, planOptions, generateCustomDays, type CustomPlanConfig } from "@/data/planData";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera } from "lucide-react";
+import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera, Check, X as XIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -35,6 +35,90 @@ const Profile = () => {
   const [chartView, setChartView] = useState<"Semana" | "Mês">("Mês");
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Crop state
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
+  const [cropScale, setCropScale] = useState(1);
+  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cropImgRef = useRef<HTMLImageElement | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
+  const CROP_SIZE = 280;
+
+  const drawCrop = useCallback(() => {
+    const canvas = cropCanvasRef.current;
+    const img = cropImgRef.current;
+    if (!canvas || !img) return;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
+    const w = img.naturalWidth * cropScale;
+    const h = img.naturalHeight * cropScale;
+    ctx.drawImage(img, cropOffset.x, cropOffset.y, w, h);
+    // escurecer fora do círculo
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(0, 0, CROP_SIZE, CROP_SIZE);
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }, [cropOffset, cropScale]);
+
+  useEffect(() => {
+    drawCrop();
+  }, [drawCrop]);
+
+  const onCropMouseDown = (e: React.MouseEvent) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, ox: cropOffset.x, oy: cropOffset.y };
+  };
+  const onCropMouseMove = (e: React.MouseEvent) => {
+    if (!dragRef.current) return;
+    setCropOffset({
+      x: dragRef.current.ox + (e.clientX - dragRef.current.startX),
+      y: dragRef.current.oy + (e.clientY - dragRef.current.startY),
+    });
+  };
+  const onCropMouseUp = () => {
+    dragRef.current = null;
+  };
+
+  const onCropTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    dragRef.current = { startX: t.clientX, startY: t.clientY, ox: cropOffset.x, oy: cropOffset.y };
+  };
+  const onCropTouchMove = (e: React.TouchEvent) => {
+    if (!dragRef.current) return;
+    const t = e.touches[0];
+    setCropOffset({
+      x: dragRef.current.ox + (t.clientX - dragRef.current.startX),
+      y: dragRef.current.oy + (t.clientY - dragRef.current.startY),
+    });
+  };
+
+  const confirmCrop = async () => {
+    const canvas = cropCanvasRef.current;
+    if (!canvas || !user) return;
+    setAvatarUploading(true);
+    setCropSrc(null);
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `${user.id}.jpg`, { type: "image/jpeg" });
+        await supabase.storage.from("avatars").upload(`public/${user.id}.jpg`, file, { upsert: true });
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(`public/${user.id}.jpg`);
+        const newUrl = urlData.publicUrl + `?t=${Date.now()}`;
+        await supabase
+          .from("profiles")
+          .update({ avatar_url: newUrl } as any)
+          .eq("user_id", user.id);
+        setAvatarUrl(newUrl);
+        setAvatarUploading(false);
+      },
+      "image/jpeg",
+      0.92,
+    );
+  };
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -108,22 +192,27 @@ const Profile = () => {
 
   const handleAvatarClick = () => fileInputRef.current?.click();
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setAvatarUploading(true);
-    try {
-      await supabase.storage.from("avatars").upload(`public/${user.id}.jpg`, file, { upsert: true });
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(`public/${user.id}.jpg`);
-      const newUrl = urlData.publicUrl + `?t=${Date.now()}`;
-      await supabase
-        .from("profiles")
-        .update({ avatar_url: newUrl } as any)
-        .eq("user_id", user.id);
-      setAvatarUrl(newUrl);
-    } finally {
-      setAvatarUploading(false);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const src = ev.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        cropImgRef.current = img;
+        // escala inicial: cobre o círculo de crop
+        const scale = Math.max(CROP_SIZE / img.naturalWidth, CROP_SIZE / img.naturalHeight);
+        const w = img.naturalWidth * scale;
+        const h = img.naturalHeight * scale;
+        setCropScale(scale);
+        setCropOffset({ x: (CROP_SIZE - w) / 2, y: (CROP_SIZE - h) / 2 });
+        setCropSrc(src);
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const selectedPlan = profile?.selected_plan || "6months";
@@ -190,6 +279,55 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Modal de Crop */}
+      {cropSrc && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl p-5 flex flex-col items-center gap-4 w-full max-w-sm">
+            <p className="text-sm font-semibold text-foreground">Ajuste sua foto</p>
+            <p className="text-xs text-muted-foreground -mt-2">Arraste para reposicionar · Zoom com o slider</p>
+
+            <canvas
+              ref={cropCanvasRef}
+              width={CROP_SIZE}
+              height={CROP_SIZE}
+              className="rounded-full cursor-grab active:cursor-grabbing border-2 border-primary/30"
+              style={{ width: CROP_SIZE, height: CROP_SIZE }}
+              onMouseDown={onCropMouseDown}
+              onMouseMove={onCropMouseMove}
+              onMouseUp={onCropMouseUp}
+              onMouseLeave={onCropMouseUp}
+              onTouchStart={onCropTouchStart}
+              onTouchMove={onCropTouchMove}
+              onTouchEnd={onCropMouseUp}
+            />
+
+            <input
+              type="range"
+              min={0.5}
+              max={3}
+              step={0.01}
+              value={cropScale}
+              onChange={(e) => setCropScale(Number(e.target.value))}
+              className="w-full accent-primary"
+            />
+
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setCropSrc(null)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-all flex items-center justify-center gap-1"
+              >
+                <XIcon className="w-4 h-4" /> Cancelar
+              </button>
+              <button
+                onClick={confirmCrop}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1"
+              >
+                <Check className="w-4 h-4" /> Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Back */}
         <button
