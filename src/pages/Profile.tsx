@@ -7,6 +7,7 @@ import { milestones } from "@/data/streakMilestones";
 import { getMonths, planOptions, generateCustomDays, type CustomPlanConfig } from "@/data/planData";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -117,8 +118,28 @@ const Profile = () => {
 
   if (loading || !profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <Skeleton className="h-4 w-16 mb-6" />
+          <div className="flex items-center gap-4 mb-8">
+            <Skeleton className="w-20 h-20 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-2xl" />
+            ))}
+          </div>
+          <Skeleton className="h-52 rounded-2xl mb-8" />
+          <div className="grid grid-cols-4 gap-2">
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-2xl" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

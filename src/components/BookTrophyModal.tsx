@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Award } from "lucide-react";
 import { playBookComplete } from "@/utils/sounds";
+import { shareBookAchievement } from "@/utils/shareAchievement";
 
 interface Props {
   bookName: string;
@@ -10,6 +11,7 @@ interface Props {
   onViewMindMap?: () => void;
   queuePosition?: number;
   queueTotal?: number;
+  streak?: number;
 }
 
 const bookMessages: Record<string, string> = {
@@ -75,7 +77,7 @@ function launchConfetti(canvas: HTMLCanvasElement) {
 }
 // ──────────────────────────────────────────────────────────────────────
 
-const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMindMap, queuePosition, queueTotal }: Props) => {
+const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMindMap, queuePosition, queueTotal, streak = 0 }: Props) => {
   const [visible, setVisible] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -190,9 +192,14 @@ const BookTrophyModal = ({ bookName, category, totalChapters, onClose, onViewMin
               className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
             >
               Ver mapa mental 🗺️
-{" "}
             </button>
           )}
+          <button
+            onClick={() => shareBookAchievement({ bookName, streak, category })}
+            className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
+          >
+            Compartilhar conquista 📲
+          </button>
         </div>
       </div>
     </div>
