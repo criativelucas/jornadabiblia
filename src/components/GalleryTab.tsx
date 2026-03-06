@@ -334,16 +334,19 @@ const GalleryTab = () => {
           ))}
       </div>
 
-      {/* Mosaico ou grid do livro */}
+      {/* Mosaico horizontal */}
       {(selectedBook ? loading : mosaicLoading) ? (
-        /* Skeleton do mosaico */
-        <div className="columns-2 sm:columns-3 gap-2 space-y-2">
-          {[...Array(9)].map((_, i) => (
-            <div
-              key={i}
-              className="w-full rounded-xl bg-muted animate-pulse mb-2"
-              style={{ height: `${120 + (i % 3) * 40}px` }}
-            />
+        <div className="space-y-3">
+          {[...Array(3)].map((_, row) => (
+            <div key={row} className="flex gap-1.5 overflow-hidden rounded-xl">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 rounded-lg bg-muted animate-pulse"
+                  style={{ width: `${100 + (i % 3) * 30}px`, height: '120px' }}
+                />
+              ))}
+            </div>
           ))}
         </div>
       ) : currentPhotos.length === 0 ? (
@@ -365,26 +368,61 @@ const GalleryTab = () => {
           )}
         </div>
       ) : (
-        /* Mosaico com columns (masonry nativo CSS) */
-        <div className="columns-2 sm:columns-3 gap-2">
-          {currentPhotos.map((photo, idx) => (
-            <button
-              key={photo.id}
-              onClick={() => openFullscreen(currentPhotos, idx)}
-              className="w-full mb-2 rounded-xl overflow-hidden border border-border relative group block"
-            >
-              <LazyImage src={photo.thumb} alt={photo.legenda} className="w-full h-auto object-cover" />
-              {/* Overlay com livro (no mosaico) ou legenda */}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                {!selectedBook && (
-                  <span className="text-white text-[10px] font-bold bg-black/40 rounded px-1.5 py-0.5 self-start mb-1">
-                    {photo.book}
-                  </span>
-                )}
-                {photo.legenda && <span className="text-white text-xs truncate">{photo.legenda}</span>}
+        /* Canvas mosaico horizontal — agrupa fotos em faixas horizontais */
+        <div className="space-y-1.5">
+          {(() => {
+            // Divide fotos em faixas horizontais de 3-4 fotos cada
+            const rows: GalleryPhoto[][] = [];
+            let i = 0;
+            while (i < currentPhotos.length) {
+              // Alterna entre 3 e 2 fotos por faixa para variar o layout
+              const count = rows.length % 3 === 0 ? 3 : rows.length % 3 === 1 ? 2 : 4;
+              const chunk = currentPhotos.slice(i, i + Math.min(count, currentPhotos.length - i));
+              rows.push(chunk);
+              i += chunk.length;
+            }
+            return rows.map((row, rowIdx) => (
+              <div
+                key={rowIdx}
+                className="flex gap-1 rounded-xl overflow-hidden"
+                style={{ height: row.length <= 2 ? '180px' : row.length === 3 ? '140px' : '110px' }}
+              >
+                {row.map((photo, colIdx) => {
+                  const globalIdx = currentPhotos.indexOf(photo);
+                  // Pesos variados para largura de cada item na faixa
+                  const weights = row.length === 2 ? [1.4, 1] :
+                                  row.length === 3 ? [1, 1.3, 1] :
+                                  row.length === 4 ? [1, 1.2, 0.9, 1.1] : [1];
+                  const w = weights[colIdx] ?? 1;
+                  const totalW = weights.slice(0, row.length).reduce((a, b) => a + b, 0);
+                  return (
+                    <button
+                      key={photo.id}
+                      onClick={() => openFullscreen(currentPhotos, globalIdx)}
+                      className="relative group overflow-hidden flex-shrink-0"
+                      style={{ width: `${(w / totalW) * 100}%`, height: '100%' }}
+                    >
+                      <LazyImage
+                        src={photo.thumb}
+                        alt={photo.legenda}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-1.5">
+                        {!selectedBook && (
+                          <span className="text-white text-[9px] font-bold bg-black/40 rounded px-1 py-0.5 self-start mb-0.5">
+                            {photo.book}
+                          </span>
+                        )}
+                        {photo.legenda && (
+                          <span className="text-white text-[10px] truncate">{photo.legenda}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            </button>
-          ))}
+            ));
+          })()}
         </div>
       )}
 
