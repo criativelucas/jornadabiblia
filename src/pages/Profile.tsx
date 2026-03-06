@@ -51,10 +51,11 @@ const Profile = () => {
     if (!canvas || !img) return;
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
-    const w = img.naturalWidth * cropScale;
-    const h = img.naturalHeight * cropScale;
-    ctx.drawImage(img, cropOffset.x, cropOffset.y, w, h);
-    // escurecer fora do círculo
+    // Desenha a imagem usando as coordenadas de origem (sem pré-escalar)
+    const drawW = img.naturalWidth * cropScale;
+    const drawH = img.naturalHeight * cropScale;
+    ctx.drawImage(img, cropOffset.x, cropOffset.y, drawW, drawH);
+    // Escurecer fora do círculo
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.fillRect(0, 0, CROP_SIZE, CROP_SIZE);
@@ -201,8 +202,8 @@ const Profile = () => {
       const img = new Image();
       img.onload = () => {
         cropImgRef.current = img;
-        // escala inicial: cobre o círculo de crop
-        const scale = Math.max(CROP_SIZE / img.naturalWidth, CROP_SIZE / img.naturalHeight);
+        // Escala inicial: fit (não fill) — sem zoom duplo
+        const scale = Math.min(CROP_SIZE / img.naturalWidth, CROP_SIZE / img.naturalHeight);
         const w = img.naturalWidth * scale;
         const h = img.naturalHeight * scale;
         setCropScale(scale);
@@ -303,7 +304,7 @@ const Profile = () => {
 
             <input
               type="range"
-              min={0.5}
+              min={Math.min(CROP_SIZE / (cropImgRef.current?.naturalWidth || CROP_SIZE), CROP_SIZE / (cropImgRef.current?.naturalHeight || CROP_SIZE))}
               max={3}
               step={0.01}
               value={cropScale}

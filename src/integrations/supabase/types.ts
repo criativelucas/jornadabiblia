@@ -124,6 +124,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           daily_goal_minutes: number | null
           display_name: string
@@ -140,6 +141,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           daily_goal_minutes?: number | null
           display_name?: string
@@ -156,6 +158,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           daily_goal_minutes?: number | null
           display_name?: string
@@ -170,6 +173,57 @@ export type Database = {
           streak?: number
           unlocked_milestones?: number[]
           user_id?: string
+        }
+        Relationships: []
+      }
+      quiz_questions: {
+        Row: {
+          book_name: string
+          correct_index: number
+          id: string
+          options: Json
+          question: string
+        }
+        Insert: {
+          book_name: string
+          correct_index: number
+          id?: string
+          options: Json
+          question: string
+        }
+        Update: {
+          book_name?: string
+          correct_index?: number
+          id?: string
+          options?: Json
+          question?: string
+        }
+        Relationships: []
+      }
+      quiz_results: {
+        Row: {
+          bonus_points: number
+          book_name: string
+          completed_at: string | null
+          correct_answers: number
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          bonus_points?: number
+          book_name: string
+          completed_at?: string | null
+          correct_answers?: number
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          bonus_points?: number
+          book_name?: string
+          completed_at?: string | null
+          correct_answers?: number
+          id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -193,7 +247,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      weekly_ranking: {
+        Row: {
+          avatar_url: string | null
+          chapters_this_week: number | null
+          display_name: string | null
+          quiz_bonus: number | null
+          user_id: string | null
+          weekly_points: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
