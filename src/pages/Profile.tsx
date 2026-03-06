@@ -7,6 +7,7 @@ import { milestones } from "@/data/streakMilestones";
 import { getMonths, planOptions, generateCustomDays, type CustomPlanConfig } from "@/data/planData";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera, Check, X as XIcon } from "lucide-react";
+import NotificationSettings from "@/components/NotificationSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -473,7 +474,15 @@ const Profile = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Badges bloqueadas — no final */}
+        {/* Notificações */}
+        <div className="mb-8">
+          <NotificationSettings
+            initialEnabled={(profile as any)?.reminder_enabled || false}
+            initialTime={(profile as any)?.reminder_time || "08:00"}
+          />
+        </div>
+
+
         {lockedList.length > 0 && (
           <div className="mb-8">
             <h3 className="text-sm font-bold text-muted-foreground mb-3">🔒 Ainda por conquistar</h3>
