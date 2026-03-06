@@ -4,6 +4,7 @@ import { milestones } from "@/data/streakMilestones";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton, RankingSkeleton } from "@/components/ui/skeleton";
+import WeeklyRanking from "@/components/WeeklyRanking";
 import type { SectionId } from "./AppSidebar";
 
 const iconMap: Record<string, React.ElementType> = { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown };
@@ -55,13 +56,16 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
       if (daysData) {
         setReadDates(new Set(daysData.map((r) => (r as any).read_date as string).filter(Boolean)));
       }
-      if (streak > 0) {
-        const { count: totalCount } = await supabase.from("profiles").select("*", { count: "exact", head: true });
-        const { count: belowCount } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .lte("streak", streak);
-        if (totalCount && belowCount && totalCount > 1) setPercentile(Math.round((belowCount / totalCount) * 100));
+      // Percentil baseado no ranking semanal
+      const { data: rankingData } = await (supabase as any)
+        .from("weekly_ranking")
+        .select("user_id, weekly_points");
+      if (rankingData && rankingData.length > 0) {
+        const myEntry = rankingData.find((r: any) => r.user_id === user.id);
+        const myPoints = myEntry?.weekly_points ?? 0;
+        const below = rankingData.filter((r: any) => (r.weekly_points ?? 0) < myPoints).length;
+        const pct = Math.round((below / rankingData.length) * 100);
+        setPercentile(pct);
       }
       setLoadingHeatmap(false);
     };
@@ -106,6 +110,27 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
 
   return (
     <div className="space-y-6">
+      {/* ── Ranking da Semana ─────────────────────────────────── */}
+      <div className="p-4 rounded-2xl bg-card border border-border">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">Ranking da Semana</h3>
+          </div>
+          <span className="text-[10px] text-muted-foreground">🔄 reseta segunda-feira</span>
+        </div>
+        <WeeklyRanking />
+      </div>
+
+      {/* ── Percentil ─────────────────────────────────────────── */}
+      {percentile !== null && percentile > 0 && (
+        <div className="p-4 rounded-2xl bg-primary/[0.07] border border-primary/20 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            Você está melhor que <span className="text-primary">{percentile}%</span> dos leitores essa semana
+          </p>
+        </div>
+      )}
+
       {/* ── Stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-5 rounded-2xl bg-card border border-border">
@@ -132,22 +157,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       </div>
 
-      {/* ── Percentil ─────────────────────────────────────────── */}
-      {percentile !== null && percentile >= 10 && (
-        <div className="p-4 rounded-2xl bg-primary/[0.07] border border-primary/20 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-            <Flame className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              Você está no top <span className="text-primary">{100 - percentile}%</span> mais dedicados
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Sua sequência de {streak} dias supera {percentile}% dos usuários
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ── Heatmap anual ─────────────────────────────────────── */}
       <div className="p-4 rounded-2xl bg-card border border-border">
