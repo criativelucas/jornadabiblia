@@ -383,6 +383,7 @@ const Index = () => {
           month_index: monthIndex,
           day_index: i,
           plan_id: selectedPlan,
+          read_date: getTodayStr(),
         }));
         await supabase.from("completed_days").insert(inserts as any);
         unread.forEach((i) => newCompleted.add(`${monthIndex}-${i}`));
