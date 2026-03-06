@@ -134,7 +134,10 @@ export type Database = {
           longest_streak: number
           onboarding_complete: boolean | null
           plan_start_date: string | null
+          push_subscription: Json | null
           reading_objective: string | null
+          reminder_enabled: boolean | null
+          reminder_time: string | null
           selected_plan: string
           streak: number
           unlocked_milestones: number[]
@@ -151,7 +154,10 @@ export type Database = {
           longest_streak?: number
           onboarding_complete?: boolean | null
           plan_start_date?: string | null
+          push_subscription?: Json | null
           reading_objective?: string | null
+          reminder_enabled?: boolean | null
+          reminder_time?: string | null
           selected_plan?: string
           streak?: number
           unlocked_milestones?: number[]
@@ -168,7 +174,10 @@ export type Database = {
           longest_streak?: number
           onboarding_complete?: boolean | null
           plan_start_date?: string | null
+          push_subscription?: Json | null
           reading_objective?: string | null
+          reminder_enabled?: boolean | null
+          reminder_time?: string | null
           selected_plan?: string
           streak?: number
           unlocked_milestones?: number[]
