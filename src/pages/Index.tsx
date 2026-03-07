@@ -586,15 +586,12 @@ const Index = () => {
               {activeSection === "chat" && <BibleChat />}
               {activeSection === "facts" && <DailyCuriosity />}
               {activeSection === "achieve" && (
-                <div className="space-y-8">
-                  <AchievementsTab
+              <AchievementsTab
                     streak={streak}
                     longestStreak={longestStreak}
                     unlockedMilestones={unlockedMilestones}
                     onNavigate={setActiveSection}
                   />
-                  <WeeklyRanking />
-                </div>
               )}
               {activeSection === "trophies" && (
                 <TrophiesTab
