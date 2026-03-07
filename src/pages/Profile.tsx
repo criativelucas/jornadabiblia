@@ -4,20 +4,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
 import { milestones } from "@/data/milestones";
-import {
-  ArrowLeft,
-  Flame,
-  BookOpen,
-  Trophy,
-  Calendar,
-  Lock,
-  Camera,
-  Bell,
-  BellOff,
-  Check,
-  X as XIcon,
-} from "lucide-react";
+import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera, Bell, BellOff, Check } from "lucide-react";
 import { toast } from "sonner";
+
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+const T = {
+  emerald: "#00c896",
+  emeraldDim: "rgba(0,200,150,0.12)",
+  emeraldGlow: "rgba(0,200,150,0.18)",
+  page: "#0d0d0d",
+  card: "#141414",
+  card2: "#1a1a1a",
+  border: "rgba(255,255,255,0.06)",
+  borderEm: "rgba(0,200,150,0.25)",
+  textPrimary: "#e8f5f0",
+  textMuted: "#6b8070",
+  textDim: "#3a4a40",
+} as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Profile {
@@ -31,11 +34,9 @@ interface Profile {
   reminder_time?: string;
   [key: string]: unknown;
 }
-
 interface DayReading {
   read_date: string;
 }
-
 interface QuizResult {
   bonus_points: number;
   completed_at: string;
@@ -70,28 +71,22 @@ function reminderMessage(time: string) {
 }
 
 function getLast7Days() {
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split("T")[0]);
-  }
-  return days;
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split("T")[0];
+  });
 }
-
 function getLast30Days() {
-  const days = [];
-  for (let i = 29; i >= 0; i--) {
+  return Array.from({ length: 30 }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split("T")[0]);
-  }
-  return days;
+    d.setDate(d.getDate() - (29 - i));
+    return d.toISOString().split("T")[0];
+  });
 }
-
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-// ─── CropModal ───────────────────────────────────────────────────────────────
+// ─── CropModal ────────────────────────────────────────────────────────────────
 function CropModal({
   src,
   onConfirm,
@@ -130,12 +125,10 @@ function CropModal({
     img.src = src;
     img.onload = () => {
       imgRef.current = img;
-      const fitScale = Math.min(SIZE / img.naturalWidth, SIZE / img.naturalHeight);
-      setScale(fitScale);
+      setScale(Math.min(SIZE / img.naturalWidth, SIZE / img.naturalHeight));
       draw();
     };
   }, [src]);
-
   useEffect(() => {
     draw();
   }, [draw]);
@@ -157,12 +150,10 @@ function CropModal({
   const onMouseUp = () => {
     dragging.current = false;
   };
-
   const handleConfirm = () => {
-    const canvas = canvasRef.current!;
-    canvas.toBlob(
-      (blob) => {
-        if (blob) onConfirm(blob);
+    canvasRef.current!.toBlob(
+      (b) => {
+        if (b) onConfirm(b);
       },
       "image/jpeg",
       0.92,
@@ -170,16 +161,33 @@ function CropModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl mx-4 w-full max-w-sm">
-        <h3 className="font-bold text-lg text-gray-900">Ajustar foto</h3>
-        <p className="text-sm text-gray-500">Arraste para reposicionar</p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+      style={{ background: "rgba(0,0,0,0.85)" }}
+    >
+      <div
+        className="rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl mx-4 w-full max-w-sm"
+        style={{ background: T.card, border: `1px solid ${T.border}` }}
+      >
+        <div className="w-full flex items-center justify-between">
+          <h3 className="font-bold text-base" style={{ color: T.textPrimary }}>
+            Ajustar foto
+          </h3>
+          <span className="text-xs font-medium" style={{ color: T.textMuted }}>
+            Arraste para reposicionar
+          </span>
+        </div>
         <canvas
           ref={canvasRef}
           width={SIZE}
           height={SIZE}
-          className="rounded-full cursor-grab active:cursor-grabbing touch-none border-4 border-lime-300"
-          style={{ width: SIZE, height: SIZE }}
+          className="rounded-full cursor-grab active:cursor-grabbing touch-none"
+          style={{
+            width: SIZE,
+            height: SIZE,
+            border: `3px solid ${T.emerald}`,
+            boxShadow: `0 0 28px ${T.emeraldGlow}`,
+          }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
@@ -188,7 +196,9 @@ function CropModal({
           onTouchEnd={onMouseUp}
         />
         <div className="w-full flex items-center gap-3">
-          <span className="text-xs text-gray-400">−</span>
+          <span className="text-xs font-bold" style={{ color: T.textMuted }}>
+            −
+          </span>
           <input
             type="range"
             min={0.3}
@@ -196,20 +206,25 @@ function CropModal({
             step={0.05}
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
-            className="flex-1 accent-lime-400"
+            className="flex-1"
+            style={{ accentColor: T.emerald }}
           />
-          <span className="text-xs text-gray-400">+</span>
+          <span className="text-xs font-bold" style={{ color: T.textMuted }}>
+            +
+          </span>
         </div>
         <div className="flex gap-3 w-full">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 rounded-full border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors"
+            className="flex-1 py-3 rounded-full text-sm font-semibold"
+            style={{ border: `1.5px solid ${T.border}`, color: T.textMuted, background: "transparent" }}
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 py-3 rounded-full bg-lime-400 text-gray-900 font-bold text-sm hover:bg-lime-500 transition-colors"
+            className="flex-1 py-3 rounded-full text-sm font-bold"
+            style={{ background: T.emerald, color: T.page }}
           >
             Confirmar
           </button>
@@ -219,12 +234,34 @@ function CropModal({
   );
 }
 
+// ─── Eyebrow ──────────────────────────────────────────────────────────────────
+function Eyebrow({ children, emerald }: { children: React.ReactNode; emerald?: boolean }) {
+  return (
+    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: emerald ? T.emerald : T.textMuted }}>
+      {children}
+    </p>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Profile() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Profile state
+  // Force dark background on body/html — overrides any parent layout
+  useEffect(() => {
+    const prev = document.body.style.background;
+    const prevHtml = document.documentElement.style.background;
+    document.body.style.background = T.page;
+    document.body.style.minHeight = "100vh";
+    document.documentElement.style.background = T.page;
+    return () => {
+      document.body.style.background = prev;
+      document.body.style.minHeight = "";
+      document.documentElement.style.background = prevHtml;
+    };
+  }, []);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -232,16 +269,12 @@ export default function Profile() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Chart state
   const [chartMode, setChartMode] = useState<"week" | "month">("week");
   const [readingDays, setReadingDays] = useState<string[]>([]);
-
-  // Achievements state
   const [completedBooks, setCompletedBooks] = useState<string[]>([]);
   const [totalChapters, setTotalChapters] = useState(0);
   const [quizPoints, setQuizPoints] = useState(0);
 
-  // Notification state
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("20:00");
   const [savingReminder, setSavingReminder] = useState(false);
@@ -249,9 +282,7 @@ export default function Profile() {
   // ── Load data ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-
     (async () => {
-      // Profile
       const { data: p } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
       if (p) {
         const prof = p as unknown as Profile;
@@ -261,8 +292,6 @@ export default function Profile() {
         setReminderEnabled(prof.reminder_enabled ?? false);
         setReminderTime(prof.reminder_time ?? "20:00");
       }
-
-      // Reading days
       const { data: days } = await supabase
         .from("completed_days")
         .select("read_date")
@@ -270,7 +299,6 @@ export default function Profile() {
         .not("read_date", "is", null);
       if (days) setReadingDays((days as DayReading[]).map((d) => d.read_date));
 
-      // Chapters read
       const readByBook = getReadChaptersByBook(user.id);
       let total = 0;
       const completed: string[] = [];
@@ -282,7 +310,6 @@ export default function Profile() {
       setTotalChapters(total);
       setCompletedBooks(completed);
 
-      // Quiz points
       const now = new Date();
       const monday = new Date(now);
       monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -292,14 +319,11 @@ export default function Profile() {
         .select("bonus_points, completed_at")
         .eq("user_id", user.id)
         .gte("completed_at", monday.toISOString());
-      if (qr) {
-        const pts = (qr as QuizResult[]).reduce((s, r) => s + (r.bonus_points ?? 0), 0);
-        setQuizPoints(pts);
-      }
+      if (qr) setQuizPoints((qr as QuizResult[]).reduce((s, r) => s + (r.bonus_points ?? 0), 0));
     })();
   }, [user]);
 
-  // ── Chart data ──────────────────────────────────────────────────────────────
+  // ── Chart ───────────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     const days = chartMode === "week" ? getLast7Days() : getLast30Days();
     const set = new Set(readingDays);
@@ -312,11 +336,10 @@ export default function Profile() {
       };
     });
   }, [chartMode, readingDays]);
-
   const readCount = chartData.filter((d) => d.read).length;
   const totalDays = chartData.length;
 
-  // ── Avatar upload ────────────────────────────────────────────────────────────
+  // ── Avatar ──────────────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -331,8 +354,7 @@ export default function Profile() {
     setCropSrc(null);
     setUploading(true);
     try {
-      const ext = "jpg";
-      const path = `${user.id}/avatar.${ext}`;
+      const path = `${user.id}/avatar.jpg`;
       const { error: upErr } = await supabase.storage
         .from("avatars")
         .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
@@ -352,14 +374,12 @@ export default function Profile() {
     }
   };
 
-  // ── Save name ────────────────────────────────────────────────────────────────
   const handleSaveName = async () => {
     if (!user) return;
     await supabase.from("profiles").update({ display_name: displayName }).eq("user_id", user.id);
     toast.success("Nome salvo!");
   };
 
-  // ── Save reminder ────────────────────────────────────────────────────────────
   const handleToggleReminder = async () => {
     if (!user) return;
     const newVal = !reminderEnabled;
@@ -383,7 +403,7 @@ export default function Profile() {
     toast.success(`Horário salvo: ${t}`);
   };
 
-  // ── Achievements ─────────────────────────────────────────────────────────────
+  // ── Milestones ──────────────────────────────────────────────────────────────
   const unlockedMilestones = milestones.filter((m) =>
     m.type === "book"
       ? completedBooks.includes(m.book ?? "")
@@ -395,29 +415,77 @@ export default function Profile() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen pb-28" style={{ background: "#f0f0ea" }}>
-      {/* Crop modal */}
+    <div
+      className="min-h-screen pb-28 relative overflow-x-hidden"
+      style={{ background: T.page, backgroundColor: T.page, isolation: "isolate" }}
+    >
+      {/* Scan-line texture */}
+      <div
+        className="pointer-events-none fixed inset-0 z-10"
+        style={{
+          background:
+            "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)",
+        }}
+      />
+
       {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
 
-      {/* Header */}
-      <div className="px-5 pt-12 pb-6">
+      {/* ── Hero header ──────────────────────────────────────────────────────── */}
+      <div className="relative px-5 pt-12 pb-8 overflow-hidden">
+        <div
+          className="absolute top-0 left-0 right-0 pointer-events-none"
+          style={{
+            height: "180px",
+            background: `radial-gradient(ellipse 70% 110% at 15% -10%, ${T.emeraldGlow} 0%, transparent 70%)`,
+          }}
+        />
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-500 mb-6 hover:text-gray-800 transition-colors"
+          className="relative flex items-center gap-2 mb-8 hover:opacity-70 transition-opacity"
+          style={{ color: T.textMuted }}
         >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-medium">Voltar</span>
+          <ArrowLeft size={16} />
+          <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
         </button>
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Perfil</h1>
+        <div className="relative">
+          <Eyebrow emerald>Jornada Bíblica</Eyebrow>
+          <h1 className="text-4xl font-black mt-1" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
+            Meu Perfil
+          </h1>
+        </div>
       </div>
 
-      <div className="px-5 flex flex-col gap-4">
-        {/* ── Avatar + name card ── */}
-        <div className="bg-white rounded-3xl shadow-sm p-6 flex flex-col items-center gap-5">
-          {/* Avatar */}
+      <div className="px-5 flex flex-col gap-4 relative z-0">
+        {/* ── Avatar + name ─────────────────────────────────────────────────── */}
+        <div
+          className="relative p-6 flex flex-col items-center gap-5"
+          style={{
+            background: T.card,
+            border: `1px solid ${T.border}`,
+            borderRadius: "1.5rem",
+            clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)",
+          }}
+        >
+          {/* Notch corner accent */}
+          <div
+            className="absolute top-0 right-0 pointer-events-none"
+            style={{
+              width: "2rem",
+              height: "2rem",
+              borderTop: `1.5px solid ${T.emerald}`,
+              borderRight: `1.5px solid ${T.emerald}`,
+            }}
+          />
+
           <div className="relative">
-            <button onClick={() => fileInputRef.current?.click()} className="relative group block" disabled={uploading}>
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-lime-300 shadow-md">
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="relative group block">
+              <div
+                className="w-24 h-24 rounded-full overflow-hidden"
+                style={{
+                  border: `3px solid ${T.emerald}`,
+                  boxShadow: `0 0 28px ${T.emeraldGlow}`,
+                }}
+              >
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -426,45 +494,56 @@ export default function Profile() {
                     onError={() => setAvatarUrl(null)}
                   />
                 ) : (
-                  <div className="w-full h-full bg-lime-100 flex items-center justify-center text-3xl font-black text-lime-600">
+                  <div
+                    className="w-full h-full flex items-center justify-center text-3xl font-black"
+                    style={{ background: T.emeraldDim, color: T.emerald }}
+                  >
                     {displayName?.[0]?.toUpperCase() ?? "?"}
                   </div>
                 )}
               </div>
-              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div
+                className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: "rgba(0,0,0,0.6)" }}
+              >
                 {uploading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Camera size={20} className="text-white" />
+                  <Camera size={20} color="white" />
                 )}
               </div>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
 
-          {/* Streak badge */}
           {profile && (
-            <div className="flex items-center gap-1.5 bg-lime-400 rounded-full px-4 py-1.5 shadow-sm">
-              <Flame size={15} className="text-gray-900" />
-              <span className="text-sm font-bold text-gray-900">{profile.streak} dias seguidos</span>
+            <div
+              className="flex items-center gap-1.5 rounded-full px-4 py-1.5"
+              style={{ background: T.emeraldDim, border: `1px solid ${T.borderEm}` }}
+            >
+              <Flame size={13} color={T.emerald} />
+              <span className="text-xs font-bold" style={{ color: T.emerald }}>
+                {profile.streak} dias seguidos
+              </span>
             </div>
           )}
 
-          {/* Name input */}
           <div className="w-full">
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 block">
-              Nome de exibição
-            </label>
-            <div className="flex gap-2">
+            <Eyebrow>Nome de exibição</Eyebrow>
+            <div className="flex gap-2 mt-2">
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 bg-gray-50 rounded-2xl px-4 py-3 text-sm text-gray-900 border border-gray-100 focus:outline-none focus:border-lime-300 transition-colors"
+                className="flex-1 rounded-2xl px-4 py-3 text-sm outline-none transition-all"
+                style={{ background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
+                onFocus={(e) => (e.target.style.borderColor = T.emerald)}
+                onBlur={(e) => (e.target.style.borderColor = T.border)}
                 placeholder="Seu nome"
               />
               <button
                 onClick={handleSaveName}
-                className="bg-lime-400 hover:bg-lime-500 text-gray-900 font-bold text-sm rounded-2xl px-5 transition-colors"
+                className="rounded-2xl px-5 text-sm font-bold transition-all hover:opacity-90"
+                style={{ background: T.emerald, color: T.page }}
               >
                 Salvar
               </button>
@@ -472,59 +551,96 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ── Unlocked badges ── */}
-        {unlockedMilestones.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm p-5">
-            <h2 className="text-base font-black text-gray-900 mb-3 flex items-center gap-2">
-              <Trophy size={16} className="text-lime-500" />
-              Conquistas desbloqueadas
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {unlockedMilestones.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 bg-lime-50 border border-lime-100 rounded-2xl p-3">
-                  <span className="text-2xl">{m.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">{m.title}</p>
-                    <p className="text-xs text-gray-400 truncate">{m.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Stats row ── */}
+        {/* ── Stats ─────────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Progress card — lime */}
-          <div className="bg-lime-400 rounded-3xl shadow-sm p-5">
-            <BookOpen size={20} className="text-gray-900 mb-2" />
-            <p className="text-3xl font-black text-gray-900">{totalChapters}</p>
-            <p className="text-xs font-semibold text-gray-700 mt-0.5">capítulos lidos</p>
+          <div
+            className="p-5 flex flex-col gap-1"
+            style={{
+              background: T.emerald,
+              borderRadius: "1.5rem",
+              clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+            }}
+          >
+            <BookOpen size={18} color={T.page} />
+            <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>
+              {totalChapters}
+            </p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: "rgba(0,0,0,0.55)" }}>
+              capítulos lidos
+            </p>
           </div>
-          {/* Streak card — dark */}
-          <div className="bg-gray-900 rounded-3xl shadow-sm p-5">
-            <Flame size={20} className="text-lime-400 mb-2" />
-            <p className="text-3xl font-black text-white">{profile?.longest_streak ?? 0}</p>
-            <p className="text-xs font-semibold text-gray-400 mt-0.5">maior sequência</p>
+          <div
+            className="p-5 flex flex-col gap-1"
+            style={{
+              background: T.card,
+              border: `1px solid ${T.border}`,
+              borderRadius: "1.5rem",
+              clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+            }}
+          >
+            <Flame size={18} color={T.emerald} />
+            <p
+              className="text-4xl font-black mt-1"
+              style={{ color: T.emerald, letterSpacing: "-0.05em", lineHeight: 1 }}
+            >
+              {profile?.longest_streak ?? 0}
+            </p>
+            <Eyebrow>maior sequência</Eyebrow>
           </div>
         </div>
 
-        {/* ── Reading chart ── */}
-        <div className="bg-white rounded-3xl shadow-sm p-5">
+        {/* ── Weekly points ─────────────────────────────────────────────────── */}
+        <div
+          className="p-5 relative overflow-hidden"
+          style={{
+            background: T.card,
+            border: `1px solid ${T.border}`,
+            borderRadius: "1.5rem",
+          }}
+        >
+          <div
+            className="absolute top-0 right-0 pointer-events-none"
+            style={{
+              width: "200px",
+              height: "200px",
+              background: `radial-gradient(circle, ${T.emeraldGlow} 0%, transparent 70%)`,
+              transform: "translate(30%,-30%)",
+            }}
+          />
+          <div className="relative flex items-center justify-between">
+            <div>
+              <Eyebrow emerald>Pontuação semanal</Eyebrow>
+              <p
+                className="text-5xl font-black mt-2"
+                style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}
+              >
+                {(readCount * 10 + quizPoints).toLocaleString()}
+              </p>
+              <p className="text-xs mt-2" style={{ color: T.textMuted }}>
+                <span style={{ color: T.emerald }}>{readCount * 10}</span> leitura ·{" "}
+                <span style={{ color: T.emerald }}>{quizPoints}</span> quiz
+              </p>
+            </div>
+            <Trophy size={44} color={T.emerald} style={{ opacity: 0.18 }} />
+          </div>
+        </div>
+
+        {/* ── Chart ─────────────────────────────────────────────────────────── */}
+        <div className="p-5" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-black text-gray-900 flex items-center gap-2">
-              <Calendar size={16} className="text-lime-500" />
-              Leituras
-            </h2>
-            {/* Toggle */}
-            <div className="flex bg-gray-100 rounded-full p-0.5">
+            <div className="flex items-center gap-2">
+              <Calendar size={14} color={T.emerald} />
+              <span className="text-sm font-bold" style={{ color: T.textPrimary }}>
+                Leituras
+              </span>
+            </div>
+            <div className="flex rounded-full p-0.5" style={{ background: T.card2 }}>
               {(["week", "month"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setChartMode(m)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                    chartMode === m ? "bg-lime-400 text-gray-900 shadow-sm" : "text-gray-500"
-                  }`}
+                  className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+                  style={chartMode === m ? { background: T.emerald, color: T.page } : { color: T.textMuted }}
                 >
                   {m === "week" ? "Semana" : "Mês"}
                 </button>
@@ -532,130 +648,178 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Bar chart */}
-          <div className="flex items-end gap-1.5 h-24">
+          <div className="flex items-end gap-1 h-20">
             {chartData.map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex-1 flex items-end rounded-t-lg overflow-hidden bg-gray-100">
+                <div className="w-full flex-1 flex items-end rounded-t overflow-hidden" style={{ background: T.card2 }}>
                   <div
-                    className={`w-full rounded-t-lg transition-all duration-500 ${
-                      d.read ? "bg-lime-400" : "bg-gray-100"
-                    }`}
-                    style={{ height: d.read ? "100%" : "20%" }}
+                    className="w-full rounded-t transition-all duration-500"
+                    style={{ height: d.read ? "100%" : "18%", background: d.read ? T.emerald : T.card2 }}
                   />
                 </div>
-                {chartMode === "week" && <span className="text-[9px] text-gray-400 font-medium">{d.label}</span>}
+                {chartMode === "week" && (
+                  <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>
+                    {d.label}
+                  </span>
+                )}
                 {chartMode === "month" && parseInt(d.label) % 5 === 0 && (
-                  <span className="text-[9px] text-gray-400 font-medium">{d.label}</span>
+                  <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>
+                    {d.label}
+                  </span>
                 )}
               </div>
             ))}
           </div>
 
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            {readCount} de {totalDays} dias com leitura
+          <div className="mt-3 h-0.5 rounded-full overflow-hidden" style={{ background: T.card2 }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${(readCount / totalDays) * 100}%`, background: T.emerald }}
+            />
+          </div>
+          <p className="text-xs mt-2 text-center" style={{ color: T.textMuted }}>
+            <span style={{ color: T.emerald }}>{readCount}</span> de {totalDays} dias com leitura
           </p>
         </div>
 
-        {/* ── Weekly points ── */}
-        <div className="bg-gray-900 rounded-3xl shadow-sm p-5 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pontos esta semana</p>
-            <p className="text-3xl font-black text-white mt-1">{(readCount * 10 + quizPoints).toLocaleString()}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {readCount * 10} leitura · {quizPoints} quiz
-            </p>
+        {/* ── Unlocked badges ───────────────────────────────────────────────── */}
+        {unlockedMilestones.length > 0 && (
+          <div className="p-5" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy size={14} color={T.emerald} />
+              <span className="text-sm font-bold" style={{ color: T.textPrimary }}>
+                Conquistas
+              </span>
+              <span
+                className="text-xs font-bold rounded-full px-2 py-0.5 ml-auto"
+                style={{ background: T.emeraldDim, color: T.emerald }}
+              >
+                {unlockedMilestones.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {unlockedMilestones.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-3 p-3 rounded-2xl"
+                  style={{ background: T.card2, border: `1px solid ${T.borderEm}` }}
+                >
+                  <span className="text-2xl">{m.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold truncate" style={{ color: T.textPrimary }}>
+                      {m.title}
+                    </p>
+                    <p className="text-[10px] truncate" style={{ color: T.textMuted }}>
+                      {m.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <Trophy size={40} className="text-lime-400 opacity-60" />
-        </div>
+        )}
 
-        {/* ── Notification card ── */}
-        <div className="bg-white rounded-3xl shadow-sm p-5">
-          {/* Header row */}
+        {/* ── Notification ──────────────────────────────────────────────────── */}
+        <div className="p-5" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                  reminderEnabled ? "bg-lime-100" : "bg-gray-100"
-                }`}
+                className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                style={{ background: reminderEnabled ? T.emeraldDim : T.card2 }}
               >
-                {reminderEnabled ? (
-                  <Bell size={18} className="text-lime-600" />
-                ) : (
-                  <BellOff size={18} className="text-gray-400" />
-                )}
+                {reminderEnabled ? <Bell size={17} color={T.emerald} /> : <BellOff size={17} color={T.textMuted} />}
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">Lembrete de leitura</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm font-bold" style={{ color: T.textPrimary }}>
+                  Lembrete de leitura
+                </p>
+                <p className="text-xs" style={{ color: T.textMuted }}>
                   {reminderEnabled ? `Todos os dias às ${reminderTime}` : "Desativado"}
                 </p>
               </div>
             </div>
 
-            {/* Toggle switch */}
             <button
               onClick={handleToggleReminder}
               disabled={savingReminder}
-              className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
-                reminderEnabled ? "bg-lime-400" : "bg-gray-200"
-              }`}
+              className="relative rounded-full transition-all duration-300"
+              style={{
+                width: "3rem",
+                height: "1.5rem",
+                background: reminderEnabled ? T.emerald : T.card2,
+                border: `1.5px solid ${reminderEnabled ? T.emerald : T.border}`,
+              }}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 ${
-                  reminderEnabled ? "translate-x-6" : "translate-x-0"
-                }`}
+                className="absolute top-0.5 rounded-full bg-white shadow transition-all duration-300"
+                style={{ width: "1rem", height: "1rem", left: reminderEnabled ? "calc(100% - 1.25rem)" : "0.2rem" }}
               />
             </button>
           </div>
 
-          {/* Time picker — expands when enabled */}
           {reminderEnabled && (
-            <div className="mt-4 border-t border-gray-50 pt-4">
-              <p className="text-xs font-semibold text-gray-400 mb-3">Escolha o melhor horário</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${T.border}` }}>
+              <Eyebrow>Escolha o melhor horário</Eyebrow>
+              <div className="flex flex-wrap gap-2 mt-3">
                 {REMINDER_TIMES.map((t) => (
                   <button
                     key={t}
                     onClick={() => handleSaveTime(t)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                    style={
                       reminderTime === t
-                        ? "bg-lime-400 border-lime-400 text-gray-900"
-                        : "border-gray-200 text-gray-500 hover:border-lime-300"
-                    }`}
+                        ? { background: T.emerald, color: T.page, border: "none" }
+                        : { background: "transparent", color: T.textMuted, border: `1px solid ${T.border}` }
+                    }
                   >
-                    {reminderTime === t && <Check size={10} className="inline mr-1" />}
+                    {reminderTime === t && <Check size={9} className="inline mr-1" />}
                     {t}
                   </button>
                 ))}
               </div>
 
-              {/* Preview */}
-              <div className="mt-4 bg-gray-50 rounded-2xl p-3 flex items-start gap-3">
-                <Bell size={14} className="text-lime-500 mt-0.5 shrink-0" />
+              <div
+                className="mt-4 flex items-start gap-3 p-3 rounded-2xl"
+                style={{ background: T.card2, border: `1px solid ${T.borderEm}` }}
+              >
+                <Bell size={13} color={T.emerald} className="mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-gray-700">Prévia da notificação</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{reminderMessage(reminderTime)}</p>
+                  <p className="text-xs font-bold" style={{ color: T.textPrimary }}>
+                    Prévia da notificação
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
+                    {reminderMessage(reminderTime)}
+                  </p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Locked badges ── */}
+        {/* ── Locked badges ─────────────────────────────────────────────────── */}
         {lockedMilestones.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm p-5 mb-4">
-            <h2 className="text-base font-black text-gray-900 mb-3 flex items-center gap-2">
-              <Lock size={16} className="text-gray-300" />
-              <span className="text-gray-400">Ainda por conquistar</span>
-            </h2>
+          <div
+            className="p-5 mb-4"
+            style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Lock size={13} color={T.textDim} />
+              <span className="text-sm font-bold" style={{ color: T.textMuted }}>
+                Ainda por conquistar
+              </span>
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {lockedMilestones.map((m) => (
-                <div key={m.id} className="flex flex-col items-center gap-1 opacity-40 grayscale">
-                  <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-xl">
+                <div key={m.id} className="flex flex-col items-center gap-1.5" style={{ opacity: 0.3 }}>
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl grayscale"
+                    style={{ background: T.card2 }}
+                  >
                     {m.icon}
                   </div>
-                  <p className="text-[9px] text-gray-400 text-center leading-tight">{m.title}</p>
+                  <p className="text-[9px] text-center leading-tight" style={{ color: T.textMuted }}>
+                    {m.title}
+                  </p>
                 </div>
               ))}
             </div>
