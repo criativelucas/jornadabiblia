@@ -2,26 +2,57 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera, Bell, BellOff, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Flame,
+  BookOpen,
+  Trophy,
+  Calendar,
+  Lock,
+  Camera,
+  Bell,
+  BellOff,
+  Check,
+  Sun,
+  Moon,
+} from "lucide-react";
 import { toast } from "sonner";
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-const T = {
-  emerald: "#00c896",
-  emeraldDim: "rgba(0,200,150,0.12)",
-  emeraldGlow: "rgba(0,200,150,0.18)",
+// ─── Themes ───────────────────────────────────────────────────────────────────
+const DARK = {
+  accent: "#a3e635",
+  accentDim: "rgba(163,230,53,0.13)",
+  accentGlow: "rgba(163,230,53,0.15)",
   page: "#0d0d0d",
   card: "#141414",
-  card2: "#1a1a1a",
-  border: "rgba(255,255,255,0.06)",
-  borderEm: "rgba(0,200,150,0.25)",
-  textPrimary: "#e8f5f0",
-  textMuted: "#6b8070",
-  textDim: "#3a4a40",
-} as const;
+  card2: "#1c1c1c",
+  border: "rgba(255,255,255,0.07)",
+  borderAc: "rgba(163,230,53,0.28)",
+  textPrimary: "#f4fce3",
+  textMuted: "#6b7a50",
+  textDim: "#3a4020",
+  shadow: "rgba(0,0,0,0.5)",
+};
+
+const LIGHT = {
+  accent: "#65a30d",
+  accentDim: "rgba(101,163,13,0.10)",
+  accentGlow: "rgba(101,163,13,0.10)",
+  page: "#f0f0ea",
+  card: "#ffffff",
+  card2: "#f5f5ef",
+  border: "rgba(0,0,0,0.07)",
+  borderAc: "rgba(101,163,13,0.30)",
+  textPrimary: "#1a1a0d",
+  textMuted: "#7a8060",
+  textDim: "#b8c090",
+  shadow: "rgba(0,0,0,0.08)",
+};
+
+type Theme = typeof DARK;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Profile {
+interface ProfileData {
   id: string;
   user_id: string;
   display_name: string;
@@ -60,14 +91,12 @@ const REMINDER_TIMES = [
   "21:00",
   "22:00",
 ];
-
 function reminderMessage(time: string) {
   const h = parseInt(time);
   if (h < 12) return "☀️ Bom dia! Que tal começar o dia na Palavra?";
   if (h < 18) return "📖 Pausa para a leitura bíblica de hoje.";
   return "🌙 Antes de dormir, um capítulo te espera.";
 }
-
 function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -84,15 +113,25 @@ function getLast30Days() {
 }
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-// ─── CropModal ────────────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function Eyebrow({ children, accent, T }: { children: React.ReactNode; accent?: boolean; T: Theme }) {
+  return (
+    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accent ? T.accent : T.textMuted }}>
+      {children}
+    </p>
+  );
+}
+
 function CropModal({
   src,
   onConfirm,
   onCancel,
+  T,
 }: {
   src: string;
   onConfirm: (blob: Blob) => void;
   onCancel: () => void;
+  T: Theme;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -131,24 +170,21 @@ function CropModal({
     draw();
   }, [draw]);
 
-  const onMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+  const onDown = (e: React.MouseEvent | React.TouchEvent) => {
     dragging.current = true;
-    const pos = "touches" in e ? e.touches[0] : e;
-    lastPos.current = { x: pos.clientX, y: pos.clientY };
+    const p = "touches" in e ? e.touches[0] : e;
+    lastPos.current = { x: p.clientX, y: p.clientY };
   };
-  const onMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+  const onMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!dragging.current) return;
-    const pos = "touches" in e ? e.touches[0] : e;
-    setOffset((prev) => ({
-      x: prev.x + (pos.clientX - lastPos.current.x),
-      y: prev.y + (pos.clientY - lastPos.current.y),
-    }));
-    lastPos.current = { x: pos.clientX, y: pos.clientY };
+    const p = "touches" in e ? e.touches[0] : e;
+    setOffset((prev) => ({ x: prev.x + (p.clientX - lastPos.current.x), y: prev.y + (p.clientY - lastPos.current.y) }));
+    lastPos.current = { x: p.clientX, y: p.clientY };
   };
-  const onMouseUp = () => {
+  const onUp = () => {
     dragging.current = false;
   };
-  const handleConfirm = () => {
+  const confirm = () => {
     canvasRef.current!.toBlob(
       (b) => {
         if (b) onConfirm(b);
@@ -161,7 +197,7 @@ function CropModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ background: "rgba(0,0,0,0.85)" }}
+      style={{ background: "rgba(0,0,0,0.82)" }}
     >
       <div
         className="rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl mx-4 w-full max-w-sm"
@@ -171,7 +207,7 @@ function CropModal({
           <h3 className="font-bold text-base" style={{ color: T.textPrimary }}>
             Ajustar foto
           </h3>
-          <span className="text-xs font-medium" style={{ color: T.textMuted }}>
+          <span className="text-xs" style={{ color: T.textMuted }}>
             Arraste para reposicionar
           </span>
         </div>
@@ -180,18 +216,13 @@ function CropModal({
           width={SIZE}
           height={SIZE}
           className="rounded-full cursor-grab active:cursor-grabbing touch-none"
-          style={{
-            width: SIZE,
-            height: SIZE,
-            border: `3px solid ${T.emerald}`,
-            boxShadow: `0 0 28px ${T.emeraldGlow}`,
-          }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onTouchStart={onMouseDown}
-          onTouchMove={onMouseMove}
-          onTouchEnd={onMouseUp}
+          style={{ width: SIZE, height: SIZE, border: `3px solid ${T.accent}`, boxShadow: `0 0 24px ${T.accentGlow}` }}
+          onMouseDown={onDown}
+          onMouseMove={onMove}
+          onMouseUp={onUp}
+          onTouchStart={onDown}
+          onTouchMove={onMove}
+          onTouchEnd={onUp}
         />
         <div className="w-full flex items-center gap-3">
           <span className="text-xs font-bold" style={{ color: T.textMuted }}>
@@ -205,7 +236,7 @@ function CropModal({
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
             className="flex-1"
-            style={{ accentColor: T.emerald }}
+            style={{ accentColor: T.accent }}
           />
           <span className="text-xs font-bold" style={{ color: T.textMuted }}>
             +
@@ -220,9 +251,9 @@ function CropModal({
             Cancelar
           </button>
           <button
-            onClick={handleConfirm}
+            onClick={confirm}
             className="flex-1 py-3 rounded-full text-sm font-bold"
-            style={{ background: T.emerald, color: T.page }}
+            style={{ background: T.accent, color: T.page }}
           >
             Confirmar
           </button>
@@ -232,35 +263,31 @@ function CropModal({
   );
 }
 
-// ─── Eyebrow ──────────────────────────────────────────────────────────────────
-function Eyebrow({ children, emerald }: { children: React.ReactNode; emerald?: boolean }) {
-  return (
-    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: emerald ? T.emerald : T.textMuted }}>
-      {children}
-    </p>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Profile() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Force dark background on body/html — overrides any parent layout
+  // ── Theme toggle ─────────────────────────────────────────────────────────────
+  const [isDark, setIsDark] = useState(true);
+  const T = isDark ? DARK : LIGHT;
+
+  // Apply background to body/html
   useEffect(() => {
-    const prev = document.body.style.background;
+    const prevBody = document.body.style.background;
     const prevHtml = document.documentElement.style.background;
     document.body.style.background = T.page;
     document.body.style.minHeight = "100vh";
     document.documentElement.style.background = T.page;
     return () => {
-      document.body.style.background = prev;
+      document.body.style.background = prevBody;
       document.body.style.minHeight = "";
       document.documentElement.style.background = prevHtml;
     };
-  }, []);
+  }, [T.page]);
 
-  const [profile, setProfile] = useState<Profile | null>(null);
+  // ── State ────────────────────────────────────────────────────────────────────
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -269,7 +296,6 @@ export default function Profile() {
 
   const [chartMode, setChartMode] = useState<"week" | "month">("week");
   const [readingDays, setReadingDays] = useState<string[]>([]);
-  const [completedBooks, setCompletedBooks] = useState<string[]>([]);
   const [totalChapters, setTotalChapters] = useState(0);
   const [quizPoints, setQuizPoints] = useState(0);
 
@@ -277,29 +303,29 @@ export default function Profile() {
   const [reminderTime, setReminderTime] = useState("20:00");
   const [savingReminder, setSavingReminder] = useState(false);
 
-  // ── Load data ───────────────────────────────────────────────────────────────
+  // ── Load data ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data: p } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
       if (p) {
-        const prof = p as unknown as Profile;
+        const prof = p as unknown as ProfileData;
         setProfile(prof);
         setDisplayName(prof.display_name ?? "");
         setAvatarUrl(prof.avatar_url ?? null);
         setReminderEnabled(prof.reminder_enabled ?? false);
         setReminderTime(prof.reminder_time ?? "20:00");
       }
+
       const { data: days } = await supabase
         .from("completed_days")
         .select("read_date")
         .eq("user_id", user.id)
         .not("read_date", "is", null);
-      if (days) setReadingDays((days as DayReading[]).map((d) => d.read_date));
-
-      // completed_days only tracks read_date — use count as proxy for chapters read
-      setTotalChapters(days?.length ?? 0);
-      setCompletedBooks([]);
+      if (days) {
+        setReadingDays((days as DayReading[]).map((d) => d.read_date));
+        setTotalChapters(days.length);
+      }
 
       const now = new Date();
       const monday = new Date(now);
@@ -314,7 +340,7 @@ export default function Profile() {
     })();
   }, [user]);
 
-  // ── Chart ───────────────────────────────────────────────────────────────────
+  // ── Chart ────────────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     const days = chartMode === "week" ? getLast7Days() : getLast30Days();
     const set = new Set(readingDays);
@@ -330,7 +356,7 @@ export default function Profile() {
   const readCount = chartData.filter((d) => d.read).length;
   const totalDays = chartData.length;
 
-  // ── Avatar ──────────────────────────────────────────────────────────────────
+  // ── Avatar ───────────────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -339,7 +365,6 @@ export default function Profile() {
     reader.readAsDataURL(file);
     e.target.value = "";
   };
-
   const handleCropConfirm = async (blob: Blob) => {
     if (!user) return;
     setCropSrc(null);
@@ -383,7 +408,6 @@ export default function Profile() {
     setSavingReminder(false);
     toast.success(newVal ? "Lembrete ativado!" : "Lembrete desativado.");
   };
-
   const handleSaveTime = async (t: string) => {
     if (!user) return;
     setReminderTime(t);
@@ -394,49 +418,81 @@ export default function Profile() {
     toast.success(`Horário salvo: ${t}`);
   };
 
-  // ── Milestones ──────────────────────────────────────────────────────────────
-  // milestones não disponível como módulo — arrays vazios por enquanto
-  // Para reativar: import { milestones } from "@/data/milestones" quando o módulo existir
-  const unlockedMilestones: Array<{ id: string; icon: string; title: string; description: string }> = [];
-  const lockedMilestones: Array<{ id: string; icon: string; title: string }> = [];
-
   // ── Render ────────────────────────────────────────────────────────────────────
+  const cardStyle = { background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" };
+  const clipCard = { ...cardStyle, clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)" };
+
   return (
     <div
-      className="min-h-screen pb-28 relative overflow-x-hidden"
-      style={{ background: T.page, backgroundColor: T.page, isolation: "isolate" }}
+      className="min-h-screen pb-28 relative overflow-x-hidden transition-colors duration-500"
+      style={{ background: T.page, backgroundColor: T.page }}
     >
-      {/* Scan-line texture */}
-      <div
-        className="pointer-events-none fixed inset-0 z-10"
-        style={{
-          background:
-            "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)",
-        }}
-      />
-
-      {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
-
-      {/* ── Hero header ──────────────────────────────────────────────────────── */}
-      <div className="relative px-5 pt-12 pb-8 overflow-hidden">
+      {/* Scan-line texture (dark only) */}
+      {isDark && (
         <div
-          className="absolute top-0 left-0 right-0 pointer-events-none"
+          className="pointer-events-none fixed inset-0 z-10"
           style={{
-            height: "180px",
-            background: `radial-gradient(ellipse 70% 110% at 15% -10%, ${T.emeraldGlow} 0%, transparent 70%)`,
+            background:
+              "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)",
           }}
         />
-        <button
-          onClick={() => navigate(-1)}
-          className="relative flex items-center gap-2 mb-8 hover:opacity-70 transition-opacity"
-          style={{ color: T.textMuted }}
-        >
-          <ArrowLeft size={16} />
-          <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
-        </button>
+      )}
+
+      {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} T={T} />}
+
+      {/* ── Header ────────────────────────────────────────────────────────────── */}
+      <div className="relative px-5 pt-12 pb-8 overflow-hidden">
+        {isDark && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse 70% 110% at 15% -10%, ${T.accentGlow} 0%, transparent 65%)`,
+            }}
+          />
+        )}
+
+        <div className="relative flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+            style={{ color: T.textMuted }}
+          >
+            <ArrowLeft size={16} />
+            <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
+          </button>
+
+          {/* Day / Night toggle */}
+          <button
+            onClick={() => setIsDark((d) => !d)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
+            style={{
+              background: T.card2,
+              border: `1px solid ${T.border}`,
+              color: T.textMuted,
+            }}
+          >
+            {isDark ? (
+              <>
+                <Sun size={13} />
+                <span className="text-xs font-bold">Dia</span>
+              </>
+            ) : (
+              <>
+                <Moon size={13} />
+                <span className="text-xs font-bold">Noite</span>
+              </>
+            )}
+          </button>
+        </div>
+
         <div className="relative">
-          <Eyebrow emerald>Jornada Bíblica</Eyebrow>
-          <h1 className="text-4xl font-black mt-1" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
+          <Eyebrow accent T={T}>
+            Jornada Bíblica
+          </Eyebrow>
+          <h1
+            className="text-4xl font-black mt-1 transition-colors duration-500"
+            style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}
+          >
             Meu Perfil
           </h1>
         </div>
@@ -445,32 +501,28 @@ export default function Profile() {
       <div className="px-5 flex flex-col gap-4 relative z-0">
         {/* ── Avatar + name ─────────────────────────────────────────────────── */}
         <div
-          className="relative p-6 flex flex-col items-center gap-5"
-          style={{
-            background: T.card,
-            border: `1px solid ${T.border}`,
-            borderRadius: "1.5rem",
-            clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)",
-          }}
+          className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500"
+          style={{ ...cardStyle, clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)" }}
         >
-          {/* Notch corner accent */}
+          {/* Notch accent */}
           <div
             className="absolute top-0 right-0 pointer-events-none"
             style={{
               width: "2rem",
               height: "2rem",
-              borderTop: `1.5px solid ${T.emerald}`,
-              borderRight: `1.5px solid ${T.emerald}`,
+              borderTop: `1.5px solid ${T.accent}`,
+              borderRight: `1.5px solid ${T.accent}`,
             }}
           />
 
+          {/* Avatar */}
           <div className="relative">
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="relative group block">
               <div
                 className="w-24 h-24 rounded-full overflow-hidden"
                 style={{
-                  border: `3px solid ${T.emerald}`,
-                  boxShadow: `0 0 28px ${T.emeraldGlow}`,
+                  border: `3px solid ${T.accent}`,
+                  boxShadow: `0 0 28px ${T.accentGlow}`,
                 }}
               >
                 {avatarUrl ? (
@@ -483,7 +535,7 @@ export default function Profile() {
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center text-3xl font-black"
-                    style={{ background: T.emeraldDim, color: T.emerald }}
+                    style={{ background: T.accentDim, color: T.accent }}
                   >
                     {displayName?.[0]?.toUpperCase() ?? "?"}
                   </div>
@@ -491,7 +543,7 @@ export default function Profile() {
               </div>
               <div
                 className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: "rgba(0,0,0,0.6)" }}
+                style={{ background: "rgba(0,0,0,0.55)" }}
               >
                 {uploading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -503,34 +555,36 @@ export default function Profile() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
 
+          {/* Streak pill */}
           {profile && (
             <div
               className="flex items-center gap-1.5 rounded-full px-4 py-1.5"
-              style={{ background: T.emeraldDim, border: `1px solid ${T.borderEm}` }}
+              style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}
             >
-              <Flame size={13} color={T.emerald} />
-              <span className="text-xs font-bold" style={{ color: T.emerald }}>
+              <Flame size={13} color={T.accent} />
+              <span className="text-xs font-bold" style={{ color: T.accent }}>
                 {profile.streak} dias seguidos
               </span>
             </div>
           )}
 
+          {/* Name input */}
           <div className="w-full">
-            <Eyebrow>Nome de exibição</Eyebrow>
+            <Eyebrow T={T}>Nome de exibição</Eyebrow>
             <div className="flex gap-2 mt-2">
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="flex-1 rounded-2xl px-4 py-3 text-sm outline-none transition-all"
                 style={{ background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
-                onFocus={(e) => (e.target.style.borderColor = T.emerald)}
+                onFocus={(e) => (e.target.style.borderColor = T.accent)}
                 onBlur={(e) => (e.target.style.borderColor = T.border)}
                 placeholder="Seu nome"
               />
               <button
                 onClick={handleSaveName}
-                className="rounded-2xl px-5 text-sm font-bold transition-all hover:opacity-90"
-                style={{ background: T.emerald, color: T.page }}
+                className="rounded-2xl px-5 text-sm font-bold hover:opacity-90 transition-opacity"
+                style={{ background: T.accent, color: T.page }}
               >
                 Salvar
               </button>
@@ -540,10 +594,11 @@ export default function Profile() {
 
         {/* ── Stats ─────────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
+          {/* Chapters — accent fill */}
           <div
-            className="p-5 flex flex-col gap-1"
+            className="p-5 flex flex-col gap-1 transition-colors duration-500"
             style={{
-              background: T.emerald,
+              background: T.accent,
               borderRadius: "1.5rem",
               clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
             }}
@@ -552,51 +607,41 @@ export default function Profile() {
             <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>
               {totalChapters}
             </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: "rgba(0,0,0,0.55)" }}>
-              capítulos lidos
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>
+              dias com leitura
             </p>
           </div>
-          <div
-            className="p-5 flex flex-col gap-1"
-            style={{
-              background: T.card,
-              border: `1px solid ${T.border}`,
-              borderRadius: "1.5rem",
-              clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
-            }}
-          >
-            <Flame size={18} color={T.emerald} />
+          {/* Streak — dark card */}
+          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={clipCard}>
+            <Flame size={18} color={T.accent} />
             <p
               className="text-4xl font-black mt-1"
-              style={{ color: T.emerald, letterSpacing: "-0.05em", lineHeight: 1 }}
+              style={{ color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}
             >
               {profile?.longest_streak ?? 0}
             </p>
-            <Eyebrow>maior sequência</Eyebrow>
+            <Eyebrow T={T}>maior sequência</Eyebrow>
           </div>
         </div>
 
         {/* ── Weekly points ─────────────────────────────────────────────────── */}
-        <div
-          className="p-5 relative overflow-hidden"
-          style={{
-            background: T.card,
-            border: `1px solid ${T.border}`,
-            borderRadius: "1.5rem",
-          }}
-        >
-          <div
-            className="absolute top-0 right-0 pointer-events-none"
-            style={{
-              width: "200px",
-              height: "200px",
-              background: `radial-gradient(circle, ${T.emeraldGlow} 0%, transparent 70%)`,
-              transform: "translate(30%,-30%)",
-            }}
-          />
+        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={cardStyle}>
+          {isDark && (
+            <div
+              className="absolute top-0 right-0 pointer-events-none"
+              style={{
+                width: "200px",
+                height: "200px",
+                background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`,
+                transform: "translate(30%,-30%)",
+              }}
+            />
+          )}
           <div className="relative flex items-center justify-between">
             <div>
-              <Eyebrow emerald>Pontuação semanal</Eyebrow>
+              <Eyebrow accent T={T}>
+                Pontuação semanal
+              </Eyebrow>
               <p
                 className="text-5xl font-black mt-2"
                 style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}
@@ -604,19 +649,19 @@ export default function Profile() {
                 {(readCount * 10 + quizPoints).toLocaleString()}
               </p>
               <p className="text-xs mt-2" style={{ color: T.textMuted }}>
-                <span style={{ color: T.emerald }}>{readCount * 10}</span> leitura ·{" "}
-                <span style={{ color: T.emerald }}>{quizPoints}</span> quiz
+                <span style={{ color: T.accent }}>{readCount * 10}</span> leitura ·{" "}
+                <span style={{ color: T.accent }}>{quizPoints}</span> quiz
               </p>
             </div>
-            <Trophy size={44} color={T.emerald} style={{ opacity: 0.18 }} />
+            <Trophy size={44} color={T.accent} style={{ opacity: 0.2 }} />
           </div>
         </div>
 
         {/* ── Chart ─────────────────────────────────────────────────────────── */}
-        <div className="p-5" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 transition-colors duration-500" style={cardStyle}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Calendar size={14} color={T.emerald} />
+              <Calendar size={14} color={T.accent} />
               <span className="text-sm font-bold" style={{ color: T.textPrimary }}>
                 Leituras
               </span>
@@ -627,7 +672,7 @@ export default function Profile() {
                   key={m}
                   onClick={() => setChartMode(m)}
                   className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                  style={chartMode === m ? { background: T.emerald, color: T.page } : { color: T.textMuted }}
+                  style={chartMode === m ? { background: T.accent, color: T.page } : { color: T.textMuted }}
                 >
                   {m === "week" ? "Semana" : "Mês"}
                 </button>
@@ -641,7 +686,7 @@ export default function Profile() {
                 <div className="w-full flex-1 flex items-end rounded-t overflow-hidden" style={{ background: T.card2 }}>
                   <div
                     className="w-full rounded-t transition-all duration-500"
-                    style={{ height: d.read ? "100%" : "18%", background: d.read ? T.emerald : T.card2 }}
+                    style={{ height: d.read ? "100%" : "18%", background: d.read ? T.accent : T.card2 }}
                   />
                 </div>
                 {chartMode === "week" && (
@@ -661,60 +706,23 @@ export default function Profile() {
           <div className="mt-3 h-0.5 rounded-full overflow-hidden" style={{ background: T.card2 }}>
             <div
               className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${(readCount / totalDays) * 100}%`, background: T.emerald }}
+              style={{ width: `${(readCount / totalDays) * 100}%`, background: T.accent }}
             />
           </div>
           <p className="text-xs mt-2 text-center" style={{ color: T.textMuted }}>
-            <span style={{ color: T.emerald }}>{readCount}</span> de {totalDays} dias com leitura
+            <span style={{ color: T.accent }}>{readCount}</span> de {totalDays} dias com leitura
           </p>
         </div>
 
-        {/* ── Unlocked badges ───────────────────────────────────────────────── */}
-        {unlockedMilestones.length > 0 && (
-          <div className="p-5" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
-            <div className="flex items-center gap-2 mb-4">
-              <Trophy size={14} color={T.emerald} />
-              <span className="text-sm font-bold" style={{ color: T.textPrimary }}>
-                Conquistas
-              </span>
-              <span
-                className="text-xs font-bold rounded-full px-2 py-0.5 ml-auto"
-                style={{ background: T.emeraldDim, color: T.emerald }}
-              >
-                {unlockedMilestones.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {unlockedMilestones.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-3 p-3 rounded-2xl"
-                  style={{ background: T.card2, border: `1px solid ${T.borderEm}` }}
-                >
-                  <span className="text-2xl">{m.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold truncate" style={{ color: T.textPrimary }}>
-                      {m.title}
-                    </p>
-                    <p className="text-[10px] truncate" style={{ color: T.textMuted }}>
-                      {m.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── Notification ──────────────────────────────────────────────────── */}
-        <div className="p-5" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 transition-colors duration-500" style={cardStyle}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                style={{ background: reminderEnabled ? T.emeraldDim : T.card2 }}
+                style={{ background: reminderEnabled ? T.accentDim : T.card2 }}
               >
-                {reminderEnabled ? <Bell size={17} color={T.emerald} /> : <BellOff size={17} color={T.textMuted} />}
+                {reminderEnabled ? <Bell size={17} color={T.accent} /> : <BellOff size={17} color={T.textMuted} />}
               </div>
               <div>
                 <p className="text-sm font-bold" style={{ color: T.textPrimary }}>
@@ -725,7 +733,6 @@ export default function Profile() {
                 </p>
               </div>
             </div>
-
             <button
               onClick={handleToggleReminder}
               disabled={savingReminder}
@@ -733,8 +740,8 @@ export default function Profile() {
               style={{
                 width: "3rem",
                 height: "1.5rem",
-                background: reminderEnabled ? T.emerald : T.card2,
-                border: `1.5px solid ${reminderEnabled ? T.emerald : T.border}`,
+                background: reminderEnabled ? T.accent : T.card2,
+                border: `1.5px solid ${reminderEnabled ? T.accent : T.border}`,
               }}
             >
               <span
@@ -746,7 +753,7 @@ export default function Profile() {
 
           {reminderEnabled && (
             <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${T.border}` }}>
-              <Eyebrow>Escolha o melhor horário</Eyebrow>
+              <Eyebrow T={T}>Escolha o melhor horário</Eyebrow>
               <div className="flex flex-wrap gap-2 mt-3">
                 {REMINDER_TIMES.map((t) => (
                   <button
@@ -755,7 +762,7 @@ export default function Profile() {
                     className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
                     style={
                       reminderTime === t
-                        ? { background: T.emerald, color: T.page, border: "none" }
+                        ? { background: T.accent, color: T.page, border: "none" }
                         : { background: "transparent", color: T.textMuted, border: `1px solid ${T.border}` }
                     }
                   >
@@ -764,12 +771,11 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
-
               <div
                 className="mt-4 flex items-start gap-3 p-3 rounded-2xl"
-                style={{ background: T.card2, border: `1px solid ${T.borderEm}` }}
+                style={{ background: T.card2, border: `1px solid ${T.borderAc}` }}
               >
-                <Bell size={13} color={T.emerald} className="mt-0.5 shrink-0" />
+                <Bell size={13} color={T.accent} className="mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs font-bold" style={{ color: T.textPrimary }}>
                     Prévia da notificação
@@ -783,35 +789,15 @@ export default function Profile() {
           )}
         </div>
 
-        {/* ── Locked badges ─────────────────────────────────────────────────── */}
-        {lockedMilestones.length > 0 && (
-          <div
-            className="p-5 mb-4"
-            style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Lock size={13} color={T.textDim} />
-              <span className="text-sm font-bold" style={{ color: T.textMuted }}>
-                Ainda por conquistar
-              </span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {lockedMilestones.map((m) => (
-                <div key={m.id} className="flex flex-col items-center gap-1.5" style={{ opacity: 0.3 }}>
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl grayscale"
-                    style={{ background: T.card2 }}
-                  >
-                    {m.icon}
-                  </div>
-                  <p className="text-[9px] text-center leading-tight" style={{ color: T.textMuted }}>
-                    {m.title}
-                  </p>
-                </div>
-              ))}
-            </div>
+        {/* ── Locked placeholder (badges desativadas até milestones voltar) ── */}
+        <div className="p-5 mb-4 transition-colors duration-500" style={cardStyle}>
+          <div className="flex items-center gap-2">
+            <Lock size={13} color={T.textDim} />
+            <span className="text-sm font-bold" style={{ color: T.textMuted }}>
+              Conquistas em breve
+            </span>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
