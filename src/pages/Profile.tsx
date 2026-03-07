@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { bibleBooks } from "@/data/bibleBooks";
 import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera, Bell, BellOff, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -298,27 +297,9 @@ export default function Profile() {
         .not("read_date", "is", null);
       if (days) setReadingDays((days as DayReading[]).map((d) => d.read_date));
 
-      // Count chapters read per book via completed_days
-      const { data: chaptersData } = await supabase
-        .from("completed_days")
-        .select("book_name, chapter")
-        .eq("user_id", user.id);
-      if (chaptersData) {
-        const byBook: Record<string, Set<number>> = {};
-        chaptersData.forEach((row: { book_name: string; chapter: number }) => {
-          if (!byBook[row.book_name]) byBook[row.book_name] = new Set();
-          byBook[row.book_name].add(row.chapter);
-        });
-        let total = 0;
-        const completed: string[] = [];
-        bibleBooks.forEach((book) => {
-          const count = byBook[book.name]?.size ?? 0;
-          total += count;
-          if (count >= book.chapters) completed.push(book.name);
-        });
-        setTotalChapters(total);
-        setCompletedBooks(completed);
-      }
+      // completed_days only tracks read_date — use count as proxy for chapters read
+      setTotalChapters(days?.length ?? 0);
+      setCompletedBooks([]);
 
       const now = new Date();
       const monday = new Date(now);
