@@ -31,7 +31,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import DynamicGreeting from "@/components/DynamicGreeting";
 import StreakTree from "@/components/StreakTree";
 import NextAchievement from "@/components/NextAchievement";
-import WeeklyRanking from "@/components/WeeklyRanking";
+
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
 import { toast } from "sonner";
@@ -586,15 +586,12 @@ const Index = () => {
               {activeSection === "chat" && <BibleChat />}
               {activeSection === "facts" && <DailyCuriosity />}
               {activeSection === "achieve" && (
-                <div className="space-y-8">
-                  <AchievementsTab
+              <AchievementsTab
                     streak={streak}
                     longestStreak={longestStreak}
                     unlockedMilestones={unlockedMilestones}
                     onNavigate={setActiveSection}
                   />
-                  <WeeklyRanking />
-                </div>
               )}
               {activeSection === "trophies" && (
                 <TrophiesTab
