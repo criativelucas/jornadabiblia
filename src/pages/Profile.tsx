@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
-import { milestones } from "@/data/milestones";
+import { bibleBooks } from "@/data/bibleBooks";
 import { ArrowLeft, Flame, BookOpen, Trophy, Calendar, Lock, Camera, Bell, BellOff, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -299,16 +298,27 @@ export default function Profile() {
         .not("read_date", "is", null);
       if (days) setReadingDays((days as DayReading[]).map((d) => d.read_date));
 
-      const readByBook = getReadChaptersByBook(user.id);
-      let total = 0;
-      const completed: string[] = [];
-      bibleBooks.forEach((book) => {
-        const count = readByBook[book.name]?.size ?? 0;
-        total += count;
-        if (count >= book.chapters) completed.push(book.name);
-      });
-      setTotalChapters(total);
-      setCompletedBooks(completed);
+      // Count chapters read per book via completed_days
+      const { data: chaptersData } = await supabase
+        .from("completed_days")
+        .select("book_name, chapter")
+        .eq("user_id", user.id);
+      if (chaptersData) {
+        const byBook: Record<string, Set<number>> = {};
+        chaptersData.forEach((row: { book_name: string; chapter: number }) => {
+          if (!byBook[row.book_name]) byBook[row.book_name] = new Set();
+          byBook[row.book_name].add(row.chapter);
+        });
+        let total = 0;
+        const completed: string[] = [];
+        bibleBooks.forEach((book) => {
+          const count = byBook[book.name]?.size ?? 0;
+          total += count;
+          if (count >= book.chapters) completed.push(book.name);
+        });
+        setTotalChapters(total);
+        setCompletedBooks(completed);
+      }
 
       const now = new Date();
       const monday = new Date(now);
@@ -404,14 +414,10 @@ export default function Profile() {
   };
 
   // ── Milestones ──────────────────────────────────────────────────────────────
-  const unlockedMilestones = milestones.filter((m) =>
-    m.type === "book"
-      ? completedBooks.includes(m.book ?? "")
-      : m.type === "chapters"
-        ? totalChapters >= (m.threshold ?? 0)
-        : false,
-  );
-  const lockedMilestones = milestones.filter((m) => !unlockedMilestones.includes(m));
+  // milestones não disponível como módulo — arrays vazios por enquanto
+  // Para reativar: import { milestones } from "@/data/milestones" quando o módulo existir
+  const unlockedMilestones: Array<{ id: string; icon: string; title: string; description: string }> = [];
+  const lockedMilestones: Array<{ id: string; icon: string; title: string }> = [];
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
