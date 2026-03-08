@@ -294,11 +294,18 @@ export default function Profile() {
     toast.success(`Horário salvo: ${t}`);
   };
 
+  // LEVEL 1 — highlight card with clip-path
   const clipCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
-    borderRadius: "1.5rem",
-    clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+    borderRadius: "1.25rem",
+    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
+  };
+  // LEVEL 2 — grid/list card
+  const gridCard = {
+    background: T.card,
+    border: `1px solid ${T.border}`,
+    borderRadius: "0.875rem",
   };
 
   return (
