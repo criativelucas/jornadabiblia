@@ -35,7 +35,7 @@ function buildAllAchievements(): AchievementDef[] {
       title: b.name,
       description: `Complete todos os ${b.chapters} capítulos de ${b.name}`,
       icon: BookOpen,
-      color: '#D2FF00',
+      color: '__ACCENT__',
       category: 'book',
     });
   });
