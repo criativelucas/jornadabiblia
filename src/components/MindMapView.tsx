@@ -3,6 +3,8 @@ import { RefreshCw, Loader2, Trash2, Plus, Check, Download } from 'lucide-react'
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import ConfirmModal from './ConfirmModal';
+import { supabase } from '@/integrations/supabase/client';
+import { bibleBooks } from '@/data/bibleBooks';
 
 interface MindMapNode {
   id: string;
