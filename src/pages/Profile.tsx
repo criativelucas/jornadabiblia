@@ -400,7 +400,7 @@ export default function Profile() {
         </div>
 
         {/* ── Weekly points ─────────────────────────────── */}
-        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.25rem" }}>
           {isDark && (
             <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "200px", height: "200px", background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`, transform: "translate(30%,-30%)" }} />
           )}
