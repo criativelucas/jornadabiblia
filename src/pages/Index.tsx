@@ -168,6 +168,7 @@ const Index = () => {
       if (data) {
         const d = data as any;
         setDisplayName(d.display_name || "");
+        setAvatarUrl(d.avatar_url || null);
         setStreak(d.streak || 0);
         setLongestStreak(d.longest_streak || 0);
         setLastReadDate(d.last_read_date || "");
