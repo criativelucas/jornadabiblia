@@ -144,7 +144,7 @@ function CropModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.82)" }}>
-      <div className="rounded-3xl p-6 flex flex-col items-center gap-4 mx-4 w-full max-w-sm" style={{ background: T.card, border: `1px solid ${T.border}`, boxShadow: `0 2px 40px ${T.shadow}` }}>
+      <div className="p-6 flex flex-col items-center gap-4 mx-4 w-full max-w-sm" style={{ borderRadius: "1.25rem", background: T.card, border: `1px solid ${T.border}`, boxShadow: `0 2px 40px ${T.shadow}` }}>
         <div className="w-full flex items-center justify-between">
           <h3 className="font-bold text-base" style={{ color: T.textPrimary }}>Ajustar foto</h3>
           <span className="text-xs" style={{ color: T.textMuted }}>Arraste para reposicionar</span>
