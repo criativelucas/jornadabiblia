@@ -496,6 +496,7 @@ const Index = () => {
     bible: "Bíblia",
     plans: "Planos",
     achieve: "Conquistas",
+    discover: "Descobertas",
     profile: "Perfil",
   };
   const planLabel =
