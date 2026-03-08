@@ -93,11 +93,14 @@ Responda APENAS com um objeto JSON válido, sem nenhum texto antes ou depois, se
 Formato exato: {"titulo": "string curto e instigante (máx 8 palavras)", "paragrafos": ["parágrafo 1", "parágrafo 2", "parágrafo 3 opcional"]}
 Regras: 2-3 parágrafos, 3-5 frases cada, linguagem acessível, inclua detalhes históricos concretos.`;
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Faça login para usar esta funcionalidade");
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: [{ role: "user", content: prompt }], type: "curiosity" }),
       });
