@@ -387,7 +387,7 @@ export default function Profile() {
 
         {/* ── Stats ─────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.5rem", clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)" }}>
+          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.25rem", clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)" }}>
             <BookOpen size={18} color={T.page} />
             <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>{totalChapters}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>dias com leitura</p>
