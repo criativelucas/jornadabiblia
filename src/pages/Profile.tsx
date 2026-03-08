@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ArrowLeft,
   Flame,
   BookOpen,
   Trophy,
@@ -13,6 +12,8 @@ import {
   Bell,
   BellOff,
   Check,
+  Loader,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useThemeContext, ThemeToggle, Eyebrow } from "@/contexts/ThemeContext";
@@ -29,17 +30,14 @@ interface ProfileData {
   reminder_time?: string;
   [key: string]: unknown;
 }
-interface DayReading {
-  read_date: string;
-}
-interface QuizResult {
-  bonus_points: number;
-  completed_at: string;
-}
+interface DayReading { read_date: string; }
+interface QuizResult { bonus_points: number; completed_at: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const REMINDER_TIMES = [
-  "05:00","05:30","06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00","12:00","18:00","19:00","20:00","21:00","22:00",
+const TIME_GROUPS = [
+  { label: "Manhã", times: ["05:00","05:30","06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00"] },
+  { label: "Tarde", times: ["12:00","18:00"] },
+  { label: "Noite", times: ["19:00","20:00","21:00","22:00"] },
 ];
 function reminderMessage(time: string) {
   const h = parseInt(time);
@@ -53,24 +51,12 @@ function getLast7Days() {
     return d.toISOString().split("T")[0];
   });
 }
-function getLast30Days() {
-  return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().split("T")[0];
-  });
-}
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
+function getToday() { return new Date().toISOString().split("T")[0]; }
+
 // ─── CropModal ────────────────────────────────────────────────────────────────
-function CropModal({
-  src,
-  onConfirm,
-  onCancel,
-}: {
-  src: string;
-  onConfirm: (blob: Blob) => void;
-  onCancel: () => void;
-}) {
+function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (blob: Blob) => void; onCancel: () => void }) {
   const { T } = useThemeContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -93,7 +79,6 @@ function CropModal({
     ctx.clip();
     const w = img.naturalWidth * scale;
     const h = img.naturalHeight * scale;
-    // Clamp offset so image always covers the circle
     const maxOffX = Math.max(0, (w - SIZE) / 2);
     const maxOffY = Math.max(0, (h - SIZE) / 2);
     const cx = Math.max(-maxOffX, Math.min(maxOffX, offset.x));
@@ -107,7 +92,6 @@ function CropModal({
     img.src = src;
     img.onload = () => {
       imgRef.current = img;
-      // Cover: ensure image fills the circle
       const fitScale = Math.max(SIZE / img.naturalWidth, SIZE / img.naturalHeight);
       setBaseScale(fitScale);
       setScale(fitScale);
@@ -150,9 +134,7 @@ function CropModal({
           <span className="text-xs" style={{ color: T.textMuted }}>Arraste para reposicionar</span>
         </div>
         <canvas
-          ref={canvasRef}
-          width={SIZE}
-          height={SIZE}
+          ref={canvasRef} width={SIZE} height={SIZE}
           className="rounded-full cursor-grab active:cursor-grabbing touch-none"
           style={{ width: SIZE, height: SIZE, border: `3px solid ${T.accent}`, boxShadow: `0 0 24px ${T.accentGlow}` }}
           onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
@@ -160,25 +142,13 @@ function CropModal({
         />
         <div className="w-full flex items-center gap-3">
           <span className="text-xs font-bold" style={{ color: T.textMuted }}>−</span>
-          <input
-            type="range"
-            min={baseScale}
-            max={baseScale * 3}
-            step={baseScale * 0.02}
-            value={scale}
-            onChange={(e) => setScale(parseFloat(e.target.value))}
-            className="flex-1"
-            style={{ accentColor: T.accent }}
-          />
+          <input type="range" min={baseScale} max={baseScale * 3} step={baseScale * 0.02} value={scale}
+            onChange={(e) => setScale(parseFloat(e.target.value))} className="flex-1" style={{ accentColor: T.accent }} />
           <span className="text-xs font-bold" style={{ color: T.textMuted }}>+</span>
         </div>
         <div className="flex gap-3 w-full">
-          <button onClick={onCancel} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ border: `1.5px solid ${T.border}`, color: T.textMuted, background: "transparent" }}>
-            Cancelar
-          </button>
-          <button onClick={confirm} className="flex-1 py-3 rounded-full text-sm font-bold" style={{ background: T.accent, color: T.page }}>
-            Confirmar
-          </button>
+          <button onClick={onCancel} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ border: `1.5px solid ${T.border}`, color: T.textMuted, background: "transparent" }}>Cancelar</button>
+          <button onClick={confirm} className="flex-1 py-3 rounded-full text-sm font-bold" style={{ background: T.accent, color: T.page }}>Confirmar</button>
         </div>
       </div>
     </div>
@@ -198,6 +168,10 @@ export default function Profile() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-save name states
+  const [savingName, setSavingName] = useState(false);
+  const [savedName, setSavedName] = useState(false);
+
   const [chartMode, setChartMode] = useState<"week" | "month">("week");
   const [readingDays, setReadingDays] = useState<string[]>([]);
   const [totalChapters, setTotalChapters] = useState(0);
@@ -206,6 +180,8 @@ export default function Profile() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("20:00");
   const [savingReminder, setSavingReminder] = useState(false);
+
+  const today = getToday();
 
   useEffect(() => {
     if (!user) return;
@@ -233,16 +209,42 @@ export default function Profile() {
     })();
   }, [user]);
 
-  const chartData = useMemo(() => {
-    const days = chartMode === "week" ? getLast7Days() : getLast30Days();
+  // Auto-save name with debounce
+  useEffect(() => {
+    if (!user || !profile || displayName === profile.display_name) return;
+    setSavedName(false);
+    const timer = setTimeout(async () => {
+      setSavingName(true);
+      await supabase.from("profiles").update({ display_name: displayName }).eq("user_id", user.id);
+      setSavingName(false);
+      setSavedName(true);
+      setTimeout(() => setSavedName(false), 2000);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [displayName, user, profile]);
+
+  // ── Week chart data
+  const weekData = useMemo(() => {
+    const days = getLast7Days();
     const set = new Set(readingDays);
     return days.map((date) => {
-      const d = new Date(date);
-      return { date, label: chartMode === "week" ? DAY_LABELS[d.getDay()] : d.getDate().toString(), read: set.has(date) };
+      const d = new Date(date + "T12:00:00");
+      return { date, label: DAY_LABELS[d.getDay()], read: set.has(date) };
     });
-  }, [chartMode, readingDays]);
-  const readCount = chartData.filter((d) => d.read).length;
-  const totalDays = chartData.length;
+  }, [readingDays]);
+
+  // ── Month calendar data
+  const monthCalendar = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const readSet = new Set(readingDays);
+    return { year, month, firstDay, daysInMonth, readSet };
+  }, [readingDays]);
+
+  const readCount = weekData.filter((d) => d.read).length;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -272,12 +274,6 @@ export default function Profile() {
     }
   };
 
-  const handleSaveName = async () => {
-    if (!user) return;
-    await supabase.from("profiles").update({ display_name: displayName }).eq("user_id", user.id);
-    toast.success("Nome salvo!");
-  };
-
   const handleToggleReminder = async () => {
     if (!user) return;
     const newVal = !reminderEnabled;
@@ -294,14 +290,17 @@ export default function Profile() {
     toast.success(`Horário salvo: ${t}`);
   };
 
-  // LEVEL 1 — highlight card with clip-path
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   const clipCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
     borderRadius: "1.25rem",
     clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
   };
-  // LEVEL 2 — grid/list card
   const gridCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
@@ -316,24 +315,13 @@ export default function Profile() {
 
       {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
 
-      {/* ── Header ─────────────────────────────────────── */}
-      <div className="relative px-5 pt-12 pb-8 overflow-hidden">
-        {isDark && (
-          <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse 70% 110% at 15% -10%, ${T.accentGlow} 0%, transparent 65%)` }} />
-        )}
-        <div className="relative flex items-center justify-between mb-8">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
-            <ArrowLeft size={16} />
-            <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
-          </button>
-          <ThemeToggle />
+      {/* ── Header — simplified ────────────────────────── */}
+      <div className="px-5 pt-12 pb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>Perfil</h1>
+          <p className="text-sm mt-1" style={{ color: T.textMuted }}>{displayName}</p>
         </div>
-        <div className="relative">
-          <Eyebrow accent>Jornada Bíblica</Eyebrow>
-          <h1 className="text-4xl font-black mt-1 transition-colors duration-500" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
-            Meu Perfil
-          </h1>
-        </div>
+        <ThemeToggle />
       </div>
 
       <div className="px-5 flex flex-col gap-4 relative z-0">
@@ -359,63 +347,69 @@ export default function Profile() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
 
-          {profile && (
-            <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
-              <Flame size={13} color={T.accent} />
-              <span className="text-xs font-bold" style={{ color: T.accent }}>{profile.streak} dias seguidos</span>
-            </div>
-          )}
-
+          {/* Name — auto-save */}
           <div className="w-full">
             <Eyebrow>Nome de exibição</Eyebrow>
-            <div className="flex gap-2 mt-2">
+            <div className="relative mt-2">
               <input
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 px-4 py-3 text-sm outline-none transition-all"
-                style={{ borderRadius: "0.75rem", background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
-                onFocus={(e) => (e.target.style.borderColor = T.accent)}
-                onBlur={(e) => (e.target.style.borderColor = T.border)}
+                onChange={(e) => { setDisplayName(e.target.value); setSavedName(false); }}
+                className="w-full px-4 py-3 text-sm outline-none transition-all"
+                style={{
+                  borderRadius: "0.875rem",
+                  background: T.card2,
+                  color: T.textPrimary,
+                  border: `1.5px solid ${savingName ? T.borderAc : savedName ? T.accent : T.border}`,
+                  paddingRight: "2.5rem",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                }}
                 placeholder="Seu nome"
               />
-              <button onClick={handleSaveName} className="px-5 text-sm font-bold hover:opacity-90 transition-opacity" style={{ borderRadius: "9999px", background: T.accent, color: T.page }}>
-                Salvar
-              </button>
+              <div style={{ position: "absolute", right: "0.875rem", top: "50%", transform: "translateY(-50%)" }}>
+                {savingName && <Loader size={14} style={{ color: T.textMuted }} className="animate-spin" />}
+                {savedName && <Check size={14} style={{ color: T.accent }} />}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Stats ─────────────────────────────────────── */}
+        {/* ── Streak card — current + record ─────────────── */}
+        <div style={{ ...gridCard, padding: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Sequência atual</p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
+              <span style={{ fontSize: "3rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                {profile?.streak ?? 0}
+              </span>
+              <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
+            </div>
+          </div>
+          <div style={{ width: "1px", height: "48px", background: T.border }} />
+          <div style={{ textAlign: "right" }}>
+            <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Recorde</p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px", justifyContent: "flex-end" }}>
+              <span style={{ fontSize: "2rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                {profile?.longest_streak ?? 0}
+              </span>
+              <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Stats row ─────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.25rem", clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)" }}>
             <BookOpen size={18} color={T.page} />
             <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>{totalChapters}</p>
-            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>dias com leitura</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>capítulos lidos</p>
           </div>
-          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={clipCard}>
-            <Flame size={18} color={T.accent} />
-            <p className="text-4xl font-black mt-1" style={{ color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>{profile?.longest_streak ?? 0}</p>
-            <Eyebrow>maior sequência</Eyebrow>
-          </div>
-        </div>
-
-        {/* ── Weekly points ─────────────────────────────── */}
-        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.25rem" }}>
-          {isDark && (
-            <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "200px", height: "200px", background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`, transform: "translate(30%,-30%)" }} />
-          )}
-          <div className="relative flex items-center justify-between">
-            <div>
-              <Eyebrow accent>Pontuação semanal</Eyebrow>
-              <p className="text-5xl font-black mt-2" style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
-                {(readCount * 10 + quizPoints).toLocaleString()}
-              </p>
-              <p className="text-xs mt-2" style={{ color: T.textMuted }}>
-                <span style={{ color: T.accent }}>{readCount * 10}</span> leitura ·{" "}
-                <span style={{ color: T.accent }}>{quizPoints}</span> quiz
-              </p>
-            </div>
-            <Trophy size={44} color={T.accent} style={{ opacity: 0.2 }} />
+          <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.25rem" }}>
+            <Trophy size={18} color={T.accent} />
+            <p className="text-4xl font-black mt-1" style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
+              {(readCount * 10 + quizPoints).toLocaleString()}
+            </p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: T.textMuted }}>pontos semanais</p>
           </div>
         </div>
 
@@ -426,31 +420,86 @@ export default function Profile() {
               <Calendar size={14} color={T.accent} />
               <span className="text-sm font-bold" style={{ color: T.textPrimary }}>Leituras</span>
             </div>
-            <div className="flex rounded-full p-0.5" style={{ background: T.card2 }}>
+            <div className="flex gap-2">
               {(["week", "month"] as const).map((m) => (
-                <button key={m} onClick={() => setChartMode(m)} className="px-3 py-1 rounded-full text-xs font-bold transition-all" style={chartMode === m ? { background: T.accent, color: T.page } : { color: T.textMuted }}>
+                <button key={m} onClick={() => setChartMode(m)}
+                  style={{
+                    padding: "6px 16px", borderRadius: "9999px",
+                    fontWeight: 700, fontSize: "12px",
+                    background: chartMode === m ? T.accent : T.card2,
+                    color: chartMode === m ? T.page : T.textMuted,
+                    border: `1px solid ${chartMode === m ? T.accent : T.border}`,
+                    transition: "all 0.2s",
+                  }}
+                >
                   {m === "week" ? "Semana" : "Mês"}
                 </button>
               ))}
             </div>
           </div>
-          <div className="flex items-end gap-1 h-20">
-            {chartData.map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex-1 flex items-end rounded-t overflow-hidden" style={{ background: T.card2 }}>
-                  <div className="w-full rounded-t transition-all duration-500" style={{ height: d.read ? "100%" : "18%", background: d.read ? T.accent : T.card2 }} />
-                </div>
-                {chartMode === "week" && <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>{d.label}</span>}
-                {chartMode === "month" && parseInt(d.label) % 5 === 0 && <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>{d.label}</span>}
+
+          {/* WEEK mode */}
+          {chartMode === "week" && (
+            <div style={{ display: "flex", gap: "6px", height: "80px", alignItems: "flex-end" }}>
+              {weekData.map((d, i) => {
+                const isToday = d.date === today;
+                return (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                    <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
+                      <div style={{
+                        width: "100%", borderRadius: "4px 4px 0 0",
+                        height: d.read ? "100%" : "12%",
+                        background: isToday ? T.accent : d.read ? `${T.accent}99` : T.card2,
+                        transition: "height 0.5s cubic-bezier(0.65,0.05,0,1)",
+                        position: "relative",
+                      }}>
+                        {isToday && (
+                          <div style={{ position: "absolute", top: "-6px", left: "50%", transform: "translateX(-50%)", width: "6px", height: "6px", borderRadius: "9999px", background: T.accent }} />
+                        )}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "9px", fontWeight: isToday ? 900 : 600, color: isToday ? T.accent : T.textMuted, textTransform: "uppercase" }}>
+                      {d.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* MONTH mode — calendar grid */}
+          {chartMode === "month" && (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "3px", marginBottom: "4px" }}>
+                {["D","S","T","Q","Q","S","S"].map((d, i) => (
+                  <div key={i} style={{ textAlign: "center", fontSize: "9px", fontWeight: 700, color: T.textDim }}>{d}</div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="mt-3 h-0.5 rounded-full overflow-hidden" style={{ background: T.card2 }}>
-            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(readCount / totalDays) * 100}%`, background: T.accent }} />
-          </div>
-          <p className="text-xs mt-2 text-center" style={{ color: T.textMuted }}>
-            <span style={{ color: T.accent }}>{readCount}</span> de {totalDays} dias com leitura
-          </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "3px" }}>
+                {Array.from({ length: monthCalendar.firstDay }).map((_, i) => (
+                  <div key={`empty-${i}`} />
+                ))}
+                {Array.from({ length: monthCalendar.daysInMonth }, (_, i) => i + 1).map(day => {
+                  const dateStr = `${monthCalendar.year}-${String(monthCalendar.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                  const read = monthCalendar.readSet.has(dateStr);
+                  const isToday = dateStr === today;
+                  return (
+                    <div key={day} style={{
+                      aspectRatio: "1",
+                      borderRadius: "6px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "10px", fontWeight: 700,
+                      background: isToday ? T.accent : read ? T.accentDim : T.card2,
+                      color: isToday ? T.page : read ? T.accent : T.textDim,
+                      border: `1px solid ${isToday ? T.accent : read ? T.borderAc : "transparent"}`,
+                    }}>
+                      {day}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Notification ──────────────────────────────── */}
@@ -479,25 +528,30 @@ export default function Profile() {
           </div>
           {reminderEnabled && (
             <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${T.border}` }}>
-              <Eyebrow>Escolha o melhor horário</Eyebrow>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {REMINDER_TIMES.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => handleSaveTime(t)}
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                    style={
-                      reminderTime === t
-                        ? { background: T.accent, color: T.page }
-                        : { background: "transparent", color: T.textMuted, border: `1px solid ${T.border}` }
-                    }
-                  >
-                    {reminderTime === t && <Check size={9} className="inline mr-1" />}
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 flex items-start gap-3 p-3" style={{ borderRadius: "0.875rem", background: T.card2, border: `1px solid ${T.borderAc}` }}>
+              {TIME_GROUPS.map(group => (
+                <div key={group.label} className="mb-3">
+                  <p style={{ color: T.textDim, fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>
+                    {group.label}
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {group.times.map(t => (
+                      <button key={t} onClick={() => handleSaveTime(t)}
+                        style={{
+                          borderRadius: "9999px", padding: "5px 12px",
+                          fontSize: "12px", fontWeight: 700,
+                          background: reminderTime === t ? T.accent : T.card2,
+                          color: reminderTime === t ? T.page : T.textMuted,
+                          border: `1px solid ${reminderTime === t ? T.accent : T.border}`,
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {reminderTime === t && "✓ "}{t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className="mt-2 flex items-start gap-3 p-3" style={{ borderRadius: "0.875rem", background: T.card2, border: `1px solid ${T.borderAc}` }}>
                 <Bell size={13} color={T.accent} className="mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs font-bold" style={{ color: T.textPrimary }}>Prévia da notificação</p>
@@ -508,13 +562,15 @@ export default function Profile() {
           )}
         </div>
 
-        {/* ── Locked placeholder ────────────────────────── */}
-        <div className="p-5 mb-4 transition-colors duration-500" style={gridCard}>
-          <div className="flex items-center gap-2">
-            <Lock size={13} color={T.textDim} />
-            <span className="text-sm font-bold" style={{ color: T.textMuted }}>Conquistas em breve</span>
-          </div>
-        </div>
+        {/* ── Logout ────────────────────────────────────── */}
+        <button
+          onClick={handleLogout}
+          className="flex items-center justify-center gap-2 py-3 rounded-full transition-all mb-4"
+          style={{ border: `1.5px solid ${T.border}`, color: T.textMuted, background: "transparent" }}
+        >
+          <LogOut size={14} />
+          <span className="text-sm font-semibold">Sair da conta</span>
+        </button>
       </div>
     </div>
   );
