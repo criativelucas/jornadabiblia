@@ -580,6 +580,7 @@ const Index = () => {
           {!mindMapBook &&
           <div key={activeSection} className="section-enter">
               {activeSection === "bible" && <BibleTab />}
+              {activeSection === "discover" && <DiscoverTab />}
               {activeSection === "achieve" &&
             <AchievementsTab
               streak={streak}
