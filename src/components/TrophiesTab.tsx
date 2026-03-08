@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, CheckCircle2, Award } from "lucide-react";
+import { BookOpen, Check, Award } from "lucide-react";
 import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
 import { useThemeContext } from "@/contexts/ThemeContext";
 import type { SectionId } from "./AppSidebar";
@@ -35,13 +35,6 @@ const TrophiesTab = ({ completedDays, allDays, months, onBookClick, onNavigate }
     { id: "done", label: "Concluídos" },
   ];
 
-  const clipCard = {
-    background: T.card,
-    border: `1px solid ${T.border}`,
-    borderRadius: "1.25rem",
-    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -55,17 +48,20 @@ const TrophiesTab = ({ completedDays, allDays, months, onBookClick, onNavigate }
         </span>
       </div>
 
+      {/* Filter pills — LEVEL 3: rounded-full */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide">
         {filters.map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
-            className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
-            style={
-              filter === f.id
+            className="flex-shrink-0 px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-300"
+            style={{
+              borderRadius: "9999px",
+              ...(filter === f.id
                 ? { background: T.accent, color: T.page }
                 : { background: T.card2, color: T.textMuted, border: `1px solid ${T.border}` }
-            }
+              ),
+            }}
           >
             {f.label}
           </button>
@@ -73,17 +69,29 @@ const TrophiesTab = ({ completedDays, allDays, months, onBookClick, onNavigate }
       </div>
 
       {filter === "done" && completedBooks.length === 0 ? (
-        <div className="p-8 text-center" style={clipCard}>
+        <div
+          className="p-8 text-center"
+          style={{
+            background: T.card,
+            border: `1px solid ${T.border}`,
+            borderRadius: "1.25rem",
+            clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
+          }}
+        >
           <BookOpen className="w-10 h-10 mx-auto mb-3" style={{ color: T.textDim }} />
           <p className="text-sm mb-4" style={{ color: T.textMuted }}>Nenhum livro concluído ainda.</p>
           {onNavigate && (
-            <button onClick={() => onNavigate("plans")} className="px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-all" style={{ background: T.accent, color: T.page }}>
+            <button
+              onClick={() => onNavigate("plans")}
+              className="px-5 py-2.5 text-sm font-bold hover:opacity-90 transition-all duration-300"
+              style={{ borderRadius: "9999px", background: T.accent, color: T.page }}
+            >
               Começar pelo Gênesis →
             </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.75rem" }}>
           {filtered.map((book) => {
             const read = getBookProgress(book.name);
             const isDone = read >= book.chapters;
@@ -92,26 +100,66 @@ const TrophiesTab = ({ completedDays, allDays, months, onBookClick, onNavigate }
               <button
                 key={book.name}
                 onClick={() => isDone && onBookClick?.(book.name)}
-                className="relative p-3 text-center transition-all"
+                className="relative text-center transition-all duration-300"
                 style={{
-                  ...clipCard,
+                  borderRadius: "0.875rem",
+                  overflow: "hidden",
                   background: isDone ? T.accentDim : T.card,
                   border: `1px solid ${isDone ? T.borderAc : T.border}`,
                   cursor: isDone ? "pointer" : "default",
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: "120px",
                 }}
               >
-                {isDone && <CheckCircle2 className="absolute top-1.5 right-1.5 w-3.5 h-3.5" style={{ color: T.accent }} />}
-                <BookOpen className="w-6 h-6 mx-auto" style={{ color: isDone ? T.accent : T.textDim }} />
-                <p className="text-[10px] font-medium mt-1.5 truncate" style={{ color: T.textPrimary }}>{book.name}</p>
-                <p className="text-[9px]" style={{ color: T.textMuted }}>{read}/{book.chapters}</p>
-                <div className="mt-1">
-                  <span className="text-[8px] px-1.5 py-0.5 rounded-full" style={{ background: T.card2, color: T.textMuted }}>
+                {/* Check badge for completed — rounded-full */}
+                {isDone && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "0.5rem",
+                      right: "0.5rem",
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      borderRadius: "9999px",
+                      background: T.accent,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Check size={10} color={T.page} />
+                  </div>
+                )}
+
+                {/* Content */}
+                <div style={{ padding: "1rem", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <BookOpen size={28} color={isDone ? T.accent : T.textDim} />
+                  <p className="text-[10px] font-medium mt-1.5 truncate w-full" style={{ color: T.textPrimary }}>{book.name}</p>
+                  <p className="text-[9px]" style={{ color: T.textMuted }}>{read}/{book.chapters}</p>
+                  <span
+                    style={{
+                      borderRadius: "9999px",
+                      padding: "2px 8px",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      background: T.card2,
+                      color: T.textMuted,
+                      border: `1px solid ${T.border}`,
+                      marginTop: "0.375rem",
+                      display: "inline-block",
+                    }}
+                  >
                     {book.testament}
                   </span>
                 </div>
+
+                {/* Progress bar — always at bottom */}
                 {!isDone && (
-                  <div className="h-1 w-full rounded-full overflow-hidden mt-1.5" style={{ background: T.card2 }}>
-                    <div className="h-full rounded-full" style={{ width: `${progress}%`, background: T.accent }} />
+                  <div style={{ height: "3px", background: T.card2 }}>
+                    <div style={{ height: "100%", width: `${progress}%`, background: T.accent, transition: "width 0.5s" }} />
                   </div>
                 )}
               </button>

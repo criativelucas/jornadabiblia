@@ -825,7 +825,8 @@ const Index = () => {
                   <button
                     key={plan.id}
                     onClick={() => handlePlanChange(plan.id)}
-                    className={`p-3 rounded-2xl border text-left transition-all ${selectedPlan === plan.id ? "bg-primary/10 border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"}`}>
+                    className={`p-3 border text-left transition-all ${selectedPlan === plan.id ? "bg-primary/10 border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"}`}
+                    style={{ borderRadius: "0.875rem" }}>
                     
                             <div
                       className={`text-base font-bold ${selectedPlan === plan.id ? "text-primary" : "text-foreground"}`}>
@@ -845,14 +846,15 @@ const Index = () => {
                     setFormStartDate(planStartDate || getTodayStr());
                     setShowCustomForm(true);
                   }}
-                  className="w-full p-3 rounded-2xl border border-dashed border-border bg-card text-muted-foreground text-sm hover:bg-muted transition-all flex items-center justify-center gap-2">
+                  className="w-full p-3 border border-dashed border-border bg-card text-muted-foreground text-sm hover:bg-muted transition-all flex items-center justify-center gap-2"
+                  style={{ borderRadius: "0.875rem" }}>
                   
                         <Plus className="w-4 h-4" /> Criar plano personalizado
                       </button>
                 }
 
                     {selectedPlan === "custom" && customConfig && !showCustomForm &&
-                <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5">
+                <div className="p-4 border border-primary/30 bg-primary/5" style={{ borderRadius: "0.875rem" }}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-bold text-primary">Meu Plano Personalizado</span>
                           <button
@@ -876,7 +878,7 @@ const Index = () => {
                 }
 
                     {showCustomForm &&
-                <div className="p-4 rounded-2xl border border-border bg-card space-y-4 mt-3">
+                <div className="p-4 border border-border bg-card space-y-4 mt-3" style={{ borderRadius: "0.875rem" }}>
                         <div className="flex justify-between items-center">
                           <h3 className="font-bold text-sm text-foreground">Plano personalizado</h3>
                           <button onClick={() => setShowCustomForm(false)} className="text-muted-foreground">
@@ -1002,7 +1004,7 @@ const Index = () => {
                   </div>
 
                   {selectedPlan !== "custom" &&
-              <div className="mb-5 p-4 rounded-2xl bg-card border border-border flex items-center gap-3">
+              <div className="mb-5 p-4 bg-card border border-border flex items-center gap-3" style={{ borderRadius: "0.875rem" }}>
                       <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
                       <div className="flex-grow min-w-0">
                         <label className="text-xs text-muted-foreground block mb-1">Data de início do plano</label>
@@ -1026,7 +1028,7 @@ const Index = () => {
                     </div>
               }
 
-                  <div className="mb-6 p-5 rounded-2xl bg-card border border-border">
+                  <div className="mb-6 p-5 bg-card border border-border" style={{ borderRadius: "0.875rem" }}>
                     <div className="flex justify-between items-end mb-3">
                       <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
@@ -1105,7 +1107,7 @@ const Index = () => {
                     </div> :
 
               months[selectedMonth] &&
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="bg-card border border-border overflow-hidden" style={{ borderRadius: "0.875rem" }}>
                         <div className="p-4 border-b border-border flex items-center justify-between">
                           <h3 className="text-base font-bold text-foreground">Mês {selectedMonth + 1}</h3>
                           {!isMonthCompleted(selectedMonth) &&

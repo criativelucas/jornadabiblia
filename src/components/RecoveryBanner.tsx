@@ -5,7 +5,7 @@ interface Props { behindChapters: number; newDailyGoal: number; daysRemaining: n
 const RecoveryBanner = ({ behindChapters, newDailyGoal, daysRemaining }: Props) => {
   if (behindChapters < 15) return null;
   return (
-    <div className="mb-6 p-4 rounded-2xl bg-primary/5 border-l-4 border-primary flex items-start gap-3">
+    <div className="mb-6 p-4 bg-primary/5 border-l-4 border-primary flex items-start gap-3" style={{ borderRadius: "0.875rem" }}>
       <div className="p-2 rounded-lg bg-primary/10">
         <Zap className="w-5 h-5 text-primary" />
       </div>

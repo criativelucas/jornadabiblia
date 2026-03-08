@@ -36,10 +36,11 @@ const DynamicGreeting = ({ displayName }: { displayName: string }) => {
 
   return (
     <div
-      className={`mb-5 p-5 rounded-2xl border transition-all duration-700 ${config.bgClass}`}
+      className={`mb-5 p-5 border transition-all duration-700 ${config.bgClass}`}
+      style={{ borderRadius: "0.875rem" }}
     >
       {config.overlay && (
-        <div className="absolute inset-0 bg-black/5 dark:bg-black/20 rounded-2xl pointer-events-none" />
+        <div className="absolute inset-0 bg-black/5 dark:bg-black/20 pointer-events-none" style={{ borderRadius: "0.875rem" }} />
       )}
       <div className="relative flex items-start gap-3">
         <span className="text-2xl flex-shrink-0">{config.icon}</span>

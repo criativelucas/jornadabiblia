@@ -144,7 +144,7 @@ function CropModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.82)" }}>
-      <div className="rounded-3xl p-6 flex flex-col items-center gap-4 mx-4 w-full max-w-sm" style={{ background: T.card, border: `1px solid ${T.border}`, boxShadow: `0 2px 40px ${T.shadow}` }}>
+      <div className="p-6 flex flex-col items-center gap-4 mx-4 w-full max-w-sm" style={{ borderRadius: "1.25rem", background: T.card, border: `1px solid ${T.border}`, boxShadow: `0 2px 40px ${T.shadow}` }}>
         <div className="w-full flex items-center justify-between">
           <h3 className="font-bold text-base" style={{ color: T.textPrimary }}>Ajustar foto</h3>
           <span className="text-xs" style={{ color: T.textMuted }}>Arraste para reposicionar</span>
@@ -294,11 +294,18 @@ export default function Profile() {
     toast.success(`Horário salvo: ${t}`);
   };
 
+  // LEVEL 1 — highlight card with clip-path
   const clipCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
-    borderRadius: "1.5rem",
-    clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+    borderRadius: "1.25rem",
+    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
+  };
+  // LEVEL 2 — grid/list card
+  const gridCard = {
+    background: T.card,
+    border: `1px solid ${T.border}`,
+    borderRadius: "0.875rem",
   };
 
   return (
@@ -331,7 +338,7 @@ export default function Profile() {
 
       <div className="px-5 flex flex-col gap-4 relative z-0">
         {/* ── Avatar + name ──────────────────────────────── */}
-        <div className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500" style={{ ...clipCard, clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)" }}>
+        <div className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500" style={clipCard}>
           <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "2rem", height: "2rem", borderTop: `1.5px solid ${T.accent}`, borderRight: `1.5px solid ${T.accent}` }} />
 
           <div className="relative">
@@ -365,13 +372,13 @@ export default function Profile() {
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 rounded-2xl px-4 py-3 text-sm outline-none transition-all"
-                style={{ background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
+                className="flex-1 px-4 py-3 text-sm outline-none transition-all"
+                style={{ borderRadius: "0.75rem", background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
                 onFocus={(e) => (e.target.style.borderColor = T.accent)}
                 onBlur={(e) => (e.target.style.borderColor = T.border)}
                 placeholder="Seu nome"
               />
-              <button onClick={handleSaveName} className="rounded-2xl px-5 text-sm font-bold hover:opacity-90 transition-opacity" style={{ background: T.accent, color: T.page }}>
+              <button onClick={handleSaveName} className="px-5 text-sm font-bold hover:opacity-90 transition-opacity" style={{ borderRadius: "9999px", background: T.accent, color: T.page }}>
                 Salvar
               </button>
             </div>
@@ -380,7 +387,7 @@ export default function Profile() {
 
         {/* ── Stats ─────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.5rem", clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)" }}>
+          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.25rem", clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)" }}>
             <BookOpen size={18} color={T.page} />
             <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>{totalChapters}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>dias com leitura</p>
@@ -393,7 +400,7 @@ export default function Profile() {
         </div>
 
         {/* ── Weekly points ─────────────────────────────── */}
-        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.25rem" }}>
           {isDark && (
             <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "200px", height: "200px", background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`, transform: "translate(30%,-30%)" }} />
           )}
@@ -413,7 +420,7 @@ export default function Profile() {
         </div>
 
         {/* ── Chart ─────────────────────────────────────── */}
-        <div className="p-5 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 transition-colors duration-500" style={gridCard}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Calendar size={14} color={T.accent} />
@@ -447,7 +454,7 @@ export default function Profile() {
         </div>
 
         {/* ── Notification ──────────────────────────────── */}
-        <div className="p-5 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 transition-colors duration-500" style={gridCard}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: reminderEnabled ? T.accentDim : T.card2 }}>
@@ -490,7 +497,7 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
-              <div className="mt-4 flex items-start gap-3 p-3 rounded-2xl" style={{ background: T.card2, border: `1px solid ${T.borderAc}` }}>
+              <div className="mt-4 flex items-start gap-3 p-3" style={{ borderRadius: "0.875rem", background: T.card2, border: `1px solid ${T.borderAc}` }}>
                 <Bell size={13} color={T.accent} className="mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs font-bold" style={{ color: T.textPrimary }}>Prévia da notificação</p>
@@ -502,7 +509,7 @@ export default function Profile() {
         </div>
 
         {/* ── Locked placeholder ────────────────────────── */}
-        <div className="p-5 mb-4 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 mb-4 transition-colors duration-500" style={gridCard}>
           <div className="flex items-center gap-2">
             <Lock size={13} color={T.textDim} />
             <span className="text-sm font-bold" style={{ color: T.textMuted }}>Conquistas em breve</span>
