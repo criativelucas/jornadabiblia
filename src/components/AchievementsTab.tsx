@@ -394,7 +394,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
                     clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
                   }}
                 >
-                  <Icon className="w-7 h-7 mb-2" style={{ color: a.color }} />
+                  <Icon className="w-7 h-7 mb-2" style={{ color: a.color === '__ACCENT__' ? T.accent : a.color }} />
                   <p className="text-sm font-bold" style={{ color: T.textPrimary }}>{a.title}</p>
                   <p className="text-[10px] mt-0.5" style={{ color: T.textMuted }}>
                     {achievedAt ? timeAgo(achievedAt) : ''}
