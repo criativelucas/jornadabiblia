@@ -31,10 +31,12 @@ import ConfirmModal from "@/components/ConfirmModal";
 import DynamicGreeting from "@/components/DynamicGreeting";
 import StreakTree from "@/components/StreakTree";
 import NextAchievement from "@/components/NextAchievement";
+import BibleTab from "@/components/BibleTab";
 
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
 import { toast } from "sonner";
+import { useThemeContext, ThemeToggle } from "@/contexts/ThemeContext";
 
 const getTodayStr = () => {
   const d = new Date();
@@ -484,6 +486,7 @@ const Index = () => {
 
   const sectionTitle: Record<SectionId, string> = {
     home: "Início",
+    bible: "Bíblia",
     plans: "Planos",
     trophies: "Troféus",
     achieve: "Conquistas",
@@ -496,7 +499,7 @@ const Index = () => {
     selectedPlan === "custom" && customConfig ? `Meu Plano · ${SCOPE_LABELS[customConfig.scope]}` : currentPlan.label;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen transition-colors duration-500" style={{ background: "var(--jb-page, hsl(var(--background)))", color: "hsl(var(--foreground))" }}>
       {confirmModal && (
         <ConfirmModal
           isOpen
@@ -585,6 +588,7 @@ const Index = () => {
             <div key={activeSection} className="section-enter">
               {activeSection === "chat" && <BibleChat />}
               {activeSection === "facts" && <DailyCuriosity />}
+              {activeSection === "bible" && <BibleTab />}
               {activeSection === "achieve" && (
               <AchievementsTab
                     streak={streak}

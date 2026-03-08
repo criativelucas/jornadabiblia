@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,43 +13,9 @@ import {
   Bell,
   BellOff,
   Check,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
-
-// ─── Themes ───────────────────────────────────────────────────────────────────
-const DARK = {
-  accent: "#a3e635",
-  accentDim: "rgba(163,230,53,0.13)",
-  accentGlow: "rgba(163,230,53,0.15)",
-  page: "#0d0d0d",
-  card: "#141414",
-  card2: "#1c1c1c",
-  border: "rgba(255,255,255,0.07)",
-  borderAc: "rgba(163,230,53,0.28)",
-  textPrimary: "#f4fce3",
-  textMuted: "#6b7a50",
-  textDim: "#3a4020",
-  shadow: "rgba(0,0,0,0.5)",
-};
-
-const LIGHT = {
-  accent: "#65a30d",
-  accentDim: "rgba(101,163,13,0.10)",
-  accentGlow: "rgba(101,163,13,0.10)",
-  page: "#f0f0ea",
-  card: "#ffffff",
-  card2: "#f5f5ef",
-  border: "rgba(0,0,0,0.07)",
-  borderAc: "rgba(101,163,13,0.30)",
-  textPrimary: "#1a1a0d",
-  textMuted: "#7a8060",
-  textDim: "#b8c090",
-  shadow: "rgba(0,0,0,0.08)",
-};
-
-type Theme = typeof DARK;
+import { useThemeContext, ThemeToggle, Eyebrow } from "@/contexts/ThemeContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProfileData {
@@ -73,23 +39,7 @@ interface QuizResult {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const REMINDER_TIMES = [
-  "05:00",
-  "05:30",
-  "06:00",
-  "06:30",
-  "07:00",
-  "07:30",
-  "08:00",
-  "08:30",
-  "09:00",
-  "09:30",
-  "10:00",
-  "12:00",
-  "18:00",
-  "19:00",
-  "20:00",
-  "21:00",
-  "22:00",
+  "05:00","05:30","06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00","12:00","18:00","19:00","20:00","21:00","22:00",
 ];
 function reminderMessage(time: string) {
   const h = parseInt(time);
@@ -99,42 +49,32 @@ function reminderMessage(time: string) {
 }
 function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
+    const d = new Date(); d.setDate(d.getDate() - (6 - i));
     return d.toISOString().split("T")[0];
   });
 }
 function getLast30Days() {
   return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
+    const d = new Date(); d.setDate(d.getDate() - (29 - i));
     return d.toISOString().split("T")[0];
   });
 }
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function Eyebrow({ children, accent, T }: { children: React.ReactNode; accent?: boolean; T: Theme }) {
-  return (
-    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accent ? T.accent : T.textMuted }}>
-      {children}
-    </p>
-  );
-}
-
+// ─── CropModal ────────────────────────────────────────────────────────────────
 function CropModal({
   src,
   onConfirm,
   onCancel,
-  T,
 }: {
   src: string;
   onConfirm: (blob: Blob) => void;
   onCancel: () => void;
-  T: Theme;
 }) {
+  const { T } = useThemeContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const [baseScale, setBaseScale] = useState(1);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragging = useRef(false);
@@ -153,7 +93,12 @@ function CropModal({
     ctx.clip();
     const w = img.naturalWidth * scale;
     const h = img.naturalHeight * scale;
-    ctx.drawImage(img, offset.x + SIZE / 2 - w / 2, offset.y + SIZE / 2 - h / 2, w, h);
+    // Clamp offset so image always covers the circle
+    const maxOffX = Math.max(0, (w - SIZE) / 2);
+    const maxOffY = Math.max(0, (h - SIZE) / 2);
+    const cx = Math.max(-maxOffX, Math.min(maxOffX, offset.x));
+    const cy = Math.max(-maxOffY, Math.min(maxOffY, offset.y));
+    ctx.drawImage(img, cx + SIZE / 2 - w / 2, cy + SIZE / 2 - h / 2, w, h);
     ctx.restore();
   }, [scale, offset]);
 
@@ -162,13 +107,15 @@ function CropModal({
     img.src = src;
     img.onload = () => {
       imgRef.current = img;
-      setScale(Math.min(SIZE / img.naturalWidth, SIZE / img.naturalHeight));
-      draw();
+      // Cover: ensure image fills the circle
+      const fitScale = Math.max(SIZE / img.naturalWidth, SIZE / img.naturalHeight);
+      setBaseScale(fitScale);
+      setScale(fitScale);
+      setOffset({ x: 0, y: 0 });
     };
   }, [src]);
-  useEffect(() => {
-    draw();
-  }, [draw]);
+
+  useEffect(() => { draw(); }, [draw]);
 
   const onDown = (e: React.MouseEvent | React.TouchEvent) => {
     dragging.current = true;
@@ -181,35 +128,17 @@ function CropModal({
     setOffset((prev) => ({ x: prev.x + (p.clientX - lastPos.current.x), y: prev.y + (p.clientY - lastPos.current.y) }));
     lastPos.current = { x: p.clientX, y: p.clientY };
   };
-  const onUp = () => {
-    dragging.current = false;
-  };
+  const onUp = () => { dragging.current = false; };
   const confirm = () => {
-    canvasRef.current!.toBlob(
-      (b) => {
-        if (b) onConfirm(b);
-      },
-      "image/jpeg",
-      0.92,
-    );
+    canvasRef.current!.toBlob((b) => { if (b) onConfirm(b); }, "image/jpeg", 0.92);
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-      style={{ background: "rgba(0,0,0,0.82)" }}
-    >
-      <div
-        className="rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl mx-4 w-full max-w-sm"
-        style={{ background: T.card, border: `1px solid ${T.border}` }}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.82)" }}>
+      <div className="rounded-3xl p-6 flex flex-col items-center gap-4 mx-4 w-full max-w-sm" style={{ background: T.card, border: `1px solid ${T.border}`, boxShadow: `0 2px 40px ${T.shadow}` }}>
         <div className="w-full flex items-center justify-between">
-          <h3 className="font-bold text-base" style={{ color: T.textPrimary }}>
-            Ajustar foto
-          </h3>
-          <span className="text-xs" style={{ color: T.textMuted }}>
-            Arraste para reposicionar
-          </span>
+          <h3 className="font-bold text-base" style={{ color: T.textPrimary }}>Ajustar foto</h3>
+          <span className="text-xs" style={{ color: T.textMuted }}>Arraste para reposicionar</span>
         </div>
         <canvas
           ref={canvasRef}
@@ -217,44 +146,28 @@ function CropModal({
           height={SIZE}
           className="rounded-full cursor-grab active:cursor-grabbing touch-none"
           style={{ width: SIZE, height: SIZE, border: `3px solid ${T.accent}`, boxShadow: `0 0 24px ${T.accentGlow}` }}
-          onMouseDown={onDown}
-          onMouseMove={onMove}
-          onMouseUp={onUp}
-          onTouchStart={onDown}
-          onTouchMove={onMove}
-          onTouchEnd={onUp}
+          onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
+          onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
         />
         <div className="w-full flex items-center gap-3">
-          <span className="text-xs font-bold" style={{ color: T.textMuted }}>
-            −
-          </span>
+          <span className="text-xs font-bold" style={{ color: T.textMuted }}>−</span>
           <input
             type="range"
-            min={0.3}
-            max={3}
-            step={0.05}
+            min={baseScale}
+            max={baseScale * 3}
+            step={baseScale * 0.05}
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
             className="flex-1"
             style={{ accentColor: T.accent }}
           />
-          <span className="text-xs font-bold" style={{ color: T.textMuted }}>
-            +
-          </span>
+          <span className="text-xs font-bold" style={{ color: T.textMuted }}>+</span>
         </div>
         <div className="flex gap-3 w-full">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 rounded-full text-sm font-semibold"
-            style={{ border: `1.5px solid ${T.border}`, color: T.textMuted, background: "transparent" }}
-          >
+          <button onClick={onCancel} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ border: `1.5px solid ${T.border}`, color: T.textMuted, background: "transparent" }}>
             Cancelar
           </button>
-          <button
-            onClick={confirm}
-            className="flex-1 py-3 rounded-full text-sm font-bold"
-            style={{ background: T.accent, color: T.page }}
-          >
+          <button onClick={confirm} className="flex-1 py-3 rounded-full text-sm font-bold" style={{ background: T.accent, color: T.page }}>
             Confirmar
           </button>
         </div>
@@ -267,26 +180,8 @@ function CropModal({
 export default function Profile() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { T, isDark } = useThemeContext();
 
-  // ── Theme toggle ─────────────────────────────────────────────────────────────
-  const [isDark, setIsDark] = useState(true);
-  const T = isDark ? DARK : LIGHT;
-
-  // Apply background to body/html
-  useEffect(() => {
-    const prevBody = document.body.style.background;
-    const prevHtml = document.documentElement.style.background;
-    document.body.style.background = T.page;
-    document.body.style.minHeight = "100vh";
-    document.documentElement.style.background = T.page;
-    return () => {
-      document.body.style.background = prevBody;
-      document.body.style.minHeight = "";
-      document.documentElement.style.background = prevHtml;
-    };
-  }, [T.page]);
-
-  // ── State ────────────────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -303,7 +198,6 @@ export default function Profile() {
   const [reminderTime, setReminderTime] = useState("20:00");
   const [savingReminder, setSavingReminder] = useState(false);
 
-  // ── Load data ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -313,50 +207,34 @@ export default function Profile() {
         setProfile(prof);
         setDisplayName(prof.display_name ?? "");
         setAvatarUrl(prof.avatar_url ?? null);
-        setReminderEnabled(prof.reminder_enabled ?? false);
-        setReminderTime(prof.reminder_time ?? "20:00");
+        setReminderEnabled(prof.reminder_enabled === true);
+        setReminderTime((prof as Record<string, unknown>).reminder_time as string ?? "20:00");
       }
-
-      const { data: days } = await supabase
-        .from("completed_days")
-        .select("read_date")
-        .eq("user_id", user.id)
-        .not("read_date", "is", null);
+      const { data: days } = await supabase.from("completed_days").select("read_date").eq("user_id", user.id).not("read_date", "is", null);
       if (days) {
         setReadingDays((days as DayReading[]).map((d) => d.read_date));
         setTotalChapters(days.length);
       }
-
       const now = new Date();
       const monday = new Date(now);
       monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
       monday.setHours(0, 0, 0, 0);
-      const { data: qr } = await supabase
-        .from("quiz_results")
-        .select("bonus_points, completed_at")
-        .eq("user_id", user.id)
-        .gte("completed_at", monday.toISOString());
+      const { data: qr } = await supabase.from("quiz_results").select("bonus_points, completed_at").eq("user_id", user.id).gte("completed_at", monday.toISOString());
       if (qr) setQuizPoints((qr as QuizResult[]).reduce((s, r) => s + (r.bonus_points ?? 0), 0));
     })();
   }, [user]);
 
-  // ── Chart ────────────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     const days = chartMode === "week" ? getLast7Days() : getLast30Days();
     const set = new Set(readingDays);
     return days.map((date) => {
       const d = new Date(date);
-      return {
-        date,
-        label: chartMode === "week" ? DAY_LABELS[d.getDay()] : d.getDate().toString(),
-        read: set.has(date),
-      };
+      return { date, label: chartMode === "week" ? DAY_LABELS[d.getDay()] : d.getDate().toString(), read: set.has(date) };
     });
   }, [chartMode, readingDays]);
   const readCount = chartData.filter((d) => d.read).length;
   const totalDays = chartData.length;
 
-  // ── Avatar ───────────────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -371,16 +249,11 @@ export default function Profile() {
     setUploading(true);
     try {
       const path = `${user.id}/avatar.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from("avatars")
-        .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-      await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl } as unknown as Record<string, unknown>)
-        .eq("user_id", user.id);
+      await supabase.from("profiles").update({ avatar_url: publicUrl } as unknown as Record<string, unknown>).eq("user_id", user.id);
       setAvatarUrl(publicUrl);
       toast.success("Foto atualizada!");
     } catch {
@@ -401,176 +274,84 @@ export default function Profile() {
     const newVal = !reminderEnabled;
     setReminderEnabled(newVal);
     setSavingReminder(true);
-    await supabase
-      .from("profiles")
-      .update({ reminder_enabled: newVal } as unknown as Record<string, unknown>)
-      .eq("user_id", user.id);
+    await supabase.from("profiles").update({ reminder_enabled: newVal } as unknown as Record<string, unknown>).eq("user_id", user.id);
     setSavingReminder(false);
     toast.success(newVal ? "Lembrete ativado!" : "Lembrete desativado.");
   };
   const handleSaveTime = async (t: string) => {
     if (!user) return;
     setReminderTime(t);
-    await supabase
-      .from("profiles")
-      .update({ reminder_time: t } as unknown as Record<string, unknown>)
-      .eq("user_id", user.id);
+    await supabase.from("profiles").update({ reminder_time: t } as unknown as Record<string, unknown>).eq("user_id", user.id);
     toast.success(`Horário salvo: ${t}`);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────────
-  const cardStyle = { background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" };
-  const clipCard = { ...cardStyle, clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)" };
+  const clipCard = {
+    background: T.card,
+    border: `1px solid ${T.border}`,
+    borderRadius: "1.5rem",
+    clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+  };
 
   return (
-    <div
-      className="min-h-screen pb-28 relative overflow-x-hidden transition-colors duration-500"
-      style={{ background: T.page, backgroundColor: T.page }}
-    >
-      {/* Scan-line texture (dark only) */}
+    <div className="min-h-screen pb-28 relative overflow-x-hidden transition-colors duration-500" style={{ background: T.page }}>
       {isDark && (
-        <div
-          className="pointer-events-none fixed inset-0 z-10"
-          style={{
-            background:
-              "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)",
-          }}
-        />
+        <div className="pointer-events-none fixed inset-0 z-10" style={{ background: "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)" }} />
       )}
 
-      {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} T={T} />}
+      {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
 
-      {/* ── Header ────────────────────────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────── */}
       <div className="relative px-5 pt-12 pb-8 overflow-hidden">
         {isDark && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `radial-gradient(ellipse 70% 110% at 15% -10%, ${T.accentGlow} 0%, transparent 65%)`,
-            }}
-          />
+          <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse 70% 110% at 15% -10%, ${T.accentGlow} 0%, transparent 65%)` }} />
         )}
-
         <div className="relative flex items-center justify-between mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-            style={{ color: T.textMuted }}
-          >
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
             <ArrowLeft size={16} />
             <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
           </button>
-
-          {/* Day / Night toggle */}
-          <button
-            onClick={() => setIsDark((d) => !d)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
-            style={{
-              background: T.card2,
-              border: `1px solid ${T.border}`,
-              color: T.textMuted,
-            }}
-          >
-            {isDark ? (
-              <>
-                <Sun size={13} />
-                <span className="text-xs font-bold">Dia</span>
-              </>
-            ) : (
-              <>
-                <Moon size={13} />
-                <span className="text-xs font-bold">Noite</span>
-              </>
-            )}
-          </button>
+          <ThemeToggle />
         </div>
-
         <div className="relative">
-          <Eyebrow accent T={T}>
-            Jornada Bíblica
-          </Eyebrow>
-          <h1
-            className="text-4xl font-black mt-1 transition-colors duration-500"
-            style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}
-          >
+          <Eyebrow accent>Jornada Bíblica</Eyebrow>
+          <h1 className="text-4xl font-black mt-1 transition-colors duration-500" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
             Meu Perfil
           </h1>
         </div>
       </div>
 
       <div className="px-5 flex flex-col gap-4 relative z-0">
-        {/* ── Avatar + name ─────────────────────────────────────────────────── */}
-        <div
-          className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500"
-          style={{ ...cardStyle, clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)" }}
-        >
-          {/* Notch accent */}
-          <div
-            className="absolute top-0 right-0 pointer-events-none"
-            style={{
-              width: "2rem",
-              height: "2rem",
-              borderTop: `1.5px solid ${T.accent}`,
-              borderRight: `1.5px solid ${T.accent}`,
-            }}
-          />
+        {/* ── Avatar + name ──────────────────────────────── */}
+        <div className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500" style={{ ...clipCard, clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)" }}>
+          <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "2rem", height: "2rem", borderTop: `1.5px solid ${T.accent}`, borderRight: `1.5px solid ${T.accent}` }} />
 
-          {/* Avatar */}
           <div className="relative">
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="relative group block">
-              <div
-                className="w-24 h-24 rounded-full overflow-hidden"
-                style={{
-                  border: `3px solid ${T.accent}`,
-                  boxShadow: `0 0 28px ${T.accentGlow}`,
-                }}
-              >
+              <div className="w-24 h-24 rounded-full overflow-hidden" style={{ border: `3px solid ${T.accent}`, boxShadow: `0 0 28px ${T.accentGlow}` }}>
                 {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="w-full h-full object-cover"
-                    onError={() => setAvatarUrl(null)}
-                  />
+                  <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" onError={() => setAvatarUrl(null)} />
                 ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center text-3xl font-black"
-                    style={{ background: T.accentDim, color: T.accent }}
-                  >
+                  <div className="w-full h-full flex items-center justify-center text-3xl font-black" style={{ background: T.accentDim, color: T.accent }}>
                     {displayName?.[0]?.toUpperCase() ?? "?"}
                   </div>
                 )}
               </div>
-              <div
-                className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: "rgba(0,0,0,0.55)" }}
-              >
-                {uploading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Camera size={20} color="white" />
-                )}
+              <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.55)" }}>
+                {uploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera size={20} color="white" />}
               </div>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
 
-          {/* Streak pill */}
           {profile && (
-            <div
-              className="flex items-center gap-1.5 rounded-full px-4 py-1.5"
-              style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}
-            >
+            <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
               <Flame size={13} color={T.accent} />
-              <span className="text-xs font-bold" style={{ color: T.accent }}>
-                {profile.streak} dias seguidos
-              </span>
+              <span className="text-xs font-bold" style={{ color: T.accent }}>{profile.streak} dias seguidos</span>
             </div>
           )}
 
-          {/* Name input */}
           <div className="w-full">
-            <Eyebrow T={T}>Nome de exibição</Eyebrow>
+            <Eyebrow>Nome de exibição</Eyebrow>
             <div className="flex gap-2 mt-2">
               <input
                 value={displayName}
@@ -581,71 +362,36 @@ export default function Profile() {
                 onBlur={(e) => (e.target.style.borderColor = T.border)}
                 placeholder="Seu nome"
               />
-              <button
-                onClick={handleSaveName}
-                className="rounded-2xl px-5 text-sm font-bold hover:opacity-90 transition-opacity"
-                style={{ background: T.accent, color: T.page }}
-              >
+              <button onClick={handleSaveName} className="rounded-2xl px-5 text-sm font-bold hover:opacity-90 transition-opacity" style={{ background: T.accent, color: T.page }}>
                 Salvar
               </button>
             </div>
           </div>
         </div>
 
-        {/* ── Stats ─────────────────────────────────────────────────────────── */}
+        {/* ── Stats ─────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Chapters — accent fill */}
-          <div
-            className="p-5 flex flex-col gap-1 transition-colors duration-500"
-            style={{
-              background: T.accent,
-              borderRadius: "1.5rem",
-              clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
-            }}
-          >
+          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.5rem", clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)" }}>
             <BookOpen size={18} color={T.page} />
-            <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>
-              {totalChapters}
-            </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>
-              dias com leitura
-            </p>
+            <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>{totalChapters}</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>dias com leitura</p>
           </div>
-          {/* Streak — dark card */}
           <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={clipCard}>
             <Flame size={18} color={T.accent} />
-            <p
-              className="text-4xl font-black mt-1"
-              style={{ color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}
-            >
-              {profile?.longest_streak ?? 0}
-            </p>
-            <Eyebrow T={T}>maior sequência</Eyebrow>
+            <p className="text-4xl font-black mt-1" style={{ color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>{profile?.longest_streak ?? 0}</p>
+            <Eyebrow>maior sequência</Eyebrow>
           </div>
         </div>
 
-        {/* ── Weekly points ─────────────────────────────────────────────────── */}
-        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={cardStyle}>
+        {/* ── Weekly points ─────────────────────────────── */}
+        <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
           {isDark && (
-            <div
-              className="absolute top-0 right-0 pointer-events-none"
-              style={{
-                width: "200px",
-                height: "200px",
-                background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`,
-                transform: "translate(30%,-30%)",
-              }}
-            />
+            <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "200px", height: "200px", background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`, transform: "translate(30%,-30%)" }} />
           )}
           <div className="relative flex items-center justify-between">
             <div>
-              <Eyebrow accent T={T}>
-                Pontuação semanal
-              </Eyebrow>
-              <p
-                className="text-5xl font-black mt-2"
-                style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}
-              >
+              <Eyebrow accent>Pontuação semanal</Eyebrow>
+              <p className="text-5xl font-black mt-2" style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
                 {(readCount * 10 + quizPoints).toLocaleString()}
               </p>
               <p className="text-xs mt-2" style={{ color: T.textMuted }}>
@@ -657,103 +403,67 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ── Chart ─────────────────────────────────────────────────────────── */}
-        <div className="p-5 transition-colors duration-500" style={cardStyle}>
+        {/* ── Chart ─────────────────────────────────────── */}
+        <div className="p-5 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Calendar size={14} color={T.accent} />
-              <span className="text-sm font-bold" style={{ color: T.textPrimary }}>
-                Leituras
-              </span>
+              <span className="text-sm font-bold" style={{ color: T.textPrimary }}>Leituras</span>
             </div>
             <div className="flex rounded-full p-0.5" style={{ background: T.card2 }}>
               {(["week", "month"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setChartMode(m)}
-                  className="px-3 py-1 rounded-full text-xs font-bold transition-all"
-                  style={chartMode === m ? { background: T.accent, color: T.page } : { color: T.textMuted }}
-                >
+                <button key={m} onClick={() => setChartMode(m)} className="px-3 py-1 rounded-full text-xs font-bold transition-all" style={chartMode === m ? { background: T.accent, color: T.page } : { color: T.textMuted }}>
                   {m === "week" ? "Semana" : "Mês"}
                 </button>
               ))}
             </div>
           </div>
-
           <div className="flex items-end gap-1 h-20">
             {chartData.map((d, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full flex-1 flex items-end rounded-t overflow-hidden" style={{ background: T.card2 }}>
-                  <div
-                    className="w-full rounded-t transition-all duration-500"
-                    style={{ height: d.read ? "100%" : "18%", background: d.read ? T.accent : T.card2 }}
-                  />
+                  <div className="w-full rounded-t transition-all duration-500" style={{ height: d.read ? "100%" : "18%", background: d.read ? T.accent : T.card2 }} />
                 </div>
-                {chartMode === "week" && (
-                  <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>
-                    {d.label}
-                  </span>
-                )}
-                {chartMode === "month" && parseInt(d.label) % 5 === 0 && (
-                  <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>
-                    {d.label}
-                  </span>
-                )}
+                {chartMode === "week" && <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>{d.label}</span>}
+                {chartMode === "month" && parseInt(d.label) % 5 === 0 && <span className="text-[9px] font-medium" style={{ color: T.textMuted }}>{d.label}</span>}
               </div>
             ))}
           </div>
-
           <div className="mt-3 h-0.5 rounded-full overflow-hidden" style={{ background: T.card2 }}>
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${(readCount / totalDays) * 100}%`, background: T.accent }}
-            />
+            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(readCount / totalDays) * 100}%`, background: T.accent }} />
           </div>
           <p className="text-xs mt-2 text-center" style={{ color: T.textMuted }}>
             <span style={{ color: T.accent }}>{readCount}</span> de {totalDays} dias com leitura
           </p>
         </div>
 
-        {/* ── Notification ──────────────────────────────────────────────────── */}
-        <div className="p-5 transition-colors duration-500" style={cardStyle}>
+        {/* ── Notification ──────────────────────────────── */}
+        <div className="p-5 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                style={{ background: reminderEnabled ? T.accentDim : T.card2 }}
-              >
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: reminderEnabled ? T.accentDim : T.card2 }}>
                 {reminderEnabled ? <Bell size={17} color={T.accent} /> : <BellOff size={17} color={T.textMuted} />}
               </div>
               <div>
-                <p className="text-sm font-bold" style={{ color: T.textPrimary }}>
-                  Lembrete de leitura
-                </p>
+                <p className="text-sm font-bold" style={{ color: T.textPrimary }}>Lembrete de leitura</p>
                 <p className="text-xs" style={{ color: T.textMuted }}>
-                  {reminderEnabled ? `Todos os dias às ${reminderTime}` : "Desativado"}
+                  {reminderEnabled ? `Ativo · todos os dias às ${reminderTime}` : "Desativado — toque para ativar"}
                 </p>
               </div>
             </div>
             <button
               onClick={handleToggleReminder}
               disabled={savingReminder}
-              className="relative rounded-full transition-all duration-300"
-              style={{
-                width: "3rem",
-                height: "1.5rem",
-                background: reminderEnabled ? T.accent : T.card2,
-                border: `1.5px solid ${reminderEnabled ? T.accent : T.border}`,
-              }}
+              aria-checked={reminderEnabled}
+              className="relative inline-flex w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none"
+              style={{ background: reminderEnabled ? T.accent : T.card2, border: `1.5px solid ${reminderEnabled ? T.accent : T.border}` }}
             >
-              <span
-                className="absolute top-0.5 rounded-full bg-white shadow transition-all duration-300"
-                style={{ width: "1rem", height: "1rem", left: reminderEnabled ? "calc(100% - 1.25rem)" : "0.2rem" }}
-              />
+              <span className="inline-block w-5 h-5 mt-0.5 rounded-full bg-white shadow transform transition-transform duration-200" style={{ transform: reminderEnabled ? "translateX(1.5rem)" : "translateX(0.125rem)" }} />
             </button>
           </div>
-
           {reminderEnabled && (
             <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${T.border}` }}>
-              <Eyebrow T={T}>Escolha o melhor horário</Eyebrow>
+              <Eyebrow>Escolha o melhor horário</Eyebrow>
               <div className="flex flex-wrap gap-2 mt-3">
                 {REMINDER_TIMES.map((t) => (
                   <button
@@ -762,7 +472,7 @@ export default function Profile() {
                     className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
                     style={
                       reminderTime === t
-                        ? { background: T.accent, color: T.page, border: "none" }
+                        ? { background: T.accent, color: T.page }
                         : { background: "transparent", color: T.textMuted, border: `1px solid ${T.border}` }
                     }
                   >
@@ -771,31 +481,22 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
-              <div
-                className="mt-4 flex items-start gap-3 p-3 rounded-2xl"
-                style={{ background: T.card2, border: `1px solid ${T.borderAc}` }}
-              >
+              <div className="mt-4 flex items-start gap-3 p-3 rounded-2xl" style={{ background: T.card2, border: `1px solid ${T.borderAc}` }}>
                 <Bell size={13} color={T.accent} className="mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-bold" style={{ color: T.textPrimary }}>
-                    Prévia da notificação
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
-                    {reminderMessage(reminderTime)}
-                  </p>
+                  <p className="text-xs font-bold" style={{ color: T.textPrimary }}>Prévia da notificação</p>
+                  <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>{reminderMessage(reminderTime)}</p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Locked placeholder (badges desativadas até milestones voltar) ── */}
-        <div className="p-5 mb-4 transition-colors duration-500" style={cardStyle}>
+        {/* ── Locked placeholder ────────────────────────── */}
+        <div className="p-5 mb-4 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
           <div className="flex items-center gap-2">
             <Lock size={13} color={T.textDim} />
-            <span className="text-sm font-bold" style={{ color: T.textMuted }}>
-              Conquistas em breve
-            </span>
+            <span className="text-sm font-bold" style={{ color: T.textMuted }}>Conquistas em breve</span>
           </div>
         </div>
       </div>
