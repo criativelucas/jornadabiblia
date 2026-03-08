@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, startTransition } from "react";
-import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X } from "lucide-react";
+import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X, ArrowRight } from "lucide-react";
 import { playCheckSound } from "@/utils/sounds";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
