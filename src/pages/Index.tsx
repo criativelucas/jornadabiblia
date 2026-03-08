@@ -514,26 +514,12 @@ const Index = () => {
       {pendingMilestone && trophyQueue.length === 0 && (
         <MilestoneUnlockModal milestone={pendingMilestone} onClose={() => setPendingMilestone(null)} />
       )}
-      {trophyQueue.length > 0 && (
-        <BookTrophyModal
-          bookName={trophyQueue[0].name}
-          category={trophyQueue[0].category}
-          totalChapters={trophyQueue[0].chapters}
-          queuePosition={1}
-          queueTotal={trophyQueue.length}
-          streak={streak}
-          onClose={() => setTrophyQueue((prev) => prev.slice(1))}
-          onViewMindMap={
-            user
-              ? () => {
-                  const n = trophyQueue[0].name;
-                  setTrophyQueue((p) => p.slice(1));
-                  setMindMapBook(n);
-                }
-              : undefined
-          }
-        />
-      )}
+      {/* BookTrophyModal replaced: celebration is now shown inline in AchievementsTab */}
+      {trophyQueue.length > 0 && activeSection !== "achieve" && (() => {
+        // Auto-navigate to achievements tab when a book is completed
+        navigateTo("achieve");
+        return null;
+      })()}
       <AppSidebar
         activeSection={activeSection}
         onNavigate={(s) => {
