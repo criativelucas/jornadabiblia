@@ -94,7 +94,7 @@ const Index = () => {
 
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
-
+  const { T } = useThemeContext();
   // View Transitions API for smooth section switches
   const navigateTo = (section: SectionId) => {
     if (!(document as any).startViewTransition) {
