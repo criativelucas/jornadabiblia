@@ -31,6 +31,7 @@ import DynamicGreeting from "@/components/DynamicGreeting";
 import StreakTree from "@/components/StreakTree";
 import NextAchievement from "@/components/NextAchievement";
 import BibleTab from "@/components/BibleTab";
+import DiscoverTab from "@/components/DiscoverTab";
 
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
@@ -496,6 +497,7 @@ const Index = () => {
     bible: "Bíblia",
     plans: "Planos",
     achieve: "Conquistas",
+    discover: "Descobertas",
     profile: "Perfil",
   };
   const planLabel =
@@ -578,6 +580,7 @@ const Index = () => {
           {!mindMapBook &&
           <div key={activeSection} className="section-enter">
               {activeSection === "bible" && <BibleTab />}
+              {activeSection === "discover" && <DiscoverTab />}
               {activeSection === "achieve" &&
             <AchievementsTab
               streak={streak}

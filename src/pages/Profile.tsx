@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  ArrowLeft,
   Flame,
   BookOpen,
   Trophy,
@@ -315,13 +316,17 @@ export default function Profile() {
 
       {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
 
-      {/* ── Header — simplified ────────────────────────── */}
-      <div className="px-5 pt-12 pb-4 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>Perfil</h1>
-          <p className="text-sm mt-1" style={{ color: T.textMuted }}>{displayName}</p>
+      {/* ── Header ────────────────────────────────────── */}
+      <div className="px-5 pt-12 pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
+            <ArrowLeft size={16} />
+            <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
+          </button>
+          <ThemeToggle />
         </div>
-        <ThemeToggle />
+        <h1 className="text-3xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>Perfil</h1>
+        <p className="text-sm mt-1" style={{ color: T.textMuted }}>{displayName}</p>
       </div>
 
       <div className="px-5 flex flex-col gap-4 relative z-0">
