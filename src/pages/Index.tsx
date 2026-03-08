@@ -878,7 +878,7 @@ const Index = () => {
                 }
 
                     {showCustomForm &&
-                <div className="p-4 rounded-2xl border border-border bg-card space-y-4 mt-3">
+                <div className="p-4 border border-border bg-card space-y-4 mt-3" style={{ borderRadius: "0.875rem" }}>
                         <div className="flex justify-between items-center">
                           <h3 className="font-bold text-sm text-foreground">Plano personalizado</h3>
                           <button onClick={() => setShowCustomForm(false)} className="text-muted-foreground">
