@@ -675,8 +675,8 @@ const Index = () => {
                       <div
                         className="mb-5 p-5 ln4-glow transition-all duration-300"
                         style={{
-                          background: 'hsl(var(--card))',
-                          border: '1px solid rgba(210,255,0,0.08)',
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
                           clipPath: 'polygon(0 0, 100% 0, 100% 93%, 97% 100%, 0 100%)',
                         }}
                       >
