@@ -2,16 +2,16 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { Sun, Moon } from "lucide-react";
 
 const DARK = {
-  accent: "#a3e635",
-  accentDim: "rgba(163,230,53,0.13)",
-  accentGlow: "rgba(163,230,53,0.15)",
-  page: "#0d0d0d",
-  card: "#141414",
-  card2: "#1c1c1c",
-  border: "rgba(255,255,255,0.07)",
-  borderAc: "rgba(163,230,53,0.28)",
-  textPrimary: "#f4fce3",
-  textMuted: "#6b7a50",
+  accent: "#D2FF00",
+  accentDim: "rgba(210,255,0,0.10)",
+  accentGlow: "rgba(210,255,0,0.15)",
+  page: "#101400",
+  card: "#161A04",
+  card2: "#1A1F00",
+  border: "rgba(210,255,0,0.08)",
+  borderAc: "rgba(210,255,0,0.28)",
+  textPrimary: "#f0f4d4",
+  textMuted: "#8A8F7A",
   textDim: "#3a4020",
   shadow: "rgba(0,0,0,0.5)",
 };
@@ -49,7 +49,6 @@ export function useThemeContext() {
   return useContext(ThemeContext);
 }
 
-// Alias for shorter import
 export { useThemeContext as useTheme };
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -66,7 +65,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.body.style.background = T.page;
     document.body.style.minHeight = "100vh";
     document.documentElement.style.background = T.page;
-    // Also set class for any Tailwind dark: usage
     if (isDark) {
       document.documentElement.classList.add("dark");
     } else {
@@ -88,22 +86,23 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
+      className="flex items-center gap-2 px-3 py-1.5 transition-all duration-300"
       style={{
         background: T.card2,
         border: `1px solid ${T.border}`,
         color: T.textMuted,
+        clipPath: "polygon(0 0, 100% 0, 100% 75%, 90% 100%, 0 100%)",
       }}
     >
       {isDark ? (
         <>
           <Sun size={13} />
-          <span className="text-xs font-bold">Dia</span>
+          <span className="text-xs font-black uppercase tracking-tight">Dia</span>
         </>
       ) : (
         <>
           <Moon size={13} />
-          <span className="text-xs font-bold">Noite</span>
+          <span className="text-xs font-black uppercase tracking-tight">Noite</span>
         </>
       )}
     </button>

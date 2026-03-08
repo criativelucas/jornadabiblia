@@ -102,7 +102,7 @@ export default {
 				'Noto Color Emoji'
 			],
   			serif: [
-  				'ui-serif',
+  				'Playfair Display',
   				'Georgia',
   				'Cambria',
   				'Times New Roman',
@@ -118,7 +118,12 @@ export default {
   				'Liberation Mono',
   				'Courier New',
   				'monospace'
-  			]
+  			],
+			impact: [
+				'Playfair Display',
+				'Georgia',
+				'serif'
+			]
   		}
   	}
   },
