@@ -338,7 +338,7 @@ export default function Profile() {
 
       <div className="px-5 flex flex-col gap-4 relative z-0">
         {/* ── Avatar + name ──────────────────────────────── */}
-        <div className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500" style={{ ...clipCard, clipPath: "polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%)" }}>
+        <div className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500" style={clipCard}>
           <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "2rem", height: "2rem", borderTop: `1.5px solid ${T.accent}`, borderRight: `1.5px solid ${T.accent}` }} />
 
           <div className="relative">
