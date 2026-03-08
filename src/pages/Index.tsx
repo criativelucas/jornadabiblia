@@ -704,9 +704,9 @@ const Index = () => {
                       <div
                         className="mb-5 p-5 ln4-glow transition-all duration-300"
                         style={{
-                          background: 'hsl(var(--card))',
-                          border: '1px solid rgba(210,255,0,0.08)',
-                          borderLeft: '3px solid hsl(var(--primary))',
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
+                          borderLeft: `3px solid ${T.accent}`,
                         }}
                       >
                         <div className="flex items-start justify-between">
