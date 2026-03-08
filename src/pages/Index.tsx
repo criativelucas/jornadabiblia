@@ -529,33 +529,42 @@ const Index = () => {
         avatarUrl={avatarUrl} />
       
 
-      <main className="lg:ml-16 xl:ml-56 pt-16 lg:pt-0 min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="hidden lg:flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">{sectionTitle[activeSection]}</h1>
-            <div className="flex items-center gap-3">
-              {streak > 0 &&
-              <button
-                onClick={() => navigateTo("achieve")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-500 text-sm font-bold">
-                
-                  <Flame className="w-4 h-4" /> {streak}
-                </button>
-              }
-              {user ?
-              <span className="text-sm text-muted-foreground">
-                  Olá, <span className="text-foreground font-medium">{displayName || user.email}</span>
-                </span> :
-
-              <button
-                onClick={() => navigate("/auth")}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
-                
-                  <LogIn className="w-4 h-4" /> Entrar
-                </button>
-              }
-            </div>
+      <main className="lg:ml-16 pb-20 lg:pb-0 min-h-screen">
+        {/* Mobile header */}
+        <header
+          className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4"
+          style={{ height: "3rem", background: T.page, borderBottom: `1px solid ${T.border}` }}
+        >
+          <span className="font-black text-base" style={{ color: T.textPrimary, letterSpacing: "-0.03em" }}>
+            Jornada Bíblica
+          </span>
+          <div className="flex items-center gap-2">
+            {streak > 0 && (
+              <div className="flex items-center gap-1" style={{ padding: "4px 10px", borderRadius: "9999px", background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
+                <Flame size={12} style={{ color: T.accent }} />
+                <span style={{ fontSize: "11px", fontWeight: 700, color: T.accent }}>{streak}</span>
+              </div>
+            )}
+            {avatarUrl ? (
+              <div style={{ width: "28px", height: "28px", borderRadius: "9999px", overflow: "hidden", border: `1.5px solid ${T.accent}` }} onClick={() => navigate("/profile")}>
+                <img src={avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
+              </div>
+            ) : user ? (
+              <div
+                style={{ width: "28px", height: "28px", borderRadius: "9999px", overflow: "hidden", background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, fontWeight: 700, fontSize: "11px", border: `1.5px solid ${T.accent}`, cursor: "pointer" }}
+                onClick={() => navigate("/profile")}
+              >
+                {displayName?.[0]?.toUpperCase() ?? "?"}
+              </div>
+            ) : (
+              <button onClick={() => navigate("/auth")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold" style={{ borderRadius: "9999px", background: T.accent, color: T.page }}>
+                <LogIn size={12} /> Entrar
+              </button>
+            )}
           </div>
+        </header>
+
+        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
 
           {mindMapBook && user &&
           <div className="mb-6">
