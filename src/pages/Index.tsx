@@ -522,10 +522,9 @@ const Index = () => {
           navigateTo(s);
           setMindMapBook(null);
         }}
+        streak={streak}
         displayName={displayName}
-        onLogout={signOut}
-        isLoggedIn={!!user}
-        streak={streak} />
+        avatarUrl={avatarUrl} />
       
 
       <main className="lg:ml-16 xl:ml-56 pt-16 lg:pt-0 min-h-screen">
