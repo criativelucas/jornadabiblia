@@ -568,8 +568,6 @@ const Index = () => {
 
           {!mindMapBook &&
           <div key={activeSection} className="section-enter">
-              {activeSection === "chat" && <BibleChat />}
-              {activeSection === "facts" && <DailyCuriosity />}
               {activeSection === "bible" && <BibleTab />}
               {activeSection === "achieve" &&
             <AchievementsTab
@@ -578,22 +576,12 @@ const Index = () => {
               unlockedMilestones={unlockedMilestones}
               onNavigate={setActiveSection}
               celebrationBook={trophyQueue.length > 0 ? trophyQueue[0] : null}
-              onCelebrationDismiss={() => setTrophyQueue((prev) => prev.slice(1))} />
-
-            }
-              {activeSection === "trophies" &&
-            <TrophiesTab
+              onCelebrationDismiss={() => setTrophyQueue((prev) => prev.slice(1))}
               completedDays={completedDays}
               allDays={activeDays}
               months={months}
-              onBookClick={(name) => user && setMindMapBook(name)}
-              onNavigate={setActiveSection} />
-
+              onBookClick={(name) => user && setMindMapBook(name)} />
             }
-              {activeSection === "panorama" &&
-            <PanoramaTab completedDays={completedDays} allDays={activeDays} months={months} />
-            }
-              {activeSection === "gallery" && <GalleryTab />}
 
               {/* ── HOME ─────────────────────────────────────────── */}
               {activeSection === "home" &&
