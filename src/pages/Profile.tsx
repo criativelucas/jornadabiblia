@@ -497,7 +497,7 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
-              <div className="mt-4 flex items-start gap-3 p-3 rounded-2xl" style={{ background: T.card2, border: `1px solid ${T.borderAc}` }}>
+              <div className="mt-4 flex items-start gap-3 p-3" style={{ borderRadius: "0.875rem", background: T.card2, border: `1px solid ${T.borderAc}` }}>
                 <Bell size={13} color={T.accent} className="mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs font-bold" style={{ color: T.textPrimary }}>Prévia da notificação</p>
