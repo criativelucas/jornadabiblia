@@ -5,22 +5,20 @@ import {
   Award,
   Zap,
   Map,
-  FileText,
   Sparkles,
   Image,
   LogOut,
-  Sun,
-  Moon,
   Menu,
   X,
   Bot,
   Camera,
+  BookOpen,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useThemeContext, ThemeToggle } from "@/contexts/ThemeContext";
 
-export type SectionId = "home" | "plans" | "trophies" | "achieve" | "panorama" | "chat" | "facts" | "gallery";
+export type SectionId = "home" | "plans" | "trophies" | "achieve" | "panorama" | "chat" | "facts" | "gallery" | "bible";
 
 interface Props {
   activeSection: SectionId;
@@ -29,13 +27,14 @@ interface Props {
   onLogout: () => void;
   isLoggedIn: boolean;
   streak: number;
-  userId?: string; // ← novo: passar user?.id do Index.tsx
-  avatarUrl?: string; // ← novo: passar avatarUrl do Index.tsx (opcional, busca internamente)
-  onAvatarChange?: (url: string) => void; // ← novo: callback quando avatar é atualizado
+  userId?: string;
+  avatarUrl?: string;
+  onAvatarChange?: (url: string) => void;
 }
 
 const navItems: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "home", label: "Início", icon: Home },
+  { id: "bible", label: "Bíblia", icon: BookOpen },
   { id: "plans", label: "Planos", icon: Calendar },
   { id: "trophies", label: "Troféus", icon: Award },
   { id: "achieve", label: "Conquistas", icon: Zap },
@@ -59,11 +58,11 @@ const UserAvatar = ({
   onAvatarChange?: (url: string) => void;
   size?: "sm" | "md";
 }) => {
+  const { T } = useThemeContext();
   const [localUrl, setLocalUrl] = useState<string | null>(externalUrl || null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Fetch avatar from profile on mount
   useEffect(() => {
     if (!userId || externalUrl) return;
     supabase
@@ -72,7 +71,7 @@ const UserAvatar = ({
       .eq("user_id", userId)
       .single()
       .then(({ data }) => {
-        if (data && (data as any).avatar_url) setLocalUrl((data as any).avatar_url);
+        if (data?.avatar_url) setLocalUrl(data.avatar_url);
       });
   }, [userId, externalUrl]);
 
@@ -83,29 +82,19 @@ const UserAvatar = ({
       alert("Imagem muito grande. Máximo 3 MB.");
       return;
     }
-
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
       const path = `avatars/${userId}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-
       if (uploadError) throw uploadError;
-
       const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      // Add cache-buster so the browser reloads the image
       const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-      await supabase
-        .from("profiles")
-        .update({ avatar_url: finalUrl } as any)
-        .eq("user_id", userId);
-
+      await supabase.from("profiles").update({ avatar_url: finalUrl } as Record<string, unknown>).eq("user_id", userId);
       setLocalUrl(finalUrl);
       onAvatarChange?.(finalUrl);
     } catch (err) {
       console.error("Erro ao fazer upload:", err);
-      alert("Erro ao salvar a imagem. Verifique se o bucket 'avatars' existe no Supabase.");
     } finally {
       setUploading(false);
     }
@@ -121,31 +110,26 @@ const UserAvatar = ({
       onClick={() => userId && fileRef.current?.click()}
     >
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-
       <div
-        className={`${dim} rounded-full overflow-hidden flex items-center justify-center bg-primary/20 border border-primary/30`}
+        className={`${dim} rounded-full overflow-hidden flex items-center justify-center`}
+        style={{ background: T.accentDim, border: `1.5px solid ${T.borderAc}` }}
       >
         {uploading ? (
-          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: T.accent, borderTopColor: "transparent" }} />
         ) : localUrl ? (
           <img src={localUrl} alt={displayName} className="w-full h-full object-cover" />
         ) : (
-          <span className={`${textSize} font-bold text-primary`}>{initials}</span>
+          <span className={`${textSize} font-bold`} style={{ color: T.accent }}>{initials}</span>
         )}
       </div>
-
-      {/* Camera overlay on hover */}
       {userId && !uploading && (
-        <div
-          className={`absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity`}
-        >
+        <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <Camera className="w-3 h-3 text-white" />
         </div>
       )}
     </div>
   );
 };
-// ──────────────────────────────────────────────────────────────────────────────
 
 const AppSidebar = ({
   activeSection,
@@ -159,13 +143,8 @@ const AppSidebar = ({
   onAvatarChange,
 }: Props) => {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { T, isDark } = useThemeContext();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleNav = (id: SectionId) => {
     onNavigate(id);
@@ -175,11 +154,11 @@ const AppSidebar = ({
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-4 flex items-center gap-3 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <Calendar className="w-4 h-4 text-primary-foreground" />
+      <div className="p-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${T.border}` }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: T.accent }}>
+          <Calendar className="w-4 h-4" style={{ color: T.page }} />
         </div>
-        <span className="text-sm font-semibold text-foreground">Jornada Bíblica</span>
+        <span className="text-sm font-semibold" style={{ color: T.textPrimary }}>Jornada Bíblica</span>
       </div>
 
       {/* Nav */}
@@ -191,11 +170,12 @@ const AppSidebar = ({
             <button
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-150 ${
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-150"
+              style={
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
+                  ? { background: T.accent, color: T.page }
+                  : { color: T.textMuted }
+              }
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
               <span className="whitespace-nowrap">{item.label}</span>
@@ -205,33 +185,21 @@ const AppSidebar = ({
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border space-y-2">
-        {mounted && (
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-          >
-            {theme === "dark" ? <Sun className="w-5 h-5 flex-shrink-0" /> : <Moon className="w-5 h-5 flex-shrink-0" />}
-            <span className="whitespace-nowrap">{theme === "dark" ? "Modo Claro" : "Modo Escuro"}</span>
-          </button>
-        )}
+      <div className="p-3 space-y-2" style={{ borderTop: `1px solid ${T.border}` }}>
+        <ThemeToggle />
         {isLoggedIn && (
           <>
             <div
-              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted rounded-[10px] transition-all"
+              className="flex items-center gap-3 px-3 py-2 cursor-pointer rounded-[10px] transition-all"
               onClick={() => navigate("/profile")}
             >
-              <UserAvatar
-                displayName={displayName}
-                userId={userId}
-                avatarUrl={avatarUrl}
-                onAvatarChange={onAvatarChange}
-              />
-              <span className="text-xs text-foreground truncate">{displayName || "Usuário"}</span>
+              <UserAvatar displayName={displayName} userId={userId} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+              <span className="text-xs truncate" style={{ color: T.textPrimary }}>{displayName || "Usuário"}</span>
             </div>
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm transition-all hover:opacity-70"
+              style={{ color: T.textMuted }}
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               <span className="whitespace-nowrap">Sair</span>
@@ -247,21 +215,26 @@ const AppSidebar = ({
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-[51] p-2 rounded-lg bg-card border border-border text-foreground shadow-sm"
+        className="lg:hidden fixed top-4 left-4 z-[51] p-2 rounded-lg"
+        style={{ background: T.card, border: `1px solid ${T.border}`, color: T.textPrimary, boxShadow: `0 2px 12px ${T.shadow}` }}
         aria-label="Abrir menu"
       >
         <Menu className="w-5 h-5" />
       </button>
 
       {/* Mobile topbar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-14">
-        <span className="text-sm font-semibold text-foreground">
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 backdrop-blur-md flex items-center justify-between px-14"
+        style={{ background: `${T.card}cc`, borderBottom: `1px solid ${T.border}` }}
+      >
+        <span className="text-sm font-semibold" style={{ color: T.textPrimary }}>
           {navItems.find((n) => n.id === activeSection)?.label || "Início"}
         </span>
         {streak > 0 && (
           <button
             onClick={() => handleNav("achieve")}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500 text-xs font-bold"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+            style={{ background: T.accentDim, color: T.accent }}
           >
             <Zap className="w-3.5 h-3.5" fill="currentColor" />
             {streak}
@@ -274,12 +247,13 @@ const AppSidebar = ({
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/40" style={{ zIndex: 49 }} onClick={() => setMobileOpen(false)} />
           <div
-            className="absolute left-0 top-0 bottom-0 bg-card border-r border-border shadow-xl flex flex-col"
-            style={{ width: "240px", zIndex: 50 }}
+            className="absolute left-0 top-0 bottom-0 flex flex-col"
+            style={{ width: "240px", zIndex: 50, background: T.card, borderRight: `1px solid ${T.border}`, boxShadow: `0 2px 24px ${T.shadow}` }}
           >
             <button
               onClick={() => setMobileOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground z-10"
+              className="absolute top-4 right-4 z-10"
+              style={{ color: T.textMuted }}
               aria-label="Fechar menu"
             >
               <X className="w-5 h-5" />
@@ -290,14 +264,17 @@ const AppSidebar = ({
       )}
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-16 xl:w-56 bg-card border-r border-border z-40 flex-col">
+      <div
+        className="hidden lg:flex fixed left-0 top-0 bottom-0 w-16 xl:w-56 z-40 flex-col transition-colors duration-500"
+        style={{ background: T.card, borderRight: `1px solid ${T.border}` }}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-4 flex items-center gap-3 border-b border-border">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-              <Calendar className="w-4 h-4 text-primary-foreground" />
+          <div className="p-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${T.border}` }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: T.accent }}>
+              <Calendar className="w-4 h-4" style={{ color: T.page }} />
             </div>
-            <span className="text-sm font-semibold text-foreground hidden xl:block">Jornada Bíblica</span>
+            <span className="text-sm font-semibold hidden xl:block" style={{ color: T.textPrimary }}>Jornada Bíblica</span>
           </div>
 
           {/* Nav */}
@@ -310,11 +287,12 @@ const AppSidebar = ({
                   key={item.id}
                   onClick={() => handleNav(item.id)}
                   title={item.label}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-150 ${
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-150"
+                  style={
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                      ? { background: T.accent, color: T.page }
+                      : { color: T.textMuted }
+                  }
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   <span className="hidden xl:block whitespace-nowrap">{item.label}</span>
@@ -324,41 +302,22 @@ const AppSidebar = ({
           </nav>
 
           {/* Footer */}
-          <div className="p-3 border-t border-border space-y-2">
-            {mounted && (
-              <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                title={theme === "dark" ? "Modo Claro" : "Modo Escuro"}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-5 h-5 flex-shrink-0" />
-                ) : (
-                  <Moon className="w-5 h-5 flex-shrink-0" />
-                )}
-                <span className="hidden xl:block whitespace-nowrap">
-                  {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
-                </span>
-              </button>
-            )}
+          <div className="p-3 space-y-2" style={{ borderTop: `1px solid ${T.border}` }}>
+            <ThemeToggle />
             {isLoggedIn && (
               <>
                 <div
-                  className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted rounded-[10px] transition-all"
+                  className="flex items-center gap-3 px-3 py-2 cursor-pointer rounded-[10px] transition-all"
                   onClick={() => navigate("/profile")}
                 >
-                  <UserAvatar
-                    displayName={displayName}
-                    userId={userId}
-                    avatarUrl={avatarUrl}
-                    onAvatarChange={onAvatarChange}
-                  />
-                  <span className="text-xs text-foreground truncate hidden xl:block">{displayName || "Usuário"}</span>
+                  <UserAvatar displayName={displayName} userId={userId} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+                  <span className="text-xs truncate hidden xl:block" style={{ color: T.textPrimary }}>{displayName || "Usuário"}</span>
                 </div>
                 <button
                   onClick={onLogout}
                   title="Sair"
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-[10px] text-sm transition-all hover:opacity-70"
+                  style={{ color: T.textMuted }}
                 >
                   <LogOut className="w-5 h-5 flex-shrink-0" />
                   <span className="hidden xl:block whitespace-nowrap">Sair</span>
