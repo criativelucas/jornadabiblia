@@ -509,7 +509,7 @@ export default function Profile() {
         </div>
 
         {/* ── Locked placeholder ────────────────────────── */}
-        <div className="p-5 mb-4 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 mb-4 transition-colors duration-500" style={gridCard}>
           <div className="flex items-center gap-2">
             <Lock size={13} color={T.textDim} />
             <span className="text-sm font-bold" style={{ color: T.textMuted }}>Conquistas em breve</span>
