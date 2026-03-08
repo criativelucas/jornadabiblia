@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achieved_at: string | null
+          achievement_key: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string | null
+          achievement_key: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string | null
+          achievement_key?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chapter_tags: {
         Row: {
           chapter_key: string
