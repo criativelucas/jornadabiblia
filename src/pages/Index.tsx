@@ -846,7 +846,8 @@ const Index = () => {
                     setFormStartDate(planStartDate || getTodayStr());
                     setShowCustomForm(true);
                   }}
-                  className="w-full p-3 rounded-2xl border border-dashed border-border bg-card text-muted-foreground text-sm hover:bg-muted transition-all flex items-center justify-center gap-2">
+                  className="w-full p-3 border border-dashed border-border bg-card text-muted-foreground text-sm hover:bg-muted transition-all flex items-center justify-center gap-2"
+                  style={{ borderRadius: "0.875rem" }}>
                   
                         <Plus className="w-4 h-4" /> Criar plano personalizado
                       </button>
