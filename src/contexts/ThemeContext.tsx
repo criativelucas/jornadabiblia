@@ -1,34 +1,38 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { Sun, Moon } from "lucide-react";
 
+// DARK: valores extraídos do design LN4 original
 const DARK = {
-  accent: "#D2FF00",
-  accentDim: "rgba(210,255,0,0.10)",
-  accentGlow: "rgba(210,255,0,0.15)",
-  page: "#101400",
-  card: "#161A04",
-  card2: "#1A1F00",
-  border: "rgba(210,255,0,0.08)",
-  borderAc: "rgba(210,255,0,0.28)",
-  textPrimary: "#f0f4d4",
-  textMuted: "#8A8F7A",
-  textDim: "#3a4020",
-  shadow: "rgba(0,0,0,0.5)",
+  accent:      "#d2ff00",
+  accentDark:  "#a3c900",
+  accentDim:   "rgba(210,255,0,0.10)",
+  accentGlow:  "rgba(210,255,0,0.13)",
+  page:        "#101400",
+  card:        "#181c00",
+  card2:       "#1e2300",
+  border:      "rgba(210,255,0,0.08)",
+  borderAc:    "rgba(210,255,0,0.25)",
+  textPrimary: "#f0f0ea",
+  textMuted:   "#8a8f7a",
+  textDim:     "#4a5030",
+  shadow:      "rgba(0,0,0,0.6)",
 };
 
+// LIGHT: genuinamente claro — creme + verde escuro legível
 const LIGHT = {
-  accent: "#65a30d",
-  accentDim: "rgba(101,163,13,0.10)",
-  accentGlow: "rgba(101,163,13,0.10)",
-  page: "#f0f0ea",
-  card: "#ffffff",
-  card2: "#f5f5ef",
-  border: "rgba(0,0,0,0.07)",
-  borderAc: "rgba(101,163,13,0.30)",
-  textPrimary: "#1a1a0d",
-  textMuted: "#7a8060",
-  textDim: "#b8c090",
-  shadow: "rgba(0,0,0,0.08)",
+  accent:      "#4a7c00",
+  accentDark:  "#365a00",
+  accentDim:   "rgba(74,124,0,0.09)",
+  accentGlow:  "rgba(74,124,0,0.08)",
+  page:        "#f5f5ee",
+  card:        "#ffffff",
+  card2:       "#efefea",
+  border:      "rgba(0,0,0,0.08)",
+  borderAc:    "rgba(74,124,0,0.25)",
+  textPrimary: "#1a1c0d",
+  textMuted:   "#6a7060",
+  textDim:     "#b0b8a0",
+  shadow:      "rgba(0,0,0,0.07)",
 };
 
 export type Theme = typeof DARK;
@@ -53,23 +57,24 @@ export { useThemeContext as useTheme };
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const stored = localStorage.getItem("jb-theme");
-    return stored ? stored === "dark" : true;
+    try { return localStorage.getItem("jb-theme") !== "light"; }
+    catch { return true; }
   });
 
   const T = isDark ? DARK : LIGHT;
 
   useEffect(() => {
-    localStorage.setItem("jb-theme", isDark ? "dark" : "light");
     document.body.style.background = T.page;
     document.body.style.minHeight = "100vh";
     document.documentElement.style.background = T.page;
+    document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
     if (isDark) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+    try { localStorage.setItem("jb-theme", isDark ? "dark" : "light"); }
+    catch {}
   }, [isDark, T.page]);
 
   const toggleTheme = () => setIsDark((d) => !d);
@@ -81,12 +86,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { T, isDark, toggleTheme } = useThemeContext();
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center gap-2 px-3 py-1.5 transition-all duration-300"
+      className={`flex items-center gap-2 px-3 py-1.5 transition-all duration-300 ${className ?? ""}`}
       style={{
         background: T.card2,
         border: `1px solid ${T.border}`,
