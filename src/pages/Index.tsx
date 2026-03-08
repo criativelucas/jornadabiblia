@@ -493,12 +493,8 @@ const Index = () => {
     home: "Início",
     bible: "Bíblia",
     plans: "Planos",
-    trophies: "Troféus",
     achieve: "Conquistas",
-    panorama: "Panorama",
-    chat: "Perguntas",
-    facts: "Descobertas",
-    gallery: "Galeria"
+    profile: "Perfil",
   };
   const planLabel =
   selectedPlan === "custom" && customConfig ? `Meu Plano · ${SCOPE_LABELS[customConfig.scope]}` : currentPlan.label;
