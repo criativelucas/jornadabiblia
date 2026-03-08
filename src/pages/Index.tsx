@@ -81,6 +81,7 @@ const Index = () => {
   const [mindMapBook, setMindMapBook] = useState<string | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
   const [showStreakRecoveryBanner, setShowStreakRecoveryBanner] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // ── Custom plan states ────────────────────────────────────────────
   const [customConfig, setCustomConfig] = useState<CustomPlanConfig | null>(null);
