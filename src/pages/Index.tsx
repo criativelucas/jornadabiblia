@@ -94,7 +94,7 @@ const Index = () => {
 
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
-
+  const { T } = useThemeContext();
   // View Transitions API for smooth section switches
   const navigateTo = (section: SectionId) => {
     if (!(document as any).startViewTransition) {
@@ -607,8 +607,8 @@ const Index = () => {
                       <div
                         className="p-8 text-center transition-all duration-300"
                         style={{
-                          background: '#D2FF00',
-                          color: '#101400',
+                          background: T.accent,
+                          color: T.page,
                           clipPath: 'polygon(0 0, 100% 0, 100% 92%, 96% 100%, 0 100%)',
                         }}
                       >
@@ -623,8 +623,8 @@ const Index = () => {
                           onClick={() => navigateTo("plans")}
                           className="inline-flex items-center gap-2 px-6 py-3 font-black uppercase tracking-tight text-sm transition-all duration-300 hover:opacity-90"
                           style={{
-                            background: '#101400',
-                            color: '#D2FF00',
+                            background: T.page,
+                            color: T.accent,
                             clipPath: 'polygon(0 0, 100% 0, 100% 80%, 93% 100%, 0 100%)',
                           }}
                         >
@@ -640,8 +640,8 @@ const Index = () => {
                         <div
                           className="mb-5 p-4 flex items-start gap-3 animate-fade-in-down ln4-glow transition-all duration-300"
                           style={{
-                            background: 'rgba(210,255,0,0.05)',
-                            border: '1px solid rgba(210,255,0,0.1)',
+                            background: T.accentDim,
+                            border: `1px solid ${T.borderAc}`,
                             clipPath: 'polygon(0 0, 100% 0, 100% 90%, 97% 100%, 0 100%)',
                           }}
                         >
@@ -675,8 +675,8 @@ const Index = () => {
                       <div
                         className="mb-5 p-5 ln4-glow transition-all duration-300"
                         style={{
-                          background: 'hsl(var(--card))',
-                          border: '1px solid rgba(210,255,0,0.08)',
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
                           clipPath: 'polygon(0 0, 100% 0, 100% 93%, 97% 100%, 0 100%)',
                         }}
                       >
@@ -704,9 +704,9 @@ const Index = () => {
                       <div
                         className="mb-5 p-5 ln4-glow transition-all duration-300"
                         style={{
-                          background: 'hsl(var(--card))',
-                          border: '1px solid rgba(210,255,0,0.08)',
-                          borderLeft: '3px solid hsl(var(--primary))',
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
+                          borderLeft: `3px solid ${T.accent}`,
                         }}
                       >
                         <div className="flex items-start justify-between">
@@ -767,8 +767,8 @@ const Index = () => {
                       <div
                         className="p-5 text-center ln4-glow transition-all duration-300"
                         style={{
-                          background: 'hsl(var(--card))',
-                          border: '1px solid rgba(210,255,0,0.08)',
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
                         }}
                       >
                         <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
@@ -782,7 +782,7 @@ const Index = () => {
                               className="w-12 h-12 flex items-center justify-center ln4-glow transition-all duration-300"
                               style={{
                                 backgroundColor: a.color + "20",
-                                border: '1px solid rgba(210,255,0,0.1)',
+                                border: `1px solid ${T.border}`,
                                 clipPath: 'polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%)',
                               }}
                             >
