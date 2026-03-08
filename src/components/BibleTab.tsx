@@ -7,8 +7,9 @@ import { useThemeContext, Eyebrow } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
 import { fetchTranslation, getTestament, VERSION_LABELS, type BibleVersion, type BibleBook as BibleDataBook } from "@/hooks/useBibleData";
 import { Skeleton } from "@/components/ui/skeleton";
+import BookPanorama from "@/components/BookPanorama";
 
-type View = "testament" | "books" | "chapters" | "reading";
+type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 
 export default function BibleTab() {
   const { T } = useThemeContext();
@@ -22,8 +23,8 @@ export default function BibleTab() {
   const [fontSize, setFontSize] = useState(16);
   const [markedRead, setMarkedRead] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [chaptersReadForBook, setChaptersReadForBook] = useState(0);
 
-  // Bible data from GitHub JSON
   const [version, setVersion] = useState<BibleVersion>("nvi");
   const [bibleData, setBibleData] = useState<BibleDataBook[] | null>(null);
   const [loadingBible, setLoadingBible] = useState(false);
@@ -35,7 +36,6 @@ export default function BibleTab() {
       .finally(() => setLoadingBible(false));
   }, [version]);
 
-  // Find the book data from the JSON by matching against bibleBooks order
   const findBookData = (bookName: string): BibleDataBook | undefined => {
     if (!bibleData) return undefined;
     const bookIndex = bibleBooks.findIndex((b) => b.name === bookName);
@@ -48,9 +48,20 @@ export default function BibleTab() {
     setView("books");
   };
 
-  const handleSelectBook = (book: typeof bibleBooks[0]) => {
+  const handleSelectBook = async (book: typeof bibleBooks[0]) => {
     setSelectedBook(book);
-    setView("chapters");
+    // Count read chapters for this book
+    let readCount = 0;
+    if (user) {
+      const { count } = await supabase
+        .from("achievements")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .like("achievement_key", `chapter_${book.id}_%`);
+      readCount = count ?? 0;
+    }
+    setChaptersReadForBook(readCount);
+    setView("panorama");
   };
 
   const handleSelectChapter = (ch: number) => {
@@ -80,7 +91,6 @@ export default function BibleTab() {
       return;
     }
     setMarkedRead(true);
-    // Insert achievement for chapter read
     await supabase
       .from("achievements")
       .upsert({
@@ -92,7 +102,8 @@ export default function BibleTab() {
 
   const goBack = () => {
     if (view === "reading") setView("chapters");
-    else if (view === "chapters") setView("books");
+    else if (view === "chapters") setView("panorama");
+    else if (view === "panorama") setView("books");
     else if (view === "books") setView("testament");
   };
 
@@ -105,7 +116,6 @@ export default function BibleTab() {
 
   const versions: BibleVersion[] = ["nvi", "acf", "aa"];
 
-  // ── Version pills ─────────────────────────────────
   const versionPills = (
     <div className="flex gap-2 mb-4">
       {versions.map((v) => (
@@ -125,7 +135,6 @@ export default function BibleTab() {
     </div>
   );
 
-  // Loading skeleton
   if (loadingBible && !bibleData) {
     return (
       <div className="space-y-4">
@@ -139,7 +148,7 @@ export default function BibleTab() {
     );
   }
 
-  // ── Testament selector ─────────────────────────────
+  // ── Testament selector
   if (view === "testament") {
     return (
       <div className="space-y-6">
@@ -172,7 +181,7 @@ export default function BibleTab() {
     );
   }
 
-  // ── Book grid ──────────────────────────────────────
+  // ── Book grid
   if (view === "books") {
     const books = testament === "AT" ? AT_BOOKS : NT_BOOKS;
     return (
@@ -204,7 +213,22 @@ export default function BibleTab() {
     );
   }
 
-  // ── Chapter list ───────────────────────────────────
+  // ── Panorama view (NEW)
+  if (view === "panorama" && selectedBook) {
+    return (
+      <div>
+        {versionPills}
+        <BookPanorama
+          book={selectedBook}
+          chaptersRead={chaptersReadForBook}
+          onContinue={() => setView("chapters")}
+          onBack={goBack}
+        />
+      </div>
+    );
+  }
+
+  // ── Chapter list
   if (view === "chapters" && selectedBook) {
     return (
       <div className="space-y-4">
@@ -236,7 +260,7 @@ export default function BibleTab() {
     );
   }
 
-  // ── Reading view ───────────────────────────────────
+  // ── Reading view
   if (view === "reading" && selectedBook) {
     return (
       <div className="space-y-4" ref={scrollRef}>
@@ -288,7 +312,6 @@ export default function BibleTab() {
           </div>
         )}
 
-        {/* Navigation */}
         <div className="flex gap-3">
           {selectedChapter > 1 && (
             <button
@@ -310,7 +333,6 @@ export default function BibleTab() {
           )}
         </div>
 
-        {/* Mark as read */}
         <button
           onClick={handleMarkRead}
           disabled={markedRead}
