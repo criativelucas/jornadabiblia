@@ -607,8 +607,8 @@ const Index = () => {
                       <div
                         className="p-8 text-center transition-all duration-300"
                         style={{
-                          background: '#D2FF00',
-                          color: '#101400',
+                          background: T.accent,
+                          color: T.page,
                           clipPath: 'polygon(0 0, 100% 0, 100% 92%, 96% 100%, 0 100%)',
                         }}
                       >
@@ -623,8 +623,8 @@ const Index = () => {
                           onClick={() => navigateTo("plans")}
                           className="inline-flex items-center gap-2 px-6 py-3 font-black uppercase tracking-tight text-sm transition-all duration-300 hover:opacity-90"
                           style={{
-                            background: '#101400',
-                            color: '#D2FF00',
+                            background: T.page,
+                            color: T.accent,
                             clipPath: 'polygon(0 0, 100% 0, 100% 80%, 93% 100%, 0 100%)',
                           }}
                         >
