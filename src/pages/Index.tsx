@@ -499,7 +499,7 @@ const Index = () => {
     selectedPlan === "custom" && customConfig ? `Meu Plano · ${SCOPE_LABELS[customConfig.scope]}` : currentPlan.label;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen transition-colors duration-500" style={{ background: "var(--jb-page, hsl(var(--background)))", color: "hsl(var(--foreground))" }}>
       {confirmModal && (
         <ConfirmModal
           isOpen
