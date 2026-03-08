@@ -85,10 +85,21 @@ interface Props {
   onNavigate?: (section: SectionId) => void;
   celebrationBook?: { name: string; category: string; chapters: number } | null;
   onCelebrationDismiss?: () => void;
+  // Trophies data (unified)
+  completedDays?: Set<string>;
+  allDays?: string[];
+  months?: string[][];
+  onBookClick?: (bookName: string) => void;
 }
 
-const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate, celebrationBook, onCelebrationDismiss }: Props) => {
+type InternalTab = "trophies" | "medals";
+type TrophyFilter = "all" | "AT" | "NT" | "done";
+
+const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate, celebrationBook, onCelebrationDismiss, completedDays, allDays, months, onBookClick }: Props) => {
   const { user } = useAuth();
+  const { T } = useThemeContext();
+  const [activeTab, setActiveTab] = useState<InternalTab>("trophies");
+  const [trophyFilter, setTrophyFilter] = useState<TrophyFilter>("all");
   const { T } = useThemeContext();
   const [readDates, setReadDates] = useState<Set<string>>(new Set());
   const [percentile, setPercentile] = useState<number | null>(null);
