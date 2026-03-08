@@ -1004,7 +1004,7 @@ const Index = () => {
                   </div>
 
                   {selectedPlan !== "custom" &&
-              <div className="mb-5 p-4 rounded-2xl bg-card border border-border flex items-center gap-3">
+              <div className="mb-5 p-4 bg-card border border-border flex items-center gap-3" style={{ borderRadius: "0.875rem" }}>
                       <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
                       <div className="flex-grow min-w-0">
                         <label className="text-xs text-muted-foreground block mb-1">Data de início do plano</label>
