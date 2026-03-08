@@ -588,6 +588,7 @@ const Index = () => {
             <div key={activeSection} className="section-enter">
               {activeSection === "chat" && <BibleChat />}
               {activeSection === "facts" && <DailyCuriosity />}
+              {activeSection === "bible" && <BibleTab />}
               {activeSection === "achieve" && (
               <AchievementsTab
                     streak={streak}
