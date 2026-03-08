@@ -767,8 +767,8 @@ const Index = () => {
                       <div
                         className="p-5 text-center ln4-glow transition-all duration-300"
                         style={{
-                          background: 'hsl(var(--card))',
-                          border: '1px solid rgba(210,255,0,0.08)',
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
                         }}
                       >
                         <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
