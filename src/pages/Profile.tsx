@@ -16,16 +16,6 @@ import {
   Loader,
   LogOut,
 } from "lucide-react";
-  Trophy,
-  Calendar,
-  Lock,
-  Camera,
-  Bell,
-  BellOff,
-  Check,
-  Loader,
-  LogOut,
-} from "lucide-react";
 import { toast } from "sonner";
 import { useThemeContext, ThemeToggle, Eyebrow } from "@/contexts/ThemeContext";
 
