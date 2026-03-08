@@ -31,6 +31,7 @@ import DynamicGreeting from "@/components/DynamicGreeting";
 import StreakTree from "@/components/StreakTree";
 import NextAchievement from "@/components/NextAchievement";
 import BibleTab from "@/components/BibleTab";
+import DiscoverTab from "@/components/DiscoverTab";
 
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
