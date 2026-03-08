@@ -3,6 +3,8 @@ import { RefreshCw, Loader2, Trash2, Plus, Check, Download } from 'lucide-react'
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import ConfirmModal from './ConfirmModal';
+import { supabase } from '@/integrations/supabase/client';
+import { bibleBooks } from '@/data/bibleBooks';
 
 interface MindMapNode {
   id: string;
@@ -58,11 +60,22 @@ const MindMapView = ({ bookName, userId }: Props) => {
     setLoading(true);
     setError('');
     try {
-      const prompt = `Gere um mapa mental em JSON para o livro bíblico '${bookName}'. Responda APENAS com JSON válido, sem texto extra, neste formato exato: { "centro": "string", "nos": [ { "id": "string", "label": "string (máx 4 palavras)", "tipo": "tema|personagem|evento|lugar", "filhos": [ { "id": "string", "label": "string (máx 5 palavras)" } ] } ] }. Máximo 6 nós principais, 3 filhos por nó.`;
+      // Validate book name against known books
+      const validBook = bibleBooks.find(b => b.name === bookName);
+      if (!validBook) {
+        setError('Livro inválido');
+        setLoading(false);
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Faça login para usar esta funcionalidade');
+
+      const prompt = `Gere um mapa mental em JSON para o livro bíblico '${validBook.name}'. Responda APENAS com JSON válido, sem texto extra, neste formato exato: { "centro": "string", "nos": [ { "id": "string", "label": "string (máx 4 palavras)", "tipo": "tema|personagem|evento|lugar", "filhos": [ { "id": "string", "label": "string (máx 5 palavras)" } ] } ] }. Máximo 6 nós principais, 3 filhos por nó.`;
 
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], type: 'mindmap' }),
       });
 
