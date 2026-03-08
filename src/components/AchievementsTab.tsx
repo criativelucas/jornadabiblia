@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, CheckCircle2, BookOpen, X, Lock } from "lucide-react";
+import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, CheckCircle2, BookOpen, X, Lock, Check, Award } from "lucide-react";
 import { milestones } from "@/data/streakMilestones";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import WeeklyRanking from "@/components/WeeklyRanking";
 import { useThemeContext } from "@/contexts/ThemeContext";
-import { bibleBooks } from "@/data/bibleBooks";
+import { bibleBooks, getReadChaptersByBook } from "@/data/bibleBooks";
 import QuizModal from "@/components/QuizModal";
 import type { SectionId } from "./AppSidebar";
 
