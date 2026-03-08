@@ -1107,7 +1107,7 @@ const Index = () => {
                     </div> :
 
               months[selectedMonth] &&
-              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="bg-card border border-border overflow-hidden" style={{ borderRadius: "0.875rem" }}>
                         <div className="p-4 border-b border-border flex items-center justify-between">
                           <h3 className="text-base font-bold text-foreground">Mês {selectedMonth + 1}</h3>
                           {!isMonthCompleted(selectedMonth) &&

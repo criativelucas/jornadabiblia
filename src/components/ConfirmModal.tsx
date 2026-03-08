@@ -27,7 +27,8 @@ const ConfirmModal = ({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
       <div
-        className="relative bg-card border border-border rounded-3xl p-7 max-w-[340px] w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="relative bg-card border border-border p-7 max-w-[340px] w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        style={{ borderRadius: "1.25rem" }}
       >
         <button onClick={onCancel} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors">
           <X className="w-4 h-4" />
