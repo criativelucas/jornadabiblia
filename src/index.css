@@ -131,13 +131,17 @@
   100% { transform: translateY(80px) rotate(120deg); opacity: 0; }
 }
 
-/* ─── LN4 Glow hover ─────────────────────────────────────── */
+/* ─── LN4 Glow hover (theme-aware) ────────────────────────── */
 .ln4-glow {
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
-.ln4-glow:hover {
+[data-theme="dark"] .ln4-glow:hover {
   box-shadow: 0 0 20px rgba(210, 255, 0, 0.15);
   border-color: rgba(210, 255, 0, 0.25) !important;
+}
+[data-theme="light"] .ln4-glow:hover {
+  box-shadow: 0 0 20px rgba(74, 124, 0, 0.12);
+  border-color: rgba(74, 124, 0, 0.25) !important;
 }
 
 /* ─── Impact typography (Playfair Display) ─────────────────── */
