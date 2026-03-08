@@ -825,7 +825,8 @@ const Index = () => {
                   <button
                     key={plan.id}
                     onClick={() => handlePlanChange(plan.id)}
-                    className={`p-3 rounded-2xl border text-left transition-all ${selectedPlan === plan.id ? "bg-primary/10 border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"}`}>
+                    className={`p-3 border text-left transition-all ${selectedPlan === plan.id ? "bg-primary/10 border-primary/30 shadow-sm" : "bg-card border-border hover:bg-muted"}`}
+                    style={{ borderRadius: "0.875rem" }}>
                     
                             <div
                       className={`text-base font-bold ${selectedPlan === plan.id ? "text-primary" : "text-foreground"}`}>
