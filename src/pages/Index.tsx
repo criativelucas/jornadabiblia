@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, startTransition } from "react";
-import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X } from "lucide-react";
+import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X, ArrowRight } from "lucide-react";
 import { playCheckSound } from "@/utils/sounds";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -614,109 +614,176 @@ const Index = () => {
               {/* ── HOME ─────────────────────────────────────────── */}
               {activeSection === "home" && (
                 <>
-                  <DynamicGreeting displayName={displayName} />
-                  {showStreakRecoveryBanner && (
-                    <div className="mb-5 p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-3 animate-fade-in-down">
-                      <span className="text-2xl">🌿</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-foreground">Recupere sua sequência</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Leia hoje e mantenha sua jornada viva</p>
-                      </div>
-                      <button
-                        onClick={() => setShowStreakRecoveryBanner(false)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                  <StreakTree streak={streak} />
-                  {recovery && (
-                    <RecoveryBanner
-                      behindChapters={recovery.behind}
-                      newDailyGoal={recovery.newDaily}
-                      daysRemaining={recovery.remaining}
-                    />
-                  )}
-                  <NextAchievement completedDays={completedDays} allDays={activeDays} months={months} />
-
-                  <div className="mb-5 p-5 rounded-2xl bg-card border border-border">
-                    <div className="flex justify-between items-end mb-3">
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                          Progresso Global
-                        </p>
-                        <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                          {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-lime" />}
-                        </h2>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        <span className="text-foreground font-semibold">{completedDays.size}</span> / {totalDays} dias
-                      </p>
-                    </div>
-                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  {/* Onboarding CTA for new users */}
+                  {completedDays.size === 0 && streak === 0 ? (
+                    <div className="mb-6">
                       <div
-                        className="h-full bg-primary rounded-full transition-all duration-1000 ease-out progress-shimmer"
-                        style={{ width: `${progressPercentage}%` }}
-                      />
+                        className="p-8 text-center transition-all duration-300"
+                        style={{
+                          background: '#D2FF00',
+                          color: '#101400',
+                          clipPath: 'polygon(0 0, 100% 0, 100% 92%, 96% 100%, 0 100%)',
+                        }}
+                      >
+                        <h2 className="text-impact text-3xl sm:text-4xl mb-2">
+                          Bem-vindo à sua nova{' '}
+                          <span className="italic">jornada</span>
+                        </h2>
+                        <p className="text-sm opacity-70 mb-6">
+                          Comece hoje e acompanhe seu progresso dia a dia
+                        </p>
+                        <button
+                          onClick={() => navigateTo("plans")}
+                          className="inline-flex items-center gap-2 px-6 py-3 font-black uppercase tracking-tight text-sm transition-all duration-300 hover:opacity-90"
+                          style={{
+                            background: '#101400',
+                            color: '#D2FF00',
+                            clipPath: 'polygon(0 0, 100% 0, 100% 80%, 93% 100%, 0 100%)',
+                          }}
+                        >
+                          Começar Leitura de Hoje
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="mb-5 p-5 rounded-2xl bg-card border border-border border-l-4 border-l-primary">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-grow">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Calendar className="w-4 h-4 text-primary" />
-                          <p className="text-sm font-bold text-foreground">{planLabel}</p>
+                  ) : (
+                    <>
+                      <DynamicGreeting displayName={displayName} />
+                      {showStreakRecoveryBanner && (
+                        <div
+                          className="mb-5 p-4 flex items-start gap-3 animate-fade-in-down ln4-glow transition-all duration-300"
+                          style={{
+                            background: 'rgba(210,255,0,0.05)',
+                            border: '1px solid rgba(210,255,0,0.1)',
+                            clipPath: 'polygon(0 0, 100% 0, 100% 90%, 97% 100%, 0 100%)',
+                          }}
+                        >
+                          <span className="text-2xl">🌿</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-black text-foreground tracking-tight">Recupere sua sequência</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Leia hoje e mantenha sua jornada viva</p>
+                          </div>
+                          <button
+                            onClick={() => setShowStreakRecoveryBanner(false)}
+                            className="text-muted-foreground hover:text-foreground transition-all duration-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
-                        {planStartDate && (
-                          <p className="text-[11px] text-muted-foreground mb-2">
-                            Iniciado em {new Date(planStartDate).toLocaleDateString("pt-BR")}
-                            {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} dias restantes`}
-                            {daysRemaining === 0 && " · Prazo encerrado"}
+                      )}
+                      <StreakTree streak={streak} />
+                      {recovery && (
+                        <RecoveryBanner
+                          behindChapters={recovery.behind}
+                          newDailyGoal={recovery.newDaily}
+                          daysRemaining={recovery.remaining}
+                        />
+                      )}
+                      <NextAchievement completedDays={completedDays} allDays={activeDays} months={months} />
+                    </>
+                  )}
+
+                  {completedDays.size > 0 && (
+                    <>
+                      <div
+                        className="mb-5 p-5 ln4-glow transition-all duration-300"
+                        style={{
+                          background: 'hsl(var(--card))',
+                          border: '1px solid rgba(210,255,0,0.08)',
+                          clipPath: 'polygon(0 0, 100% 0, 100% 93%, 97% 100%, 0 100%)',
+                        }}
+                      >
+                        <div className="flex justify-between items-end mb-3">
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                              Progresso Global
+                            </p>
+                            <h2 className="text-3xl font-black tracking-tighter text-foreground flex items-center gap-2">
+                              {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-primary" />}
+                            </h2>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="text-foreground font-bold">{completedDays.size}</span> / {totalDays} dias
                           </p>
-                        )}
-                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-2">
+                        </div>
+                        <div className="h-1.5 w-full bg-muted overflow-hidden">
                           <div
-                            className="h-full bg-primary rounded-full transition-all progress-shimmer"
+                            className="h-full bg-primary transition-all duration-1000 ease-out progress-shimmer"
                             style={{ width: `${progressPercentage}%` }}
                           />
                         </div>
-                        {dailyGoal && dailyGoal > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            → Hoje:{" "}
-                            <span className={`font-bold ${recovery ? "text-amber-500" : "text-primary"}`}>
-                              {dailyGoal}
-                            </span>{" "}
-                            capítulos para ler
-                          </p>
-                        )}
                       </div>
-                    </div>
-                    <button
-                      onClick={() => navigateTo("plans")}
-                      className="text-xs text-primary font-medium mt-3 hover:underline"
-                    >
-                      Ver plano completo →
-                    </button>
-                  </div>
+
+                      <div
+                        className="mb-5 p-5 ln4-glow transition-all duration-300"
+                        style={{
+                          background: 'hsl(var(--card))',
+                          border: '1px solid rgba(210,255,0,0.08)',
+                          borderLeft: '3px solid hsl(var(--primary))',
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-grow">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="w-4 h-4 text-primary" />
+                              <p className="text-sm font-black text-foreground tracking-tight">{planLabel}</p>
+                            </div>
+                            {planStartDate && (
+                              <p className="text-[11px] text-muted-foreground mb-2">
+                                Iniciado em {new Date(planStartDate).toLocaleDateString("pt-BR")}
+                                {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} dias restantes`}
+                                {daysRemaining === 0 && " · Prazo encerrado"}
+                              </p>
+                            )}
+                            <div className="h-1 w-full bg-muted overflow-hidden mb-2">
+                              <div
+                                className="h-full bg-primary transition-all progress-shimmer"
+                                style={{ width: `${progressPercentage}%` }}
+                              />
+                            </div>
+                            {dailyGoal && dailyGoal > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                → Hoje:{" "}
+                                <span className={`font-bold ${recovery ? "text-amber-500" : "text-primary"}`}>
+                                  {dailyGoal}
+                                </span>{" "}
+                                capítulos para ler
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => navigateTo("plans")}
+                          className="text-xs text-primary font-bold mt-3 hover:underline uppercase tracking-wider"
+                        >
+                          Ver plano completo →
+                        </button>
+                      </div>
+                    </>
+                  )}
 
                   <div className="mb-5">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                         Suas Conquistas
                       </p>
                       {recentAchievements.length > 0 && (
                         <button
                           onClick={() => navigateTo("achieve")}
-                          className="text-xs text-primary font-medium hover:underline"
+                          className="text-xs text-primary font-bold hover:underline uppercase tracking-wider"
                         >
                           Ver todas →
                         </button>
                       )}
                     </div>
                     {recentAchievements.length === 0 ? (
-                      <div className="p-5 rounded-2xl bg-card border border-border text-center">
+                      <div
+                        className="p-5 text-center ln4-glow transition-all duration-300"
+                        style={{
+                          background: 'hsl(var(--card))',
+                          border: '1px solid rgba(210,255,0,0.08)',
+                        }}
+                      >
                         <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
                         <p className="text-xs text-muted-foreground">Nenhuma conquista ainda. Continue lendo!</p>
                       </div>
@@ -725,8 +792,12 @@ const Index = () => {
                         {recentAchievements.map((a, i) => (
                           <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20">
                             <div
-                              className="w-12 h-12 rounded-full flex items-center justify-center"
-                              style={{ backgroundColor: a.color + "20" }}
+                              className="w-12 h-12 flex items-center justify-center ln4-glow transition-all duration-300"
+                              style={{
+                                backgroundColor: a.color + "20",
+                                border: '1px solid rgba(210,255,0,0.1)',
+                                clipPath: 'polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%)',
+                              }}
                             >
                               {a.type === "book" ? (
                                 <BookOpen className="w-5 h-5" style={{ color: a.color }} />
@@ -734,7 +805,7 @@ const Index = () => {
                                 <Flame className="w-5 h-5" style={{ color: a.color }} />
                               )}
                             </div>
-                            <p className="text-[10px] text-foreground font-medium text-center truncate w-full">
+                            <p className="text-[10px] text-foreground font-bold text-center truncate w-full">
                               {a.label}
                             </p>
                           </div>
