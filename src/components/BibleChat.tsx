@@ -1,11 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
+const MAX_INPUT_LENGTH = 500;
+
+async function getAuthToken(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Faça login para usar o chat');
+  return session.access_token;
+}
 
 async function streamChat({ messages, onDelta, onDone }: { messages: Msg[]; onDelta: (t: string) => void; onDone: () => void }) {
-  const resp = await fetch(CHAT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` }, body: JSON.stringify({ messages, type: 'chat' }) });
+  const token = await getAuthToken();
+  const resp = await fetch(CHAT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ messages, type: 'chat' }) });
   if (!resp.ok || !resp.body) { const d = await resp.json().catch(() => ({})); throw new Error(d.error || 'Falha na conexão'); }
   const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buffer = '', done = false;
   while (!done) {
@@ -33,13 +42,17 @@ const BibleChat = () => {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const send = async () => {
-    const text = input.trim(); if (!text || isLoading) return; setInput('');
+    const text = input.trim();
+    if (!text || isLoading) return;
+    if (text.length > MAX_INPUT_LENGTH) return;
+    if (text.length < 3) return;
+    setInput('');
     const userMsg: Msg = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]); setIsLoading(true);
     let soFar = '';
     const upsert = (chunk: string) => { soFar += chunk; setMessages(prev => { const last = prev[prev.length - 1]; if (last?.role === 'assistant') return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: soFar } : m); return [...prev, { role: 'assistant', content: soFar }]; }); };
     try { await streamChat({ messages: [...messages, userMsg], onDelta: upsert, onDone: () => setIsLoading(false) }); }
-    catch (e: any) { setMessages(prev => [...prev, { role: 'assistant', content: `Erro: ${e.message}` }]); setIsLoading(false); }
+    catch (e: unknown) { const msg = e instanceof Error ? e.message : 'Erro desconhecido'; setMessages(prev => [...prev, { role: 'assistant', content: `Erro: ${msg}` }]); setIsLoading(false); }
   };
 
   return (
@@ -82,12 +95,16 @@ const BibleChat = () => {
 
       <div className="p-4 border-t border-border">
         <div className="flex gap-2">
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()} placeholder="Pergunte algo sobre a Bíblia..."
+          <input value={input} onChange={e => setInput(e.target.value.slice(0, MAX_INPUT_LENGTH))} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()} placeholder="Pergunte algo sobre a Bíblia..."
+            maxLength={MAX_INPUT_LENGTH}
             className="flex-1 bg-muted border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50" />
           <button onClick={send} disabled={isLoading || !input.trim()} className="p-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 transition-all">
             <Send className="w-4 h-4" />
           </button>
         </div>
+        {input.length > MAX_INPUT_LENGTH - 50 && (
+          <p className="text-[10px] text-muted-foreground mt-1 text-right">{input.length}/{MAX_INPUT_LENGTH}</p>
+        )}
       </div>
     </div>
   );
