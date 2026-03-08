@@ -31,10 +31,12 @@ import ConfirmModal from "@/components/ConfirmModal";
 import DynamicGreeting from "@/components/DynamicGreeting";
 import StreakTree from "@/components/StreakTree";
 import NextAchievement from "@/components/NextAchievement";
+import BibleTab from "@/components/BibleTab";
 
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
 import { toast } from "sonner";
+import { useThemeContext, ThemeToggle } from "@/contexts/ThemeContext";
 
 const getTodayStr = () => {
   const d = new Date();
