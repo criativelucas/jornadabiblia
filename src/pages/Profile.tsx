@@ -454,7 +454,7 @@ export default function Profile() {
         </div>
 
         {/* ── Notification ──────────────────────────────── */}
-        <div className="p-5 transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.5rem" }}>
+        <div className="p-5 transition-colors duration-500" style={gridCard}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: reminderEnabled ? T.accentDim : T.card2 }}>
