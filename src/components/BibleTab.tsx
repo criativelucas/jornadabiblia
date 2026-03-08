@@ -5,57 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeContext, Eyebrow } from "@/contexts/ThemeContext";
 import { toast } from "sonner";
-
-// ─── Book name → bible-api slug mapping ───────────────────────────────────────
-const SLUG_MAP: Record<string, string> = {
-  "Gênesis": "genesis", "Êxodo": "exodus", "Levítico": "leviticus", "Números": "numbers",
-  "Deuteronômio": "deuteronomy", "Josué": "joshua", "Juízes": "judges", "Rute": "ruth",
-  "1 Samuel": "1samuel", "2 Samuel": "2samuel", "1 Reis": "1kings", "2 Reis": "2kings",
-  "1 Crônicas": "1chronicles", "2 Crônicas": "2chronicles", "Esdras": "ezra", "Neemias": "nehemiah",
-  "Ester": "esther", "Jó": "job", "Salmos": "psalms", "Provérbios": "proverbs",
-  "Eclesiastes": "ecclesiastes", "Cantares": "song of solomon", "Isaías": "isaiah", "Jeremias": "jeremiah",
-  "Lamentações": "lamentations", "Ezequiel": "ezekiel", "Daniel": "daniel", "Oséias": "hosea",
-  "Joel": "joel", "Amós": "amos", "Obadias": "obadiah", "Jonas": "jonah", "Miquéias": "micah",
-  "Naum": "nahum", "Habacuque": "habakkuk", "Sofonias": "zephaniah", "Ageu": "haggai",
-  "Zacarias": "zechariah", "Malaquias": "malachi", "Mateus": "matthew", "Marcos": "mark",
-  "Lucas": "luke", "João": "john", "Atos": "acts", "Romanos": "romans",
-  "1 Coríntios": "1corinthians", "2 Coríntios": "2corinthians", "Gálatas": "galatians",
-  "Efésios": "ephesians", "Filipenses": "philippians", "Colossenses": "colossians",
-  "1 Tessalonicenses": "1thessalonians", "2 Tessalonicenses": "2thessalonians",
-  "1 Timóteo": "1timothy", "2 Timóteo": "2timothy", "Tito": "titus", "Filemom": "philemon",
-  "Hebreus": "hebrews", "Tiago": "james", "1 Pedro": "1peter", "2 Pedro": "2peter",
-  "1 João": "1john", "2 João": "2john", "3 João": "3john", "Judas": "jude", "Apocalipse": "revelation",
-};
-
-interface Verse {
-  verse: number;
-  text: string;
-}
-
-// Cache
-const chapterCache = new Map<string, Verse[]>();
-
-async function fetchChapter(bookName: string, chapter: number): Promise<Verse[]> {
-  const key = `${bookName}:${chapter}`;
-  if (chapterCache.has(key)) return chapterCache.get(key)!;
-
-  const slug = SLUG_MAP[bookName];
-  if (!slug) return [];
-
-  try {
-    const resp = await fetch(`https://bible-api.com/${slug}+${chapter}?translation=almeida`);
-    if (!resp.ok) throw new Error("fetch failed");
-    const data = await resp.json();
-    const verses: Verse[] = (data.verses || []).map((v: { verse: number; text: string }) => ({
-      verse: v.verse,
-      text: v.text.trim(),
-    }));
-    chapterCache.set(key, verses);
-    return verses;
-  } catch {
-    return [];
-  }
-}
+import { fetchTranslation, getTestament, VERSION_LABELS, type BibleVersion, type BibleBook as BibleDataBook } from "@/hooks/useBibleData";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type View = "testament" | "books" | "chapters" | "reading";
 
@@ -66,27 +17,31 @@ export default function BibleTab() {
   const [testament, setTestament] = useState<"AT" | "NT">("AT");
   const [selectedBook, setSelectedBook] = useState<typeof bibleBooks[0] | null>(null);
   const [selectedChapter, setSelectedChapter] = useState(1);
-  const [verses, setVerses] = useState<Verse[]>([]);
+  const [verses, setVerses] = useState<{ verse: number; text: string }[]>([]);
   const [loadingText, setLoadingText] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const [markedRead, setMarkedRead] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Read progress for selected book
-  const [readChapters, setReadChapters] = useState<Set<number>>(new Set());
+  // Bible data from GitHub JSON
+  const [version, setVersion] = useState<BibleVersion>("nvi");
+  const [bibleData, setBibleData] = useState<BibleDataBook[] | null>(null);
+  const [loadingBible, setLoadingBible] = useState(false);
 
   useEffect(() => {
-    if (!user || !selectedBook) return;
-    // Load which chapters of this book have been read
-    supabase
-      .from("completed_days")
-      .select("day_index, month_index")
-      .eq("user_id", user.id)
-      .then(({ data }) => {
-        // This is a simplified check - for a full implementation you'd parse the plan days
-        // For now we track via achievements
-      });
-  }, [user, selectedBook]);
+    setLoadingBible(true);
+    fetchTranslation(version)
+      .then(setBibleData)
+      .finally(() => setLoadingBible(false));
+  }, [version]);
+
+  // Find the book data from the JSON by matching against bibleBooks order
+  const findBookData = (bookName: string): BibleDataBook | undefined => {
+    if (!bibleData) return undefined;
+    const bookIndex = bibleBooks.findIndex((b) => b.name === bookName);
+    if (bookIndex >= 0 && bibleData[bookIndex]) return bibleData[bookIndex];
+    return undefined;
+  };
 
   const handleSelectTestament = (t: "AT" | "NT") => {
     setTestament(t);
@@ -98,14 +53,23 @@ export default function BibleTab() {
     setView("chapters");
   };
 
-  const handleSelectChapter = async (ch: number) => {
+  const handleSelectChapter = (ch: number) => {
     if (!selectedBook) return;
     setSelectedChapter(ch);
     setView("reading");
     setMarkedRead(false);
     setLoadingText(true);
-    const v = await fetchChapter(selectedBook.name, ch);
-    setVerses(v);
+
+    const bookData = findBookData(selectedBook.name);
+    if (bookData && bookData.chapters[ch - 1]) {
+      const chapterVerses = bookData.chapters[ch - 1].map((text, i) => ({
+        verse: i + 1,
+        text: text.trim(),
+      }));
+      setVerses(chapterVerses);
+    } else {
+      setVerses([]);
+    }
     setLoadingText(false);
     scrollRef.current?.scrollTo(0, 0);
   };
@@ -116,14 +80,13 @@ export default function BibleTab() {
       return;
     }
     setMarkedRead(true);
-    // Insert achievement
-    await (supabase as unknown as { from: (t: string) => { insert: (r: Record<string, unknown>) => { select: () => Promise<unknown> } } })
+    // Insert achievement for chapter read
+    await supabase
       .from("achievements")
-      .insert({
+      .upsert({
         user_id: user.id,
         achievement_key: `chapter_${selectedBook.id}_${selectedChapter}`,
-      })
-      .select();
+      }, { onConflict: 'user_id,achievement_key' });
     toast.success(`${selectedBook.name} ${selectedChapter} marcado como lido! ✓`);
   };
 
@@ -140,10 +103,47 @@ export default function BibleTab() {
     clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
   };
 
+  const versions: BibleVersion[] = ["nvi", "acf", "aa"];
+
+  // ── Version pills ─────────────────────────────────
+  const versionPills = (
+    <div className="flex gap-2 mb-4">
+      {versions.map((v) => (
+        <button
+          key={v}
+          onClick={() => setVersion(v)}
+          className="px-4 py-1.5 rounded-full text-xs font-bold transition-all"
+          style={
+            version === v
+              ? { background: T.accent, color: T.page }
+              : { background: T.card2, color: T.textMuted, border: `1px solid ${T.border}` }
+          }
+        >
+          {VERSION_LABELS[v]}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Loading skeleton
+  if (loadingBible && !bibleData) {
+    return (
+      <div className="space-y-4">
+        {versionPills}
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="skeleton-shimmer h-16 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // ── Testament selector ─────────────────────────────
   if (view === "testament") {
     return (
       <div className="space-y-6">
+        {versionPills}
         <Eyebrow accent>Bíblia Sagrada</Eyebrow>
         <h2 className="text-3xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
           Escolha o Testamento
@@ -177,6 +177,7 @@ export default function BibleTab() {
     const books = testament === "AT" ? AT_BOOKS : NT_BOOKS;
     return (
       <div className="space-y-4">
+        {versionPills}
         <button onClick={goBack} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
           <ArrowLeft size={16} />
           <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
@@ -207,6 +208,7 @@ export default function BibleTab() {
   if (view === "chapters" && selectedBook) {
     return (
       <div className="space-y-4">
+        {versionPills}
         <button onClick={goBack} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
           <ArrowLeft size={16} />
           <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
@@ -244,6 +246,9 @@ export default function BibleTab() {
             <span className="text-xs font-bold uppercase tracking-widest">Capítulos</span>
           </button>
           <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: T.accentDim, color: T.accent }}>
+              {VERSION_LABELS[version]}
+            </span>
             <button onClick={() => setFontSize((s) => Math.max(12, s - 2))} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: T.card2, color: T.textMuted }}>
               <Minus size={14} />
             </button>

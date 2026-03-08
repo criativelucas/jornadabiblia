@@ -25,7 +25,6 @@ import GalleryTab from "@/components/GalleryTab";
 import RecoveryBanner from "@/components/RecoveryBanner";
 import DailyVerseModal from "@/components/DailyVerseModal";
 import MilestoneUnlockModal from "@/components/MilestoneUnlockModal";
-import BookTrophyModal from "@/components/BookTrophyModal";
 import MindMapView from "@/components/MindMapView";
 import ConfirmModal from "@/components/ConfirmModal";
 import DynamicGreeting from "@/components/DynamicGreeting";
@@ -144,6 +143,12 @@ const Index = () => {
     setSelectedMonth(0);
   }, [selectedPlan]);
 
+  // Auto-navigate to achievements when a book trophy is earned
+  useEffect(() => {
+    if (trophyQueue.length > 0 && activeSection !== "achieve") {
+      navigateTo("achieve");
+    }
+  }, [trophyQueue.length]);
   useEffect(() => {
     if (!user) {
       setCompletedDays(new Set());
@@ -515,26 +520,6 @@ const Index = () => {
       {pendingMilestone && trophyQueue.length === 0 && (
         <MilestoneUnlockModal milestone={pendingMilestone} onClose={() => setPendingMilestone(null)} />
       )}
-      {trophyQueue.length > 0 && (
-        <BookTrophyModal
-          bookName={trophyQueue[0].name}
-          category={trophyQueue[0].category}
-          totalChapters={trophyQueue[0].chapters}
-          queuePosition={1}
-          queueTotal={trophyQueue.length}
-          streak={streak}
-          onClose={() => setTrophyQueue((prev) => prev.slice(1))}
-          onViewMindMap={
-            user
-              ? () => {
-                  const n = trophyQueue[0].name;
-                  setTrophyQueue((p) => p.slice(1));
-                  setMindMapBook(n);
-                }
-              : undefined
-          }
-        />
-      )}
       <AppSidebar
         activeSection={activeSection}
         onNavigate={(s) => {
@@ -590,12 +575,14 @@ const Index = () => {
               {activeSection === "facts" && <DailyCuriosity />}
               {activeSection === "bible" && <BibleTab />}
               {activeSection === "achieve" && (
-              <AchievementsTab
-                    streak={streak}
-                    longestStreak={longestStreak}
-                    unlockedMilestones={unlockedMilestones}
-                    onNavigate={setActiveSection}
-                  />
+                <AchievementsTab
+                  streak={streak}
+                  longestStreak={longestStreak}
+                  unlockedMilestones={unlockedMilestones}
+                  onNavigate={setActiveSection}
+                  celebrationBook={trophyQueue.length > 0 ? trophyQueue[0] : null}
+                  onCelebrationDismiss={() => setTrophyQueue((prev) => prev.slice(1))}
+                />
               )}
               {activeSection === "trophies" && (
                 <TrophiesTab
