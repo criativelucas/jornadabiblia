@@ -854,7 +854,7 @@ const Index = () => {
                 }
 
                     {selectedPlan === "custom" && customConfig && !showCustomForm &&
-                <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5">
+                <div className="p-4 border border-primary/30 bg-primary/5" style={{ borderRadius: "0.875rem" }}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-bold text-primary">Meu Plano Personalizado</span>
                           <button
