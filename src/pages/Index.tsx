@@ -143,6 +143,12 @@ const Index = () => {
     setSelectedMonth(0);
   }, [selectedPlan]);
 
+  // Auto-navigate to achievements when a book trophy is earned
+  useEffect(() => {
+    if (trophyQueue.length > 0 && activeSection !== "achieve") {
+      navigateTo("achieve");
+    }
+  }, [trophyQueue.length]);
   useEffect(() => {
     if (!user) {
       setCompletedDays(new Set());
