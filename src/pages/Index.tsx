@@ -1028,7 +1028,7 @@ const Index = () => {
                     </div>
               }
 
-                  <div className="mb-6 p-5 rounded-2xl bg-card border border-border">
+                  <div className="mb-6 p-5 bg-card border border-border" style={{ borderRadius: "0.875rem" }}>
                     <div className="flex justify-between items-end mb-3">
                       <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
