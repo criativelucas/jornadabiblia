@@ -123,9 +123,18 @@ function CropModal({
     lastPos.current = { x: p.clientX, y: p.clientY };
   };
   const onMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!dragging.current) return;
+    if (!dragging.current || !imgRef.current) return;
     const p = "touches" in e ? e.touches[0] : e;
-    setOffset((prev) => ({ x: prev.x + (p.clientX - lastPos.current.x), y: prev.y + (p.clientY - lastPos.current.y) }));
+    const dx = p.clientX - lastPos.current.x;
+    const dy = p.clientY - lastPos.current.y;
+    const w = imgRef.current.naturalWidth * scale;
+    const h = imgRef.current.naturalHeight * scale;
+    const maxOffsetX = Math.max(0, (w - SIZE) / 2);
+    const maxOffsetY = Math.max(0, (h - SIZE) / 2);
+    setOffset((prev) => ({
+      x: Math.max(-maxOffsetX, Math.min(maxOffsetX, prev.x + dx)),
+      y: Math.max(-maxOffsetY, Math.min(maxOffsetY, prev.y + dy)),
+    }));
     lastPos.current = { x: p.clientX, y: p.clientY };
   };
   const onUp = () => { dragging.current = false; };
