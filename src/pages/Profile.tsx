@@ -372,13 +372,13 @@ export default function Profile() {
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 rounded-2xl px-4 py-3 text-sm outline-none transition-all"
-                style={{ background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
+                className="flex-1 px-4 py-3 text-sm outline-none transition-all"
+                style={{ borderRadius: "0.75rem", background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}` }}
                 onFocus={(e) => (e.target.style.borderColor = T.accent)}
                 onBlur={(e) => (e.target.style.borderColor = T.border)}
                 placeholder="Seu nome"
               />
-              <button onClick={handleSaveName} className="rounded-2xl px-5 text-sm font-bold hover:opacity-90 transition-opacity" style={{ background: T.accent, color: T.page }}>
+              <button onClick={handleSaveName} className="px-5 text-sm font-bold hover:opacity-90 transition-opacity" style={{ borderRadius: "9999px", background: T.accent, color: T.page }}>
                 Salvar
               </button>
             </div>
