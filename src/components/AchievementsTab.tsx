@@ -24,64 +24,18 @@ interface AchievementDef {
 
 function buildAllAchievements(): AchievementDef[] {
   const defs: AchievementDef[] = [];
-
-  // Book achievements
-  const bookKeyMap: Record<string, string> = {};
   bibleBooks.forEach((b) => {
     const key = `book_${b.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_')}`;
-    bookKeyMap[b.name] = key;
-    defs.push({
-      key,
-      title: b.name,
-      description: `Complete todos os ${b.chapters} capítulos de ${b.name}`,
-      icon: BookOpen,
-      color: '__ACCENT__',
-      category: 'book',
-    });
+    defs.push({ key, title: b.name, description: `Complete todos os ${b.chapters} capítulos de ${b.name}`, icon: BookOpen, color: '__ACCENT__', category: 'book' });
   });
-
-  // Chapter milestones
   [10, 50, 100, 200, 500].forEach((n) => {
-    defs.push({
-      key: `chapters_${n}`,
-      title: `${n} Capítulos`,
-      description: `Leia ${n} capítulos no total`,
-      icon: Layers,
-      color: '#60a5fa',
-      category: 'chapters',
-    });
+    defs.push({ key: `chapters_${n}`, title: `${n} Capítulos`, description: `Leia ${n} capítulos no total`, icon: Layers, color: '#60a5fa', category: 'chapters' });
   });
-
-  // Streak milestones
   [7, 14, 30, 60].forEach((n) => {
-    defs.push({
-      key: `streak_${n}`,
-      title: `${n} Dias Seguidos`,
-      description: `Mantenha uma sequência de ${n} dias`,
-      icon: Flame,
-      color: '#f97316',
-      category: 'streak',
-    });
+    defs.push({ key: `streak_${n}`, title: `${n} Dias Seguidos`, description: `Mantenha uma sequência de ${n} dias`, icon: Flame, color: '#f97316', category: 'streak' });
   });
-
-  // Special
-  defs.push({
-    key: 'quiz_first',
-    title: 'Primeiro Quiz',
-    description: 'Complete seu primeiro quiz de livro',
-    icon: Trophy,
-    color: '#a78bfa',
-    category: 'special',
-  });
-  defs.push({
-    key: 'plan_complete',
-    title: 'Plano Completo',
-    description: 'Conclua um plano de leitura inteiro',
-    icon: Crown,
-    color: '#fbbf24',
-    category: 'special',
-  });
-
+  defs.push({ key: 'quiz_first', title: 'Primeiro Quiz', description: 'Complete seu primeiro quiz de livro', icon: Trophy, color: '#a78bfa', category: 'special' });
+  defs.push({ key: 'plan_complete', title: 'Plano Completo', description: 'Conclua um plano de leitura inteiro', icon: Crown, color: '#fbbf24', category: 'special' });
   return defs;
 }
 
@@ -139,19 +93,15 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
   const [readDates, setReadDates] = useState<Set<string>>(new Set());
   const [percentile, setPercentile] = useState<number | null>(null);
   const [loadingHeatmap, setLoadingHeatmap] = useState(true);
-  const [unlockedKeys, setUnlockedKeys] = useState<Map<string, string>>(new Map()); // key → achieved_at
+  const [unlockedKeys, setUnlockedKeys] = useState<Map<string, string>>(new Map());
   const [loadingAchievements, setLoadingAchievements] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showQuiz, setShowQuiz] = useState<string | null>(null);
 
-  // Show celebration card for 5s
   useEffect(() => {
     if (celebrationBook) {
       setShowCelebration(true);
-      const timer = setTimeout(() => {
-        setShowCelebration(false);
-        onCelebrationDismiss?.();
-      }, 5000);
+      const timer = setTimeout(() => { setShowCelebration(false); onCelebrationDismiss?.(); }, 5000);
       return () => clearTimeout(timer);
     }
   }, [celebrationBook]);
@@ -159,15 +109,10 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
   useEffect(() => {
     if (!user) { setLoadingHeatmap(false); setLoadingAchievements(false); return; }
     const fetchData = async () => {
-      // Fetch read dates
       const { data: daysData } = await supabase.from("completed_days").select("read_date").eq("user_id", user.id);
-      if (daysData) {
-        setReadDates(new Set(daysData.map((r) => (r as Record<string, unknown>).read_date as string).filter(Boolean)));
-      }
-      // Fetch ranking percentile
+      if (daysData) setReadDates(new Set(daysData.map((r) => (r as Record<string, unknown>).read_date as string).filter(Boolean)));
       const { data: rankingData } = await (supabase as unknown as { from: (t: string) => { select: (s: string) => Promise<{ data: Array<{ user_id: string; weekly_points: number }> | null }> } })
-        .from("weekly_ranking")
-        .select("user_id, weekly_points");
+        .from("weekly_ranking").select("user_id, weekly_points");
       if (rankingData && rankingData.length > 0) {
         const myEntry = rankingData.find((r) => r.user_id === user.id);
         const myPoints = myEntry?.weekly_points ?? 0;
@@ -175,8 +120,6 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         setPercentile(Math.round((below / rankingData.length) * 100));
       }
       setLoadingHeatmap(false);
-
-      // Fetch achievements from DB
       const { data: achData } = await supabase.from("achievements").select("achievement_key, achieved_at").eq("user_id", user.id);
       if (achData) {
         const map = new Map<string, string>();
@@ -205,11 +148,19 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
   const unlockedList = ALL_ACHIEVEMENTS.filter((a) => unlockedKeys.has(a.key));
   const lockedList = ALL_ACHIEVEMENTS.filter((a) => !unlockedKeys.has(a.key));
 
+  // LEVEL 1 — highlight card with clip-path
   const clipCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
-    borderRadius: "1.5rem",
-    clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+    borderRadius: "1.25rem",
+    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
+  };
+
+  // LEVEL 2 — grid/list card
+  const gridCard = {
+    background: T.card,
+    border: `1px solid ${T.border}`,
+    borderRadius: "0.875rem",
   };
 
   if (showQuiz) {
@@ -218,26 +169,26 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
 
   return (
     <div className="space-y-6">
-      {/* Celebration card */}
+      {/* Celebration card — LEVEL 1 */}
       {showCelebration && celebrationBook && (
         <div
-          className="p-5 relative animate-fade-in-down transition-all"
+          className="p-5 relative animate-fade-in-down transition-all duration-300"
           style={{
             background: T.accentDim,
             border: `2px solid ${T.borderAc}`,
-            borderRadius: "1.5rem",
-            clipPath: "polygon(0 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% 100%, 0 100%)",
+            borderRadius: "1.25rem",
+            clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
           }}
         >
           <button
             onClick={() => { setShowCelebration(false); onCelebrationDismiss?.(); }}
-            className="absolute top-3 right-3 p-1 rounded-full transition-all hover:opacity-70"
-            style={{ color: T.textMuted }}
+            className="absolute top-3 right-3 p-1 transition-all hover:opacity-70"
+            style={{ color: T.textMuted, borderRadius: "9999px" }}
           >
             <X size={16} />
           </button>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: `${T.accent}20` }}>
+            <div className="w-14 h-14 flex items-center justify-center" style={{ borderRadius: "9999px", background: `${T.accent}20` }}>
               <BookOpen className="w-8 h-8" style={{ color: T.accent }} />
             </div>
             <div className="flex-1">
@@ -248,15 +199,15 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
           </div>
           <button
             onClick={() => { setShowCelebration(false); setShowQuiz(celebrationBook.name); }}
-            className="mt-3 w-full py-2.5 rounded-full text-sm font-bold transition-all hover:opacity-90"
-            style={{ background: T.accent, color: T.page }}
+            className="mt-3 w-full py-2.5 text-sm font-bold transition-all duration-300 hover:opacity-90"
+            style={{ borderRadius: "9999px", background: T.accent, color: T.page }}
           >
             Fazer Quiz do Livro 🧠
           </button>
         </div>
       )}
 
-      {/* Ranking */}
+      {/* Ranking — LEVEL 1 */}
       <div className="p-4" style={clipCard}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -268,16 +219,16 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         <WeeklyRanking />
       </div>
 
-      {/* Percentil */}
+      {/* Percentil — LEVEL 2 */}
       {percentile !== null && percentile > 0 && (
-        <div className="p-4 rounded-2xl text-center" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
+        <div className="p-4 text-center" style={{ ...gridCard, background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
           <p className="text-sm font-semibold" style={{ color: T.textPrimary }}>
             Você está melhor que <span style={{ color: T.accent }}>{percentile}%</span> dos leitores essa semana
           </p>
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats — LEVEL 1 */}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-5" style={clipCard}>
           <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Sequência atual</p>
@@ -303,7 +254,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       </div>
 
-      {/* Heatmap */}
+      {/* Heatmap — LEVEL 1 */}
       <div className="p-4" style={clipCard}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: T.textMuted }}>Leituras no ano</p>
@@ -373,7 +324,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         )}
       </div>
 
-      {/* ── Unlocked achievements ─────────────────────── */}
+      {/* ── Unlocked achievements — LEVEL 2 ─────────────────────── */}
       {unlockedList.length > 0 && (
         <div>
           <p className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: T.textMuted }}>
@@ -388,10 +339,9 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
                   key={a.key}
                   className="p-4 transition-all duration-300"
                   style={{
+                    ...gridCard,
                     background: T.accentDim,
                     border: `1px solid ${T.borderAc}`,
-                    borderRadius: "1.25rem",
-                    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
                   }}
                 >
                   <Icon className="w-7 h-7 mb-2" style={{ color: a.color === '__ACCENT__' ? T.accent : a.color }} />
@@ -406,7 +356,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       )}
 
-      {/* ── Locked achievements ──────────────────────── */}
+      {/* ── Locked achievements — LEVEL 2 ──────────────────────── */}
       {lockedList.length > 0 && (
         <div>
           <p className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: T.textMuted }}>
@@ -418,12 +368,8 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
               return (
                 <div
                   key={a.key}
-                  className="p-3 text-center opacity-30 grayscale transition-all"
-                  style={{
-                    background: T.card,
-                    border: `1px solid ${T.border}`,
-                    borderRadius: "1rem",
-                  }}
+                  className="p-3 text-center opacity-30 grayscale transition-all duration-300"
+                  style={gridCard}
                 >
                   <Lock className="w-5 h-5 mx-auto mb-1" style={{ color: T.textDim }} />
                   <p className="text-[9px] font-medium truncate" style={{ color: T.textMuted }}>{a.title}</p>
@@ -440,7 +386,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
         </div>
       )}
 
-      {/* Próximos marcos (streak) */}
+      {/* Próximos marcos (streak) — LEVEL 2 */}
       {streak > 0 && (
         <div>
           <p className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: T.textMuted }}>Próximos marcos</p>
@@ -449,11 +395,11 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
               const progress = Math.min(100, (streak / m.dias) * 100);
               const Icon = iconMap[m.icon] || Star;
               return (
-                <div key={m.dias} className="flex-shrink-0 w-24 p-3 text-center" style={clipCard}>
+                <div key={m.dias} className="flex-shrink-0 w-24 p-3 text-center" style={gridCard}>
                   <Icon className="w-6 h-6 mx-auto mb-1" style={{ color: T.textDim }} />
                   <p className="text-xs font-bold" style={{ color: T.textPrimary }}>{m.dias} dias</p>
-                  <div className="h-1.5 w-full rounded-full overflow-hidden mt-2" style={{ background: T.card2 }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: T.accent }} />
+                  <div className="h-1.5 w-full overflow-hidden mt-2" style={{ borderRadius: "9999px", background: T.card2 }}>
+                    <div className="h-full transition-all" style={{ borderRadius: "9999px", width: `${progress}%`, background: T.accent }} />
                   </div>
                 </div>
               );

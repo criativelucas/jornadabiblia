@@ -36,8 +36,8 @@ export default function WeeklyRanking() {
     return (
       <div className="space-y-2 p-4">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 rounded-2xl animate-pulse" style={{ background: T.card2 }}>
-            <div className="w-8 h-8 rounded-full" style={{ background: T.border }} />
+          <div key={i} className="flex items-center gap-3 p-3 animate-pulse" style={{ borderRadius: "0.875rem", background: T.card2 }}>
+            <div className="w-8 h-8" style={{ borderRadius: "9999px", background: T.border }} />
             <div className="flex-1 space-y-1.5">
               <div className="h-3 w-24 rounded" style={{ background: T.border }} />
               <div className="h-2 w-16 rounded" style={{ background: T.border }} />
@@ -103,6 +103,7 @@ export default function WeeklyRanking() {
         )}
       </div>
 
+      {/* LEVEL 2 — list items */}
       {rest.length > 0 && (
         <div className="space-y-1.5">
           {rest.map((entry, i) => {
@@ -111,8 +112,9 @@ export default function WeeklyRanking() {
             return (
               <div
                 key={entry.user_id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                className="flex items-center gap-3 px-3 py-2.5 transition-all duration-300"
                 style={{
+                  borderRadius: "0.875rem",
                   background: isMe ? T.accentDim : T.card2,
                   border: `1px solid ${isMe ? T.borderAc : "transparent"}`,
                 }}
@@ -152,8 +154,8 @@ function RankAvatar({ entry, size }: { entry: Entry; size: "sm" | "md" | "lg" })
   const sz = size === "lg" ? "w-14 h-14 text-lg" : size === "md" ? "w-10 h-10 text-sm" : "w-7 h-7 text-xs";
   return (
     <div
-      className={`${sz} rounded-full flex items-center justify-center font-bold overflow-hidden shrink-0`}
-      style={{ background: T.accentDim, border: `1.5px solid ${T.borderAc}`, color: T.accent }}
+      className={`${sz} flex items-center justify-center font-bold overflow-hidden shrink-0`}
+      style={{ borderRadius: "9999px", background: T.accentDim, border: `1.5px solid ${T.borderAc}`, color: T.accent }}
     >
       {entry.avatar_url ? (
         <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
