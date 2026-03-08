@@ -575,12 +575,14 @@ const Index = () => {
               {activeSection === "facts" && <DailyCuriosity />}
               {activeSection === "bible" && <BibleTab />}
               {activeSection === "achieve" && (
-              <AchievementsTab
-                    streak={streak}
-                    longestStreak={longestStreak}
-                    unlockedMilestones={unlockedMilestones}
-                    onNavigate={setActiveSection}
-                  />
+                <AchievementsTab
+                  streak={streak}
+                  longestStreak={longestStreak}
+                  unlockedMilestones={unlockedMilestones}
+                  onNavigate={setActiveSection}
+                  celebrationBook={trophyQueue.length > 0 ? trophyQueue[0] : null}
+                  onCelebrationDismiss={() => setTrophyQueue((prev) => prev.slice(1))}
+                />
               )}
               {activeSection === "trophies" && (
                 <TrophiesTab

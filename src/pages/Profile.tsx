@@ -164,7 +164,7 @@ function CropModal({
             type="range"
             min={baseScale}
             max={baseScale * 3}
-            step={baseScale * 0.05}
+            step={baseScale * 0.02}
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
             className="flex-1"
