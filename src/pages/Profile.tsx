@@ -3,8 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  ArrowLeft,
   Flame,
   BookOpen,
+  Trophy,
+  Calendar,
+  Lock,
+  Camera,
+  Bell,
+  BellOff,
+  Check,
+  Loader,
+  LogOut,
+} from "lucide-react";
   Trophy,
   Calendar,
   Lock,
