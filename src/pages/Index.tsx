@@ -25,7 +25,6 @@ import GalleryTab from "@/components/GalleryTab";
 import RecoveryBanner from "@/components/RecoveryBanner";
 import DailyVerseModal from "@/components/DailyVerseModal";
 import MilestoneUnlockModal from "@/components/MilestoneUnlockModal";
-import BookTrophyModal from "@/components/BookTrophyModal";
 import MindMapView from "@/components/MindMapView";
 import ConfirmModal from "@/components/ConfirmModal";
 import DynamicGreeting from "@/components/DynamicGreeting";
