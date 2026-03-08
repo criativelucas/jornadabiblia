@@ -782,7 +782,7 @@ const Index = () => {
                               className="w-12 h-12 flex items-center justify-center ln4-glow transition-all duration-300"
                               style={{
                                 backgroundColor: a.color + "20",
-                                border: '1px solid rgba(210,255,0,0.1)',
+                                border: `1px solid ${T.border}`,
                                 clipPath: 'polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%)',
                               }}
                             >
