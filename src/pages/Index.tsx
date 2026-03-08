@@ -514,12 +514,6 @@ const Index = () => {
       {pendingMilestone && trophyQueue.length === 0 && (
         <MilestoneUnlockModal milestone={pendingMilestone} onClose={() => setPendingMilestone(null)} />
       )}
-      {/* BookTrophyModal replaced: celebration is now shown inline in AchievementsTab */}
-      {trophyQueue.length > 0 && activeSection !== "achieve" && (() => {
-        // Auto-navigate to achievements tab when a book is completed
-        navigateTo("achieve");
-        return null;
-      })()}
       <AppSidebar
         activeSection={activeSection}
         onNavigate={(s) => {
