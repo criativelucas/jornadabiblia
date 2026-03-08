@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Sparkles, ChevronDown, X, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
 
