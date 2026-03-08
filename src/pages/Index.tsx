@@ -640,8 +640,8 @@ const Index = () => {
                         <div
                           className="mb-5 p-4 flex items-start gap-3 animate-fade-in-down ln4-glow transition-all duration-300"
                           style={{
-                            background: 'rgba(210,255,0,0.05)',
-                            border: '1px solid rgba(210,255,0,0.1)',
+                            background: T.accentDim,
+                            border: `1px solid ${T.borderAc}`,
                             clipPath: 'polygon(0 0, 100% 0, 100% 90%, 97% 100%, 0 100%)',
                           }}
                         >
