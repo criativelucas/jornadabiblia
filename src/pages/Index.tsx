@@ -629,7 +629,6 @@ const Index = () => {
                     color: T.page,
                     clipPath: 'polygon(0 0, 100% 0, 100% 92%, 96% 100%, 0 100%)'
                   }}>
-                  
                         <h2 className="text-impact text-3xl sm:text-4xl mb-2 font-sans">
                           Bem-vindo à sua nova{' '}
                           <span className="italic font-serif">jornada</span>
@@ -645,7 +644,6 @@ const Index = () => {
                       color: T.accent,
                       clipPath: 'polygon(0 0, 100% 0, 100% 80%, 93% 100%, 0 100%)'
                     }}>
-                    
                           Começar Leitura de Hoje
                           <ArrowRight className="w-4 h-4" />
                         </button>
@@ -653,221 +651,317 @@ const Index = () => {
                     </div> :
 
               <>
-                      <DynamicGreeting displayName={displayName} />
                       {showStreakRecoveryBanner &&
                 <div
-                  className="mb-5 p-4 flex items-start gap-3 animate-fade-in-down ln4-glow transition-all duration-300"
+                  className="mb-4 p-4 flex items-start gap-3 animate-fade-in-down transition-all duration-300"
                   style={{
                     background: T.accentDim,
                     border: `1px solid ${T.borderAc}`,
                     clipPath: 'polygon(0 0, 100% 0, 100% 90%, 97% 100%, 0 100%)'
                   }}>
-                  
                           <span className="text-2xl">🌿</span>
                           <div className="flex-1">
-                            <p className="text-sm font-black text-foreground tracking-tight">Recupere sua sequência</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Leia hoje e mantenha sua jornada viva</p>
+                            <p className="text-sm font-black tracking-tight" style={{ color: T.textPrimary }}>Recupere sua sequência</p>
+                            <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>Leia hoje e mantenha sua jornada viva</p>
                           </div>
                           <button
                     onClick={() => setShowStreakRecoveryBanner(false)}
-                    className="text-muted-foreground hover:text-foreground transition-all duration-300">
-                    
+                    style={{ color: T.textMuted }}
+                    className="hover:opacity-70 transition-all duration-300">
                             <X className="w-4 h-4" />
                           </button>
                         </div>
                 }
-                      <StreakTree streak={streak} />
-                      {recovery &&
-                <RecoveryBanner
-                  behindChapters={recovery.behind}
-                  newDailyGoal={recovery.newDaily}
-                  daysRemaining={recovery.remaining} />
 
-                }
-                      <NextAchievement completedDays={completedDays} allDays={activeDays} months={months} />
-                    </>
-              }
+                      {/* ── BLOCO 1 — Hero Card ── */}
+                      <div
+                        style={{
+                          borderRadius: "1.25rem",
+                          clipPath: "polygon(0 0, calc(100% - 1.5rem) 0, 100% 1.5rem, 100% 100%, 0 100%)",
+                          padding: "1.5rem",
+                          background: heroState === "pending" ? T.accent : T.card,
+                          border: heroState === "done" ? `1px solid ${T.borderAc}` : heroState === "late" ? `1px solid ${T.border}` : "none",
+                          borderLeft: heroState === "late" ? "3px solid #f59e0b" : undefined,
+                          minHeight: "140px",
+                          position: "relative",
+                          overflow: "hidden",
+                          marginBottom: "0.875rem",
+                        }}
+                      >
+                        {heroState === "done" && (
+                          <div style={{
+                            position: "absolute", top: 0, right: 0,
+                            width: "120px", height: "120px",
+                            background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`,
+                            transform: "translate(20%, -20%)",
+                            pointerEvents: "none",
+                          }} />
+                        )}
 
-                  {completedDays.size > 0 &&
-              <>
-                      {/* Stats grid — like Profile */}
-                      <div className="grid grid-cols-2 gap-3 mb-5">
-                        {/* Progress card */}
-                        <div
-                          className="p-5 flex flex-col gap-1 transition-colors duration-500"
-                          style={{
-                            background: T.accent,
-                            borderRadius: "1.25rem",
-                            clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
-                          }}
-                        >
-                          <BookOpen size={18} color={T.page} />
-                          <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                        {heroState === "pending" && (
+                          <div style={{ position: "relative" }}>
+                            <p style={{ fontSize: "10px", fontWeight: 700, color: T.page, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>
+                              {new Date().getHours() < 12 ? `Bom dia${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋` : new Date().getHours() < 18 ? `Boa tarde${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋` : `Boa noite${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋`}
+                            </p>
+                            <h2 style={{ fontSize: "2rem", fontWeight: 900, color: T.page, letterSpacing: "-0.04em", marginTop: "4px" }}>
+                              Hora de ler
+                            </h2>
+                            <p style={{ color: T.page, opacity: 0.7, fontSize: "13px", marginTop: "2px" }}>
+                              {streak > 0 ? `${streak} dias seguidos — não quebre agora` : "Comece sua sequência hoje"}
+                            </p>
+                            <button
+                              onClick={() => navigateTo("bible")}
+                              style={{
+                                marginTop: "1.25rem",
+                                padding: "0.75rem 1.5rem",
+                                borderRadius: "9999px",
+                                background: T.page,
+                                color: T.accent,
+                                fontWeight: 900, fontSize: "14px",
+                                border: "none", cursor: "pointer",
+                                transition: "opacity 0.2s",
+                              }}
+                            >
+                              Abrir Bíblia →
+                            </button>
+                          </div>
+                        )}
+
+                        {heroState === "done" && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
+                            <div style={{
+                              width: "52px", height: "52px", borderRadius: "9999px",
+                              background: T.accentDim, border: `2px solid ${T.accent}`,
+                              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                            }}>
+                              <Check size={24} color={T.accent} />
+                            </div>
+                            <div>
+                              <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary }}>
+                                Leitura de hoje feita!
+                              </p>
+                              <p style={{ color: T.textMuted, fontSize: "13px" }}>
+                                {streak} dias seguidos 🔥
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {heroState === "late" && (
+                          <div style={{ position: "relative" }}>
+                            <p style={{ fontSize: "11px", fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                              ⚡ Plano recalibrado
+                            </p>
+                            <p style={{ fontWeight: 900, fontSize: "20px", color: T.textPrimary, marginTop: "4px" }}>
+                              {recovery?.newDaily} caps/dia
+                            </p>
+                            <p style={{ color: T.textMuted, fontSize: "13px" }}>
+                              pelos próximos {recovery?.remaining} dias para terminar no prazo
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── BLOCO 2 — Stats em linha (3 números) ── */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "0.875rem" }}>
+                        <div style={{
+                          borderRadius: "0.875rem", padding: "1rem",
+                          background: T.card, border: `1px solid ${T.border}`,
+                          textAlign: "center",
+                        }}>
+                          <p style={{ fontSize: "1.75rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
                             {progressPercentage}%
                           </p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>
-                            progresso
+                          <p style={{ fontSize: "9px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "4px" }}>
+                            da Bíblia
                           </p>
                         </div>
-                        {/* Days card */}
-                        <div
-                          className="p-5 relative overflow-hidden transition-colors duration-500"
-                          style={{
-                            background: T.card,
-                            border: `1px solid ${T.border}`,
-                            borderRadius: "1.25rem",
-                          }}
-                        >
-                          <Calendar size={18} color={T.accent} />
-                          <p className="text-4xl font-black mt-1" style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                        <div style={{
+                          borderRadius: "0.875rem", padding: "1rem",
+                          background: T.card, border: `1px solid ${T.border}`,
+                          textAlign: "center",
+                        }}>
+                          <p style={{ fontSize: "1.75rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
                             {completedDays.size}
                           </p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: T.textMuted }}>
+                          <p style={{ fontSize: "9px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "4px" }}>
                             de {totalDays} dias
                           </p>
                         </div>
-                      </div>
-
-                      {/* Streak + Record card */}
-                      <div
-                        className="mb-5 p-5 transition-colors duration-500"
-                        style={{
-                          background: T.card,
-                          border: `1px solid ${T.border}`,
-                          borderRadius: "0.875rem",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <div>
-                          <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                            Sequência
-                          </p>
-                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-                            <span style={{ fontSize: "2.5rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                        <div style={{
+                          borderRadius: "0.875rem", padding: "1rem",
+                          background: T.card, border: `1px solid ${T.border}`,
+                          textAlign: "center",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: "2px" }}>
+                            <p style={{ fontSize: "1.75rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
                               {streak}
-                            </span>
-                            <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
+                            </p>
+                            <Flame size={14} color={T.accent} />
                           </div>
-                        </div>
-                        <div style={{ width: "1px", height: "40px", background: T.border }} />
-                        <div style={{ textAlign: "right" }}>
-                          <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                            Recorde
+                          <p style={{ fontSize: "9px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "4px" }}>
+                            sequência
                           </p>
-                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px", justifyContent: "flex-end" }}>
-                            <span style={{ fontSize: "1.75rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
-                              {longestStreak}
-                            </span>
-                            <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
-                          </div>
                         </div>
                       </div>
 
-                      {/* Plan progress card */}
-                      <div
-                        className="mb-5 p-5 transition-all duration-300"
-                        style={{
-                          background: T.card,
-                          border: `1px solid ${T.border}`,
-                          borderRadius: "0.875rem",
-                          borderLeft: `3px solid ${T.accent}`,
-                        }}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-grow">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Calendar className="w-4 h-4 text-primary" />
-                              <p className="text-sm font-black text-foreground tracking-tight">{planLabel}</p>
+                      {/* ── BLOCO 3 — Próxima Conquista ── */}
+                      {nextTrophy && (
+                        <div style={{
+                          borderRadius: "0.875rem", padding: "1.25rem",
+                          background: T.card, border: `1px solid ${T.border}`,
+                          marginBottom: "0.875rem",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                              <Trophy size={14} color={T.accent} />
+                              <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                                Próxima conquista
+                              </span>
                             </div>
-                            {planStartDate && (
-                              <p className="text-[11px] text-muted-foreground mb-2">
-                                Iniciado em {new Date(planStartDate).toLocaleDateString("pt-BR")}
-                                {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} dias restantes`}
-                                {daysRemaining === 0 && " · Prazo encerrado"}
-                              </p>
-                            )}
-                            <div className="h-1.5 w-full bg-muted overflow-hidden" style={{ borderRadius: "9999px" }}>
-                              <div
-                                className="h-full bg-primary transition-all progress-shimmer"
-                                style={{ width: `${progressPercentage}%`, borderRadius: "9999px" }}
-                              />
-                            </div>
-                            {dailyGoal && dailyGoal > 0 && (
-                              <p className="text-xs text-muted-foreground mt-2">
-                                → Hoje:{" "}
-                                <span className={`font-bold ${recovery ? "text-amber-500" : "text-primary"}`}>
-                                  {dailyGoal}
-                                </span>{" "}
-                                capítulos para ler
-                              </p>
-                            )}
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: T.textMuted }}>
+                              {nextTrophy.remaining} caps restantes
+                            </span>
+                          </div>
+                          <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary, letterSpacing: "-0.03em" }}>
+                            {nextTrophy.name}
+                          </p>
+                          <div style={{
+                            marginTop: "0.75rem", height: "6px",
+                            borderRadius: "9999px", background: T.card2, overflow: "hidden",
+                          }}>
+                            <div style={{
+                              height: "100%", borderRadius: "9999px",
+                              width: `${nextTrophy.percent}%`,
+                              background: T.accent,
+                              transition: "width 1s cubic-bezier(0.65,0.05,0,1)",
+                            }} />
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+                            <span style={{ fontSize: "11px", color: T.textMuted }}>{nextTrophy.percent}% concluído</span>
+                            <button
+                              onClick={() => navigateTo("bible")}
+                              style={{
+                                fontSize: "11px", fontWeight: 700, color: T.accent,
+                                background: "transparent", border: "none", cursor: "pointer",
+                                textDecoration: "underline",
+                              }}
+                            >
+                              Continuar lendo →
+                            </button>
                           </div>
                         </div>
+                      )}
+
+                      {/* ── BLOCO 4 — Status do Plano ── */}
+                      {planStartDate && (
+                        <div style={{
+                          borderRadius: "0.875rem", padding: "1rem 1.25rem",
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
+                          borderLeft: `3px solid ${isLate ? "#f59e0b" : T.accent}`,
+                          display: "flex", alignItems: "center", gap: "1rem",
+                          marginBottom: "0.875rem",
+                        }}>
+                          <div style={{
+                            width: "36px", height: "36px", borderRadius: "0.5rem", flexShrink: 0,
+                            background: isLate ? "rgba(245,158,11,0.1)" : T.accentDim,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {isLate
+                              ? <Zap size={18} color="#f59e0b" />
+                              : <CheckCircle size={18} color={T.accent} />}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontWeight: 700, fontSize: "14px", color: T.textPrimary }}>
+                              {isLate ? "Plano recalibrado" : "Em dia com o plano!"}
+                            </p>
+                            <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "1px" }}>
+                              {isLate
+                                ? `${recovery?.newDaily} caps/dia pelos próximos ${recovery?.remaining} dias`
+                                : `${daysRemaining ?? 0} dias restantes${dailyGoal ? ` · ${dailyGoal} cap${dailyGoal > 1 ? "s" : ""} para hoje` : ""}`}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── BLOCO 5 — Ação rápida ── */}
+                      {!readToday && completedDays.size > 0 && (
                         <button
-                          onClick={() => navigateTo("plans")}
-                          className="text-xs text-primary font-bold mt-3 hover:underline uppercase tracking-wider"
+                          onClick={() => navigateTo("bible")}
+                          style={{
+                            width: "100%", padding: "1.125rem",
+                            borderRadius: "0.875rem",
+                            background: T.accent, color: T.page,
+                            fontWeight: 900, fontSize: "16px",
+                            border: "none", cursor: "pointer",
+                            letterSpacing: "-0.02em",
+                            clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                            transition: "opacity 0.2s",
+                            marginBottom: "0.875rem",
+                          }}
                         >
-                          Ver plano completo →
+                          <BookOpen size={18} />
+                          Ler agora
                         </button>
+                      )}
+
+                      {/* ── Conquistas recentes ── */}
+                      <div style={{ marginBottom: "0.875rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                            Conquistas recentes
+                          </span>
+                          {recentAchievements.length > 0 && (
+                            <button
+                              onClick={() => navigateTo("achieve")}
+                              style={{ fontSize: "11px", fontWeight: 700, color: T.accent, background: "transparent", border: "none", cursor: "pointer" }}
+                            >
+                              Ver todas →
+                            </button>
+                          )}
+                        </div>
+                        {recentAchievements.length === 0 ? (
+                          <div style={{
+                            width: "100%", padding: "1.25rem",
+                            borderRadius: "0.875rem",
+                            background: T.card, border: `1px solid ${T.border}`,
+                            textAlign: "center",
+                          }}>
+                            <Trophy size={24} color={T.textDim} style={{ margin: "0 auto 6px" }} />
+                            <p style={{ fontSize: "12px", color: T.textMuted }}>
+                              Complete sua primeira leitura para ganhar conquistas
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: "0.75rem", overflowX: "auto", paddingBottom: "4px" }}>
+                            {recentAchievements.map((a) => (
+                              <div key={a.key} style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                                <div style={{
+                                  width: "52px", height: "52px",
+                                  borderRadius: "14px",
+                                  background: T.accentDim,
+                                  border: `1.5px solid ${T.borderAc}`,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                }}>
+                                  {a.type === "book" ? <BookOpen size={22} color={T.accent} /> : <Flame size={22} color={T.accent} />}
+                                </div>
+                                <span style={{
+                                  fontSize: "10px", fontWeight: 700,
+                                  color: T.textMuted, textAlign: "center",
+                                  maxWidth: "56px", lineHeight: 1.2,
+                                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                }}>
+                                  {a.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </>
               }
-
-                  {/* Conquistas recentes */}
-                  <div className="mb-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Suas Conquistas
-                      </p>
-                      {recentAchievements.length > 0 && (
-                        <button
-                          onClick={() => navigateTo("achieve")}
-                          className="text-xs text-primary font-bold hover:underline uppercase tracking-wider"
-                        >
-                          Ver todas →
-                        </button>
-                      )}
-                    </div>
-                    {recentAchievements.length === 0 ? (
-                      <div
-                        className="p-5 text-center transition-all duration-300"
-                        style={{
-                          background: T.card,
-                          border: `1px solid ${T.border}`,
-                          borderRadius: "0.875rem",
-                        }}
-                      >
-                        <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
-                        <p className="text-xs text-muted-foreground">Nenhuma conquista ainda. Continue lendo!</p>
-                      </div>
-                    ) : (
-                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
-                        {recentAchievements.map((a, i) => (
-                          <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20">
-                            <div
-                              className="w-12 h-12 flex items-center justify-center transition-all duration-300"
-                              style={{
-                                backgroundColor: a.color + "20",
-                                border: `1px solid ${T.border}`,
-                                borderRadius: "0.875rem",
-                              }}
-                            >
-                              {a.type === "book" ? (
-                                <BookOpen className="w-5 h-5" style={{ color: a.color }} />
-                              ) : (
-                                <Flame className="w-5 h-5" style={{ color: a.color }} />
-                              )}
-                            </div>
-                            <p className="text-[10px] text-foreground font-bold text-center truncate w-full">
-                              {a.label}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </>
             }
 
