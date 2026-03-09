@@ -669,133 +669,183 @@ const Index = () => {
 
                   {completedDays.size > 0 &&
               <>
-                      <div
-                  className="mb-5 p-5 ln4-glow transition-all duration-300"
-                  style={{
-                    background: T.card,
-                    border: `1px solid ${T.border}`,
-                    clipPath: 'polygon(0 0, 100% 0, 100% 93%, 97% 100%, 0 100%)'
-                  }}>
-                  
-                        <div className="flex justify-between items-end mb-3">
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                              Progresso Global
-                            </p>
-                            <h2 className="text-3xl font-black tracking-tighter text-foreground flex items-center gap-2">
-                              {progressPercentage}%{progressPercentage === 100 && <Award className="w-8 h-8 text-primary" />}
-                            </h2>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            <span className="text-foreground font-bold">{completedDays.size}</span> / {totalDays} dias
+                      {/* Stats grid — like Profile */}
+                      <div className="grid grid-cols-2 gap-3 mb-5">
+                        {/* Progress card */}
+                        <div
+                          className="p-5 flex flex-col gap-1 transition-colors duration-500"
+                          style={{
+                            background: T.accent,
+                            borderRadius: "1.25rem",
+                            clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
+                          }}
+                        >
+                          <BookOpen size={18} color={T.page} />
+                          <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                            {progressPercentage}%
+                          </p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>
+                            progresso
                           </p>
                         </div>
-                        <div className="h-1.5 w-full bg-muted overflow-hidden">
-                          <div
-                      className="h-full bg-primary transition-all duration-1000 ease-out progress-shimmer"
-                      style={{ width: `${progressPercentage}%` }} />
-                    
+                        {/* Days card */}
+                        <div
+                          className="p-5 relative overflow-hidden transition-colors duration-500"
+                          style={{
+                            background: T.card,
+                            border: `1px solid ${T.border}`,
+                            borderRadius: "1.25rem",
+                          }}
+                        >
+                          <Calendar size={18} color={T.accent} />
+                          <p className="text-4xl font-black mt-1" style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                            {completedDays.size}
+                          </p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: T.textMuted }}>
+                            de {totalDays} dias
+                          </p>
                         </div>
                       </div>
 
+                      {/* Streak + Record card */}
                       <div
-                  className="mb-5 p-5 ln4-glow transition-all duration-300"
-                  style={{
-                    background: T.card,
-                    border: `1px solid ${T.border}`,
-                    borderLeft: `3px solid ${T.accent}`
-                  }}>
-                  
+                        className="mb-5 p-5 transition-colors duration-500"
+                        style={{
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
+                          borderRadius: "0.875rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>
+                          <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                            Sequência
+                          </p>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
+                            <span style={{ fontSize: "2.5rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                              {streak}
+                            </span>
+                            <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
+                          </div>
+                        </div>
+                        <div style={{ width: "1px", height: "40px", background: T.border }} />
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                            Recorde
+                          </p>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px", justifyContent: "flex-end" }}>
+                            <span style={{ fontSize: "1.75rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                              {longestStreak}
+                            </span>
+                            <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Plan progress card */}
+                      <div
+                        className="mb-5 p-5 transition-all duration-300"
+                        style={{
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
+                          borderRadius: "0.875rem",
+                          borderLeft: `3px solid ${T.accent}`,
+                        }}
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex-grow">
                             <div className="flex items-center gap-2 mb-2">
                               <Calendar className="w-4 h-4 text-primary" />
                               <p className="text-sm font-black text-foreground tracking-tight">{planLabel}</p>
                             </div>
-                            {planStartDate &&
-                      <p className="text-[11px] text-muted-foreground mb-2">
+                            {planStartDate && (
+                              <p className="text-[11px] text-muted-foreground mb-2">
                                 Iniciado em {new Date(planStartDate).toLocaleDateString("pt-BR")}
                                 {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} dias restantes`}
                                 {daysRemaining === 0 && " · Prazo encerrado"}
                               </p>
-                      }
-                            <div className="h-1 w-full bg-muted overflow-hidden mb-2">
+                            )}
+                            <div className="h-1.5 w-full bg-muted overflow-hidden" style={{ borderRadius: "9999px" }}>
                               <div
-                          className="h-full bg-primary transition-all progress-shimmer"
-                          style={{ width: `${progressPercentage}%` }} />
-                        
+                                className="h-full bg-primary transition-all progress-shimmer"
+                                style={{ width: `${progressPercentage}%`, borderRadius: "9999px" }}
+                              />
                             </div>
-                            {dailyGoal && dailyGoal > 0 &&
-                      <p className="text-xs text-muted-foreground">
+                            {dailyGoal && dailyGoal > 0 && (
+                              <p className="text-xs text-muted-foreground mt-2">
                                 → Hoje:{" "}
                                 <span className={`font-bold ${recovery ? "text-amber-500" : "text-primary"}`}>
                                   {dailyGoal}
                                 </span>{" "}
                                 capítulos para ler
                               </p>
-                      }
+                            )}
                           </div>
                         </div>
                         <button
-                    onClick={() => navigateTo("plans")}
-                    className="text-xs text-primary font-bold mt-3 hover:underline uppercase tracking-wider">
-                    
+                          onClick={() => navigateTo("plans")}
+                          className="text-xs text-primary font-bold mt-3 hover:underline uppercase tracking-wider"
+                        >
                           Ver plano completo →
                         </button>
                       </div>
                     </>
               }
 
+                  {/* Conquistas recentes */}
                   <div className="mb-5">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                         Suas Conquistas
                       </p>
-                      {recentAchievements.length > 0 &&
-                  <button
-                    onClick={() => navigateTo("achieve")}
-                    className="text-xs text-primary font-bold hover:underline uppercase tracking-wider">
-                    
+                      {recentAchievements.length > 0 && (
+                        <button
+                          onClick={() => navigateTo("achieve")}
+                          className="text-xs text-primary font-bold hover:underline uppercase tracking-wider"
+                        >
                           Ver todas →
                         </button>
-                  }
+                      )}
                     </div>
-                    {recentAchievements.length === 0 ?
-                <div
-                  className="p-5 text-center ln4-glow transition-all duration-300"
-                  style={{
-                    background: T.card,
-                    border: `1px solid ${T.border}`
-                  }}>
-                  
+                    {recentAchievements.length === 0 ? (
+                      <div
+                        className="p-5 text-center transition-all duration-300"
+                        style={{
+                          background: T.card,
+                          border: `1px solid ${T.border}`,
+                          borderRadius: "0.875rem",
+                        }}
+                      >
                         <Zap className="w-6 h-6 mx-auto text-muted-foreground/30 mb-2" />
                         <p className="text-xs text-muted-foreground">Nenhuma conquista ainda. Continue lendo!</p>
-                      </div> :
-
-                <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
-                        {recentAchievements.map((a, i) =>
-                  <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20">
+                      </div>
+                    ) : (
+                      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+                        {recentAchievements.map((a, i) => (
+                          <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20">
                             <div
-                      className="w-12 h-12 flex items-center justify-center ln4-glow transition-all duration-300"
-                      style={{
-                        backgroundColor: a.color + "20",
-                        border: `1px solid ${T.border}`,
-                        clipPath: 'polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%)'
-                      }}>
-                      
-                              {a.type === "book" ?
-                      <BookOpen className="w-5 h-5" style={{ color: a.color }} /> :
-
-                      <Flame className="w-5 h-5" style={{ color: a.color }} />
-                      }
+                              className="w-12 h-12 flex items-center justify-center transition-all duration-300"
+                              style={{
+                                backgroundColor: a.color + "20",
+                                border: `1px solid ${T.border}`,
+                                borderRadius: "0.875rem",
+                              }}
+                            >
+                              {a.type === "book" ? (
+                                <BookOpen className="w-5 h-5" style={{ color: a.color }} />
+                              ) : (
+                                <Flame className="w-5 h-5" style={{ color: a.color }} />
+                              )}
                             </div>
                             <p className="text-[10px] text-foreground font-bold text-center truncate w-full">
                               {a.label}
                             </p>
                           </div>
-                  )}
+                        ))}
                       </div>
-                }
+                    )}
                   </div>
                 </>
             }
