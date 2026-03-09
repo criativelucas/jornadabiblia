@@ -728,21 +728,26 @@ const Index = () => {
                         )}
 
                         {heroState === "done" && (
-                          <div style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
-                            <div style={{
-                              width: "52px", height: "52px", borderRadius: "9999px",
-                              background: T.accentDim, border: `2px solid ${T.accent}`,
-                              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                            }}>
-                              <Check size={24} color={T.accent} />
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", position: "relative" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                              <div style={{
+                                width: "52px", height: "52px", borderRadius: "9999px",
+                                background: T.accentDim, border: `2px solid ${T.accent}`,
+                                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                              }}>
+                                <Check size={24} color={T.accent} />
+                              </div>
+                              <div>
+                                <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary }}>
+                                  Leitura de hoje feita!
+                                </p>
+                                <p style={{ color: T.textMuted, fontSize: "13px" }}>
+                                  {streak} dias seguidos 🔥
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary }}>
-                                Leitura de hoje feita!
-                              </p>
-                              <p style={{ color: T.textMuted, fontSize: "13px" }}>
-                                {streak} dias seguidos 🔥
-                              </p>
+                            <div style={{ flexShrink: 0, width: "80px", height: "80px" }}>
+                              <StreakTree streak={streak} compact />
                             </div>
                           </div>
                         )}
