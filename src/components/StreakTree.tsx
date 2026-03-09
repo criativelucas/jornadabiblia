@@ -31,6 +31,57 @@ const StreakTree = ({ streak, compact = false }: Props) => {
   const leafColor = streak > 0 ? T.accent : T.textMuted;
   const trunkColor = T.textMuted;
 
+  if (compact) {
+    return (
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg viewBox="0 0 120 140" style={{ width: "100%", height: "100%" }} xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="130" rx="40" ry="6" fill={T.card2} />
+          {stage === "seed" && <ellipse cx="60" cy="122" rx="6" ry="5" fill="#8B6914" />}
+          {stage === "sprout" && (
+            <g>
+              <line x1="60" y1="125" x2="60" y2="100" stroke={leafColor} strokeWidth="2.5" strokeLinecap="round" />
+              <ellipse cx="50" cy="100" rx="10" ry="5" fill={leafColor} opacity="0.8" className="animate-sway" style={{ transformOrigin: "60px 100px" }} />
+              <ellipse cx="70" cy="105" rx="10" ry="5" fill={leafColor} opacity="0.7" className="animate-sway-reverse" style={{ transformOrigin: "60px 105px" }} />
+            </g>
+          )}
+          {stage === "young" && (
+            <g>
+              <line x1="60" y1="128" x2="60" y2="70" stroke={trunkColor} strokeWidth="4" strokeLinecap="round" />
+              {[
+                { cx: 42, cy: 85, rx: 14, ry: 7 }, { cx: 78, cy: 80, rx: 14, ry: 7 },
+                { cx: 45, cy: 70, rx: 12, ry: 6 }, { cx: 75, cy: 65, rx: 12, ry: 6 },
+                { cx: 55, cy: 58, rx: 10, ry: 5 }, { cx: 65, cy: 55, rx: 10, ry: 5 },
+              ].map((l, i) => (
+                <ellipse key={i} cx={l.cx} cy={l.cy} rx={l.rx} ry={l.ry} fill={leafColor} opacity="0.75" className="animate-sway" style={{ transformOrigin: "60px 128px" }} />
+              ))}
+            </g>
+          )}
+          {stage === "tree" && (
+            <g>
+              <path d="M56 128 Q58 90 55 60 L65 60 Q62 90 64 128 Z" fill={trunkColor} />
+              <circle cx="60" cy="50" r="28" fill={leafColor} opacity="0.8" className="animate-sway" style={{ transformOrigin: "60px 128px" }} />
+              <circle cx="45" cy="60" r="18" fill={leafColor} opacity="0.7" />
+              <circle cx="75" cy="60" r="18" fill={leafColor} opacity="0.7" />
+              <circle cx="60" cy="35" r="16" fill={leafColor} opacity="0.6" />
+            </g>
+          )}
+          {stage === "fruit" && (
+            <g>
+              <path d="M56 128 Q58 90 55 55 L65 55 Q62 90 64 128 Z" fill={trunkColor} />
+              <circle cx="60" cy="45" r="30" fill={leafColor} opacity="0.8" className="animate-sway" style={{ transformOrigin: "60px 128px" }} />
+              <circle cx="42" cy="58" r="20" fill={leafColor} opacity="0.7" />
+              <circle cx="78" cy="58" r="20" fill={leafColor} opacity="0.7" />
+              <circle cx="60" cy="30" r="18" fill={leafColor} opacity="0.6" />
+              {[{ cx: 48, cy: 38 }, { cx: 72, cy: 42 }, { cx: 58, cy: 28 }, { cx: 40, cy: 52 }, { cx: 80, cy: 50 }].map((f, i) => (
+                <circle key={i} cx={f.cx} cy={f.cy} r="4" fill="#F59E0B" opacity="0.9" />
+              ))}
+            </g>
+          )}
+        </svg>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={tilt.ref}
