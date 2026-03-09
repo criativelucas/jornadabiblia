@@ -20,15 +20,15 @@ const DARK = {
 
 // LIGHT: genuinamente claro — creme + verde escuro legível
 const LIGHT = {
-  accent:      "#4a7c00",
-  accentDark:  "#365a00",
-  accentDim:   "rgba(74,124,0,0.09)",
-  accentGlow:  "rgba(74,124,0,0.08)",
+  accent:      "#5a9a00",
+  accentDark:  "#4a7c00",
+  accentDim:   "rgba(90,154,0,0.10)",
+  accentGlow:  "rgba(90,154,0,0.08)",
   page:        "#f5f5ee",
   card:        "#ffffff",
   card2:       "#efefea",
   border:      "rgba(0,0,0,0.08)",
-  borderAc:    "rgba(74,124,0,0.25)",
+  borderAc:    "rgba(90,154,0,0.25)",
   textPrimary: "#1a1c0d",
   textMuted:   "#6a7060",
   textDim:     "#b0b8a0",
