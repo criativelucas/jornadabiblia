@@ -5,9 +5,10 @@ import { Flame } from "lucide-react";
 
 interface Props {
   streak: number;
+  compact?: boolean;
 }
 
-const StreakTree = ({ streak }: Props) => {
+const StreakTree = ({ streak, compact = false }: Props) => {
   const { T } = useThemeContext();
   const tilt = useTilt(6);
 
