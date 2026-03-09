@@ -434,21 +434,42 @@ const Index = () => {
   };
 
   const recentAchievements = useMemo(() => {
-    const achievements: {type: "streak" | "book";label: string;icon: string;color: string;}[] = [];
-    [...milestones].
-    filter((m) => unlockedMilestones.includes(m.dias)).
-    sort((a, b) => b.dias - a.dias).
-    slice(0, 3).
-    forEach((m) => achievements.push({ type: "streak", label: m.titulo, icon: m.icon, color: m.cor }));
-    bibleBooks.
-    filter((b) => (readChapters.get(b.name)?.size || 0) >= b.chapters).
-    slice(-3).
-    forEach((b) => {
-      if (achievements.length < 3)
-      achievements.push({ type: "book", label: b.name, icon: "BookOpen", color: "#1A56FF" });
-    });
-    return achievements.slice(0, 3);
+    const achievements: {type: "streak" | "book";label: string;key: string;}[] = [];
+    [...milestones]
+      .filter((m) => unlockedMilestones.includes(m.dias))
+      .sort((a, b) => b.dias - a.dias)
+      .slice(0, 5)
+      .forEach((m) => achievements.push({ type: "streak", label: m.titulo, key: `streak_${m.dias}` }));
+    bibleBooks
+      .filter((b) => (readChapters.get(b.name)?.size || 0) >= b.chapters)
+      .slice(-5)
+      .forEach((b) => {
+        if (achievements.length < 5)
+          achievements.push({ type: "book", label: b.name, key: `book_${b.id}` });
+      });
+    return achievements.slice(0, 5);
   }, [unlockedMilestones, readChapters]);
+
+  const readToday = lastReadDate === getTodayStr();
+
+  const nextTrophy = useMemo(() => {
+    return bibleBooks
+      .map(book => {
+        const read = readChapters.get(book.name)?.size ?? 0;
+        const percent = Math.round((read / book.chapters) * 100);
+        return { ...book, read, percent, remaining: book.chapters - read };
+      })
+      .filter(b => b.percent > 0 && b.percent < 100)
+      .sort((a, b) => b.percent - a.percent)[0] ?? null;
+  }, [readChapters]);
+
+  const heroState = useMemo(() => {
+    if (readToday) return "done" as const;
+    if (recovery && recovery.behind >= 15) return "late" as const;
+    return "pending" as const;
+  }, [readToday, recovery]);
+
+  const isLate = recovery && recovery.behind >= 15;
 
   const dailyGoal = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
