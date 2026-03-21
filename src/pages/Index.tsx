@@ -1131,7 +1131,7 @@ const Index = () => {
                       
                             Meta: {formPreview.perDay} capítulo{formPreview.perDay !== 1 ? "s" : ""}/dia ·{" "}
                             {formPreview.total} capítulos no total
-                            {formPreview.perDay > 20 ? " — ritmo bastante intenso ⚡" : ""}
+                            {formPreview.perDay > 20 ? " — ritmo bastante intenso" : ""}
                           </p>
                         </div>
                         <div>
