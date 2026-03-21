@@ -679,8 +679,7 @@ const Index = () => {
                           clipPath: "polygon(0 0, calc(100% - 1.5rem) 0, 100% 1.5rem, 100% 100%, 0 100%)",
                           padding: "1.5rem",
                           background: heroState === "pending" ? T.accent : T.card,
-                          border: heroState === "done" ? `1px solid ${T.borderAc}` : heroState === "late" ? `1px solid ${T.border}` : "none",
-                          borderLeft: heroState === "late" ? "3px solid #f59e0b" : undefined,
+                          border: heroState === "done" ? `1px solid ${T.borderAc}` : "none",
                           minHeight: "140px",
                           position: "relative",
                           overflow: "hidden",
@@ -700,7 +699,7 @@ const Index = () => {
                         {heroState === "pending" && (
                           <div style={{ position: "relative" }}>
                             <p style={{ fontSize: "10px", fontWeight: 700, color: T.page, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>
-                              {new Date().getHours() < 12 ? `Bom dia${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋` : new Date().getHours() < 18 ? `Boa tarde${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋` : `Boa noite${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋`}
+                              {new Date().getHours() < 12 ? `Bom dia${displayName ? `, ${displayName.split(" ")[0]}` : ""}` : new Date().getHours() < 18 ? `Boa tarde${displayName ? `, ${displayName.split(" ")[0]}` : ""}` : `Boa noite${displayName ? `, ${displayName.split(" ")[0]}` : ""}`}
                             </p>
                             <h2 style={{ fontSize: "2rem", fontWeight: 900, color: T.page, letterSpacing: "-0.04em", marginTop: "4px" }}>
                               Hora de ler
@@ -740,28 +739,14 @@ const Index = () => {
                                 <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary }}>
                                   Leitura de hoje feita!
                                 </p>
-                                <p style={{ color: T.textMuted, fontSize: "13px" }}>
-                                  {streak} dias seguidos 🔥
+                                <p style={{ color: T.textMuted, fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+                                  {streak} dias seguidos <Flame size={12} style={{ color: T.accent }} />
                                 </p>
                               </div>
                             </div>
                             <div style={{ flexShrink: 0, width: "80px", height: "80px" }}>
                               <StreakTree streak={streak} compact />
                             </div>
-                          </div>
-                        )}
-
-                        {heroState === "late" && (
-                          <div style={{ position: "relative" }}>
-                            <p style={{ fontSize: "11px", fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                              ⚡ Plano recalibrado
-                            </p>
-                            <p style={{ fontWeight: 900, fontSize: "20px", color: T.textPrimary, marginTop: "4px" }}>
-                              {recovery?.newDaily} caps/dia
-                            </p>
-                            <p style={{ color: T.textMuted, fontSize: "13px" }}>
-                              pelos próximos {recovery?.remaining} dias para terminar no prazo
-                            </p>
                           </div>
                         )}
                       </div>
