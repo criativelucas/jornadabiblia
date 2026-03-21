@@ -284,7 +284,7 @@ export default function BibleTab() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xl">{selectedBook.emoji}</span>
+          <BookOpen size={20} style={{ color: T.accent }} />
           <div>
             <Eyebrow accent>{selectedBook.name}</Eyebrow>
             <h2 className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
