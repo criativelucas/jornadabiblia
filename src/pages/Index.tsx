@@ -468,7 +468,7 @@ const Index = () => {
     return "pending" as const;
   }, [readToday]);
 
-  const isLate = recovery && recovery.behind >= 15;
+  
 
   const dailyGoal = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
