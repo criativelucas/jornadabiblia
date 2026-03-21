@@ -196,7 +196,7 @@ const BookTrophyModal = ({
 
         {/* Quiz CTA */}
         <div className="mb-4 p-3 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3 text-left">
-          <span className="text-2xl">🧠</span>
+          <Zap className="w-6 h-6 text-primary flex-shrink-0" />
           <div>
             <p className="text-xs font-bold text-foreground">Quiz sobre {bookName}</p>
             <p className="text-[10px] text-muted-foreground">3 perguntas · ganhe até +75 pts no ranking</p>
