@@ -176,7 +176,12 @@ export default function QuizModal({ bookName, onClose }: Props) {
 
         {phase === "result" && (
           <div className="p-6 pt-2 text-center space-y-4">
-            <span className="text-6xl block">{resultEmoji}</span>
+            <div className="flex justify-center mb-2">
+              {resultEmoji === "trophy" && <Trophy size={48} style={{ color: T.accent }} />}
+              {resultEmoji === "star" && <Star size={48} style={{ color: T.accent }} />}
+              {resultEmoji === "book" && <BookOpen size={48} style={{ color: T.accent }} />}
+              {resultEmoji === "zap" && <Zap size={48} style={{ color: T.accent }} />}
+            </div>
             <h4 className="text-lg font-bold" style={{ color: T.textPrimary }}>{resultMsg}</h4>
             <p className="text-sm" style={{ color: T.textMuted }}>{correctCount} de 3 respostas corretas</p>
 
