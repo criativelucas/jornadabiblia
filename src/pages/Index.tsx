@@ -658,7 +658,7 @@ const Index = () => {
                     border: `1px solid ${T.borderAc}`,
                     clipPath: 'polygon(0 0, 100% 0, 100% 90%, 97% 100%, 0 100%)'
                   }}>
-                          <span className="text-2xl">🌿</span>
+                          <Flame size={24} style={{ color: T.accent, flexShrink: 0 }} />
                           <div className="flex-1">
                             <p className="text-sm font-black tracking-tight" style={{ color: T.textPrimary }}>Recupere sua sequência</p>
                             <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>Leia hoje e mantenha sua jornada viva</p>
