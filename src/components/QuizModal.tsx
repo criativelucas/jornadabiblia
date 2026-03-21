@@ -78,7 +78,7 @@ export default function QuizModal({ bookName, onClose }: Props) {
 
   const correctCount = answers.filter(Boolean).length;
   const bonus = correctCount * POINTS_PER_CORRECT;
-  const resultEmoji = correctCount === 3 ? "🏆" : correctCount === 2 ? "🌟" : correctCount === 1 ? "📖" : "💪";
+  const resultEmoji = correctCount === 3 ? "trophy" : correctCount === 2 ? "star" : correctCount === 1 ? "book" : "zap";
   const resultMsg =
     correctCount === 3 ? "Perfeito! Você dominou esse livro!" :
     correctCount === 2 ? "Muito bem! Quase lá!" :
