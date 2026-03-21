@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Home, Calendar, BookOpen, Trophy, User, Sparkles } from "lucide-react";
+import { Home, Calendar, BookOpen, Trophy, User, Sparkles, Sun, Moon } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 
 export type SectionId = "home" | "bible" | "plans" | "achieve" | "discover" | "profile";
