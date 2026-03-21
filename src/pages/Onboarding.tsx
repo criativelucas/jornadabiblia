@@ -96,7 +96,7 @@ const Onboarding = () => {
                       : "border-border bg-card hover:bg-muted"
                   }`}
                 >
-                  <span className="text-2xl mb-2 block">{o.emoji}</span>
+                  <o.icon className="w-6 h-6 mb-2 mx-auto text-primary" />
                   <p className="text-sm font-semibold text-foreground">{o.label}</p>
                 </button>
               ))}
