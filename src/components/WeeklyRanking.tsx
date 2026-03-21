@@ -21,7 +21,7 @@ export default function WeeklyRanking() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await (supabase as unknown as { from: (t: string) => { select: (s: string) => { order: (c: string, o: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: Entry[] | null }> } } } } })
+      const { data } = await (supabase as any)
         .from("weekly_ranking")
         .select("*")
         .order("weekly_points", { ascending: false })
