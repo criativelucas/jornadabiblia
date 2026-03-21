@@ -232,7 +232,7 @@ const BookTrophyModal = ({
             onClick={() => shareBookAchievement({ bookName, streak, category })}
             className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
           >
-            Compartilhar conquista 📲
+            <span className="flex items-center justify-center gap-1.5"><Share2 size={14} /> Compartilhar conquista</span>
           </button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Trophy, Zap, BookOpen, RefreshCw } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 
 interface Entry {
