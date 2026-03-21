@@ -283,7 +283,7 @@ const Index = () => {
       eq("user_id", user.id);
     }
     const totalCh = getTotalChaptersForConfig(config);
-    toast.success(`Plano criado! Meta: ${Math.ceil(totalCh / Math.max(durationInDays, 1))} capítulos/dia 📖`);
+    toast.success(`Plano criado! Meta: ${Math.ceil(totalCh / Math.max(durationInDays, 1))} capítulos/dia`);
   };
 
   const [confirmModal, setConfirmModal] = useState<{
@@ -465,11 +465,10 @@ const Index = () => {
 
   const heroState = useMemo(() => {
     if (readToday) return "done" as const;
-    if (recovery && recovery.behind >= 15) return "late" as const;
     return "pending" as const;
-  }, [readToday, recovery]);
+  }, [readToday]);
 
-  const isLate = recovery && recovery.behind >= 15;
+  
 
   const dailyGoal = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
@@ -659,7 +658,7 @@ const Index = () => {
                     border: `1px solid ${T.borderAc}`,
                     clipPath: 'polygon(0 0, 100% 0, 100% 90%, 97% 100%, 0 100%)'
                   }}>
-                          <span className="text-2xl">🌿</span>
+                          <Flame size={24} style={{ color: T.accent, flexShrink: 0 }} />
                           <div className="flex-1">
                             <p className="text-sm font-black tracking-tight" style={{ color: T.textPrimary }}>Recupere sua sequência</p>
                             <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>Leia hoje e mantenha sua jornada viva</p>
@@ -680,8 +679,7 @@ const Index = () => {
                           clipPath: "polygon(0 0, calc(100% - 1.5rem) 0, 100% 1.5rem, 100% 100%, 0 100%)",
                           padding: "1.5rem",
                           background: heroState === "pending" ? T.accent : T.card,
-                          border: heroState === "done" ? `1px solid ${T.borderAc}` : heroState === "late" ? `1px solid ${T.border}` : "none",
-                          borderLeft: heroState === "late" ? "3px solid #f59e0b" : undefined,
+                          border: heroState === "done" ? `1px solid ${T.borderAc}` : "none",
                           minHeight: "140px",
                           position: "relative",
                           overflow: "hidden",
@@ -701,7 +699,7 @@ const Index = () => {
                         {heroState === "pending" && (
                           <div style={{ position: "relative" }}>
                             <p style={{ fontSize: "10px", fontWeight: 700, color: T.page, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>
-                              {new Date().getHours() < 12 ? `Bom dia${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋` : new Date().getHours() < 18 ? `Boa tarde${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋` : `Boa noite${displayName ? `, ${displayName.split(" ")[0]}` : ""} 👋`}
+                              {new Date().getHours() < 12 ? `Bom dia${displayName ? `, ${displayName.split(" ")[0]}` : ""}` : new Date().getHours() < 18 ? `Boa tarde${displayName ? `, ${displayName.split(" ")[0]}` : ""}` : `Boa noite${displayName ? `, ${displayName.split(" ")[0]}` : ""}`}
                             </p>
                             <h2 style={{ fontSize: "2rem", fontWeight: 900, color: T.page, letterSpacing: "-0.04em", marginTop: "4px" }}>
                               Hora de ler
@@ -741,28 +739,14 @@ const Index = () => {
                                 <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary }}>
                                   Leitura de hoje feita!
                                 </p>
-                                <p style={{ color: T.textMuted, fontSize: "13px" }}>
-                                  {streak} dias seguidos 🔥
+                                <p style={{ color: T.textMuted, fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+                                  {streak} dias seguidos <Flame size={12} style={{ color: T.accent }} />
                                 </p>
                               </div>
                             </div>
                             <div style={{ flexShrink: 0, width: "80px", height: "80px" }}>
                               <StreakTree streak={streak} compact />
                             </div>
-                          </div>
-                        )}
-
-                        {heroState === "late" && (
-                          <div style={{ position: "relative" }}>
-                            <p style={{ fontSize: "11px", fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                              ⚡ Plano recalibrado
-                            </p>
-                            <p style={{ fontWeight: 900, fontSize: "20px", color: T.textPrimary, marginTop: "4px" }}>
-                              {recovery?.newDaily} caps/dia
-                            </p>
-                            <p style={{ color: T.textMuted, fontSize: "13px" }}>
-                              pelos próximos {recovery?.remaining} dias para terminar no prazo
-                            </p>
                           </div>
                         )}
                       </div>
@@ -858,32 +842,32 @@ const Index = () => {
                         </div>
                       )}
 
-                      {/* ── BLOCO 4 — Status do Plano ── */}
+                      {/* ── BLOCO 4 — Status do Plano (always visible) ── */}
                       {planStartDate && (
                         <div style={{
                           borderRadius: "0.875rem", padding: "1rem 1.25rem",
                           background: T.card,
                           border: `1px solid ${T.border}`,
-                          borderLeft: `3px solid ${isLate ? "#f59e0b" : T.accent}`,
+                          borderLeft: `3px solid ${recovery && recovery.behind >= 15 ? "#f59e0b" : T.accent}`,
                           display: "flex", alignItems: "center", gap: "1rem",
                           marginBottom: "0.875rem",
                         }}>
                           <div style={{
                             width: "36px", height: "36px", borderRadius: "0.5rem", flexShrink: 0,
-                            background: isLate ? "rgba(245,158,11,0.1)" : T.accentDim,
+                            background: recovery && recovery.behind >= 15 ? "rgba(245,158,11,0.1)" : T.accentDim,
                             display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
-                            {isLate
+                            {recovery && recovery.behind >= 15
                               ? <Zap size={18} color="#f59e0b" />
                               : <CheckCircle size={18} color={T.accent} />}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <p style={{ fontWeight: 700, fontSize: "14px", color: T.textPrimary }}>
-                              {isLate ? "Plano recalibrado" : "Em dia com o plano!"}
+                              {recovery && recovery.behind >= 15 ? "Plano recalibrado" : "Em dia com o plano!"}
                             </p>
                             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "1px" }}>
-                              {isLate
-                                ? `${recovery?.newDaily} caps/dia pelos próximos ${recovery?.remaining} dias`
+                              {recovery && recovery.behind >= 15
+                                ? `${recovery.newDaily} caps/dia pelos próximos ${recovery.remaining} dias`
                                 : `${daysRemaining ?? 0} dias restantes${dailyGoal ? ` · ${dailyGoal} cap${dailyGoal > 1 ? "s" : ""} para hoje` : ""}`}
                             </p>
                           </div>
@@ -1147,7 +1131,7 @@ const Index = () => {
                       
                             Meta: {formPreview.perDay} capítulo{formPreview.perDay !== 1 ? "s" : ""}/dia ·{" "}
                             {formPreview.total} capítulos no total
-                            {formPreview.perDay > 20 ? " — ritmo bastante intenso ⚡" : ""}
+                            {formPreview.perDay > 20 ? " — ritmo bastante intenso" : ""}
                           </p>
                         </div>
                         <div>

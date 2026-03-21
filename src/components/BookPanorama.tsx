@@ -1,4 +1,4 @@
-import { BookOpen, ArrowLeft } from "lucide-react";
+import { BookOpen, ArrowLeft, Calendar, PenTool } from "lucide-react";
 import { useThemeContext, Eyebrow } from "@/contexts/ThemeContext";
 import { getBookSummary } from "@/data/bookSummaries";
 import type { BibleBook } from "@/data/bibleBooks";
@@ -25,8 +25,8 @@ export default function BookPanorama({ book, chaptersRead, onContinue, onBack }:
 
       {/* Hero */}
       <div className="flex flex-col items-center text-center gap-3 pt-2">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
-          {book.emoji}
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
+          <BookOpen size={28} style={{ color: T.accent }} />
         </div>
         <div>
           <h2 className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>{book.name}</h2>
@@ -52,8 +52,8 @@ export default function BookPanorama({ book, chaptersRead, onContinue, onBack }:
             <Eyebrow accent>Panorama</Eyebrow>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: T.textPrimary }}>{summary.summary}</p>
             <div className="flex gap-3 mt-3 text-xs" style={{ color: T.textMuted }}>
-              <span>📅 {summary.period}</span>
-              <span>✍️ {summary.author}</span>
+              <span className="flex items-center gap-1"><Calendar size={11} /> {summary.period}</span>
+              <span className="flex items-center gap-1"><PenTool size={11} /> {summary.author}</span>
             </div>
           </div>
 

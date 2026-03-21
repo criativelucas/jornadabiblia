@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Award } from "lucide-react";
+import { BookOpen, Award, Zap, Map, Share2 } from "lucide-react";
 import { playBookComplete } from "@/utils/sounds";
 import { shareBookAchievement } from "@/utils/shareAchievement";
 import QuizModal from "@/components/QuizModal";
@@ -196,7 +196,7 @@ const BookTrophyModal = ({
 
         {/* Quiz CTA */}
         <div className="mb-4 p-3 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3 text-left">
-          <span className="text-2xl">🧠</span>
+          <Zap className="w-6 h-6 text-primary flex-shrink-0" />
           <div>
             <p className="text-xs font-bold text-foreground">Quiz sobre {bookName}</p>
             <p className="text-[10px] text-muted-foreground">3 perguntas · ganhe até +75 pts no ranking</p>
@@ -209,7 +209,7 @@ const BookTrophyModal = ({
             onClick={handleContinue}
             className="w-full py-3 rounded-[10px] font-semibold text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           >
-            Fazer o quiz 🧠
+            Fazer o quiz
           </button>
           <button
             onClick={handleClose}
@@ -225,15 +225,14 @@ const BookTrophyModal = ({
               }}
               className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
             >
-              Ver mapa mental 🗺️
-{" "}
+              <span className="flex items-center justify-center gap-1.5"><Map size={14} /> Ver mapa mental</span>
             </button>
           )}
           <button
             onClick={() => shareBookAchievement({ bookName, streak, category })}
             className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
           >
-            Compartilhar conquista 📲
+            <span className="flex items-center justify-center gap-1.5"><Share2 size={14} /> Compartilhar conquista</span>
           </button>
         </div>
       </div>

@@ -42,9 +42,9 @@ const TIME_GROUPS = [
 ];
 function reminderMessage(time: string) {
   const h = parseInt(time);
-  if (h < 12) return "☀️ Bom dia! Que tal começar o dia na Palavra?";
-  if (h < 18) return "📖 Pausa para a leitura bíblica de hoje.";
-  return "🌙 Antes de dormir, um capítulo te espera.";
+  if (h < 12) return "Bom dia! Que tal começar o dia na Palavra?";
+  if (h < 18) return "Pausa para a leitura bíblica de hoje.";
+  return "Antes de dormir, um capítulo te espera.";
 }
 function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {

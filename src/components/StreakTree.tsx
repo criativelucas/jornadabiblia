@@ -248,12 +248,8 @@ const StreakTree = ({ streak, compact = false }: Props) => {
               border: `1px solid ${T.borderAc}`,
             }}
           >
-            <span style={{ fontSize: "11px" }}>
-              {stage === "seed" && "🌰"}
-              {stage === "sprout" && "🌱"}
-              {stage === "young" && "🌿"}
-              {stage === "tree" && "🌳"}
-              {stage === "fruit" && "🍎"}
+            <span style={{ fontSize: "11px", display: "flex", alignItems: "center" }}>
+              <Flame size={11} style={{ color: T.accent }} />
             </span>
             <span
               style={{

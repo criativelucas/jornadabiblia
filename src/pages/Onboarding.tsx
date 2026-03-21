@@ -7,10 +7,10 @@ import PlanSelector from "@/components/PlanSelector";
 import { planOptions } from "@/data/planData";
 
 const OBJECTIVES = [
-  { value: "completo", label: "Ler a Bíblia completa", icon: BookOpen, emoji: "📖" },
-  { value: "fe", label: "Aprofundar minha fé", icon: Heart, emoji: "🙏" },
-  { value: "estudo", label: "Estudar livros específicos", icon: GraduationCap, emoji: "📚" },
-  { value: "habito", label: "Criar um hábito diário", icon: Sprout, emoji: "🌱" },
+  { value: "completo", label: "Ler a Bíblia completa", icon: BookOpen },
+  { value: "fe", label: "Aprofundar minha fé", icon: Heart },
+  { value: "estudo", label: "Estudar livros específicos", icon: GraduationCap },
+  { value: "habito", label: "Criar um hábito diário", icon: Sprout },
 ] as const;
 
 const TIME_OPTIONS = [5, 10, 15, 20, 30, 45, 60];
@@ -96,7 +96,7 @@ const Onboarding = () => {
                       : "border-border bg-card hover:bg-muted"
                   }`}
                 >
-                  <span className="text-2xl mb-2 block">{o.emoji}</span>
+                  <o.icon className="w-6 h-6 mb-2 mx-auto text-primary" />
                   <p className="text-sm font-semibold text-foreground">{o.label}</p>
                 </button>
               ))}
@@ -176,7 +176,7 @@ const Onboarding = () => {
             onClick={handleFinish}
             className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
           >
-            Começar minha jornada 🌿
+            Começar minha jornada
           </button>
         )}
         {step > 1 && (

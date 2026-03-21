@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Home, Calendar, BookOpen, Trophy, User, Sparkles } from "lucide-react";
+import { Home, Calendar, BookOpen, Trophy, User, Sparkles, Sun, Moon } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 
 export type SectionId = "home" | "bible" | "plans" | "achieve" | "discover" | "profile";
@@ -157,7 +157,7 @@ export default function AppSidebar({ activeSection, onNavigate, streak, avatarUr
               fontSize: "18px",
             }}
           >
-            {isDark ? "☀️" : "🌙"}
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           {/* Avatar */}

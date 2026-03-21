@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CheckCircle2, XCircle, BookOpen, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, BookOpen, Zap, Trophy, Star } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 
 interface Question {
@@ -78,7 +78,7 @@ export default function QuizModal({ bookName, onClose }: Props) {
 
   const correctCount = answers.filter(Boolean).length;
   const bonus = correctCount * POINTS_PER_CORRECT;
-  const resultEmoji = correctCount === 3 ? "🏆" : correctCount === 2 ? "🌟" : correctCount === 1 ? "📖" : "💪";
+  const resultEmoji = correctCount === 3 ? "trophy" : correctCount === 2 ? "star" : correctCount === 1 ? "book" : "zap";
   const resultMsg =
     correctCount === 3 ? "Perfeito! Você dominou esse livro!" :
     correctCount === 2 ? "Muito bem! Quase lá!" :
@@ -176,7 +176,12 @@ export default function QuizModal({ bookName, onClose }: Props) {
 
         {phase === "result" && (
           <div className="p-6 pt-2 text-center space-y-4">
-            <span className="text-6xl block">{resultEmoji}</span>
+            <div className="flex justify-center mb-2">
+              {resultEmoji === "trophy" && <Trophy size={48} style={{ color: T.accent }} />}
+              {resultEmoji === "star" && <Star size={48} style={{ color: T.accent }} />}
+              {resultEmoji === "book" && <BookOpen size={48} style={{ color: T.accent }} />}
+              {resultEmoji === "zap" && <Zap size={48} style={{ color: T.accent }} />}
+            </div>
             <h4 className="text-lg font-bold" style={{ color: T.textPrimary }}>{resultMsg}</h4>
             <p className="text-sm" style={{ color: T.textMuted }}>{correctCount} de 3 respostas corretas</p>
 

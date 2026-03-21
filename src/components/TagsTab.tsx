@@ -124,7 +124,7 @@ const TagsTab = ({ user }: Props) => {
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-purple-400/50"
             >
               {bibleBooks.map(b => (
-                <option key={b.name} value={b.name}>{b.emoji} {b.name}</option>
+                <option key={b.name} value={b.name}>{b.name}</option>
               ))}
             </select>
           </div>
