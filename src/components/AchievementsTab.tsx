@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, BookOpen, X, Lock, Check, Award } from "lucide-react";
+import { Flame, Shield, Layers, Star, Sword, Anchor, Music, Crown, Zap, Trophy, BookOpen, X, Lock, Check, Award, RefreshCw, Medal } from "lucide-react";
 import { milestones } from "@/data/streakMilestones";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,6 +71,15 @@ function timeAgo(dateStr: string): string {
   if (diffDays === 1) return 'ontem';
   if (diffDays < 30) return `há ${diffDays} dias`;
   return date.toLocaleDateString('pt-BR');
+}
+
+function getLockedIcon(key: string): React.ElementType {
+  if (key.startsWith("book_")) return BookOpen;
+  if (key.startsWith("streak_")) return Flame;
+  if (key.startsWith("chapters_")) return Trophy;
+  if (key === "quiz_first") return Star;
+  if (key === "plan_complete") return Medal;
+  return Lock;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -178,17 +187,18 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
   ];
 
   // Style constants
-  const clipCard = {
-    background: T.card,
-    border: `1px solid ${T.border}`,
-    borderRadius: "1.25rem",
-    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
-  };
   const gridCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
     borderRadius: "0.875rem",
   };
+
+  // Heatmap color scale
+  function getHeatColor(day: string): string {
+    if (!readDates.has(day)) return T.card2;
+    // Count reads in that week for intensity — simplified: just use accent
+    return T.accent;
+  }
 
   if (showQuiz) {
     return <QuizModal bookName={showQuiz} onClose={() => setShowQuiz(null)} />;
@@ -210,7 +220,9 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
               <BookOpen className="w-8 h-8" style={{ color: T.accent }} />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: T.accent }}>📖 Livro Concluído!</p>
+              <p className="text-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: T.accent }}>
+                <BookOpen size={12} /> Livro Concluído!
+              </p>
               <p className="text-lg font-black" style={{ color: T.textPrimary }}>{celebrationBook.name}</p>
               <p className="text-xs" style={{ color: T.textMuted }}>{celebrationBook.category} · {celebrationBook.chapters} capítulos</p>
             </div>
@@ -220,12 +232,12 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
             className="mt-3 w-full py-2.5 text-sm font-bold transition-all duration-300 hover:opacity-90"
             style={{ borderRadius: "9999px", background: T.accent, color: T.page }}
           >
-            Fazer Quiz do Livro 🧠
+            Fazer Quiz do Livro
           </button>
         </div>
       )}
 
-      {/* ── Internal tab pills ───────────────────────────────────── */}
+      {/* ── Internal tab pills ───────────────────────────────── */}
       <div className="flex gap-2">
         {([
           { id: "trophies" as InternalTab, label: "Troféus", Icon: Trophy },
@@ -288,7 +300,7 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
 
           {/* Empty state */}
           {trophyFilter === "done" && completedBooks.length === 0 ? (
-            <div className="p-8 text-center" style={clipCard}>
+            <div className="p-8 text-center" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.25rem", clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)" }}>
               <BookOpen className="w-10 h-10 mx-auto mb-3" style={{ color: T.textDim }} />
               <p className="text-sm mb-4" style={{ color: T.textMuted }}>Nenhum livro concluído ainda.</p>
               {onNavigate && (
@@ -351,14 +363,37 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
       {activeTab === "medals" && (
         <div className="space-y-6">
           {/* Ranking */}
-          <div className="p-4" style={clipCard}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-4 h-4" style={{ color: T.accent }} />
-                <h3 className="text-sm font-bold" style={{ color: T.textPrimary }}>Ranking da Semana</h3>
+          <div style={{ borderRadius: "0.875rem", padding: "1.25rem", background: T.card, border: `1px solid ${T.border}` }}>
+            {/* Header do ranking */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Trophy size={16} color={T.accent} />
+                <span style={{ fontWeight: 900, fontSize: "15px", color: T.textPrimary, letterSpacing: "-0.02em" }}>
+                  Ranking da Semana
+                </span>
               </div>
-              <span className="text-[10px]" style={{ color: T.textMuted }}>🔄 reseta segunda-feira</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <RefreshCw size={11} color={T.textMuted} />
+                <span style={{ fontSize: "10px", color: T.textMuted }}>reseta segunda-feira</span>
+              </div>
             </div>
+
+            {/* Legenda de pontos */}
+            <div style={{
+              display: "flex", gap: "1rem", marginBottom: "1rem",
+              padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
+              background: T.card2,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <BookOpen size={11} color={T.textMuted} />
+                <span style={{ fontSize: "10px", color: T.textMuted, fontWeight: 600 }}>capítulo = 10 pts</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <Zap size={11} color={T.textMuted} />
+                <span style={{ fontSize: "10px", color: T.textMuted, fontWeight: 600 }}>quiz certo = 25 pts</span>
+              </div>
+            </div>
+
             <WeeklyRanking />
           </div>
 
@@ -371,30 +406,55 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
             </div>
           )}
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-5" style={clipCard}>
-              <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Sequência atual</p>
-              {loadingHeatmap ? <Skeleton className="skeleton-shimmer h-8 w-16 mt-1" /> : (
-                <div className="flex items-center gap-2">
-                  <Flame className="w-5 h-5" style={{ color: "#f97316" }} fill="currentColor" />
-                  <span className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>{streak}</span>
-                </div>
+          {/* Unified Streak/Record Card */}
+          <div style={{
+            borderRadius: "0.875rem",
+            background: T.card, border: `1px solid ${T.border}`,
+            display: "grid", gridTemplateColumns: "1fr auto 1fr",
+            overflow: "hidden",
+          }}>
+            {/* Sequência atual */}
+            <div style={{ padding: "1.25rem", textAlign: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", marginBottom: "4px" }}>
+                <Flame size={14} color={T.accent} />
+                <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  Sequência
+                </span>
+              </div>
+              {loadingHeatmap ? <Skeleton className="skeleton-shimmer h-10 w-16 mx-auto mt-1" /> : (
+                <>
+                  <p style={{ fontSize: "2.5rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                    {streak}
+                  </p>
+                  <p style={{ fontSize: "11px", color: T.textMuted, marginTop: "2px" }}>dias seguidos</p>
+                </>
               )}
             </div>
-            <div className="p-5" style={clipCard}>
-              <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Maior sequência</p>
-              {loadingHeatmap ? <Skeleton className="skeleton-shimmer h-8 w-16 mt-1" /> : (
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-5 h-5" style={{ color: T.accent }} />
-                  <span className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>{longestStreak}</span>
-                </div>
+
+            {/* Divisor */}
+            <div style={{ width: "1px", background: T.border, margin: "1rem 0" }} />
+
+            {/* Recorde */}
+            <div style={{ padding: "1.25rem", textAlign: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", marginBottom: "4px" }}>
+                <Trophy size={14} color={T.textMuted} />
+                <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  Recorde
+                </span>
+              </div>
+              {loadingHeatmap ? <Skeleton className="skeleton-shimmer h-10 w-16 mx-auto mt-1" /> : (
+                <>
+                  <p style={{ fontSize: "2.5rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                    {longestStreak}
+                  </p>
+                  <p style={{ fontSize: "11px", color: T.textMuted, marginTop: "2px" }}>dias seguidos</p>
+                </>
               )}
             </div>
           </div>
 
           {/* Heatmap */}
-          <div className="p-4" style={clipCard}>
+          <div className="p-4" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "0.875rem" }}>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-medium uppercase tracking-wider" style={{ color: T.textMuted }}>Leituras no ano</p>
               <p className="text-xs" style={{ color: T.textMuted }}>
@@ -422,15 +482,41 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
                           if (!day) return <div key={di} style={{ width: 11, height: 11 }} />;
                           const isRead = readDates.has(day);
                           const isToday = day === heatmapDays[heatmapDays.length - 1];
-                          return <div key={di} title={`${day}${isRead ? " ✓" : ""}`} style={{ width: 11, height: 11, borderRadius: 2, backgroundColor: isRead ? T.accent : T.card2, opacity: isRead ? 1 : 0.5, outline: isToday ? `1px solid ${T.accent}` : "none", outlineOffset: "1px" }} />;
+                          return (
+                            <div
+                              key={di}
+                              title={`${day}${isRead ? " ✓" : ""}`}
+                              style={{
+                                width: 11, height: 11, borderRadius: 2,
+                                backgroundColor: isRead ? T.accent : T.card2,
+                                opacity: isRead ? 1 : 0.5,
+                                outline: isToday ? `1px solid ${T.accent}` : "none",
+                                outlineOffset: "1px",
+                                border: `1px solid ${T.border}`,
+                              }}
+                            />
+                          );
                         })}
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 mt-2 justify-end">
-                    <span className="text-[9px]" style={{ color: T.textMuted }}>Menos</span>
-                    {[0.15, 0.4, 0.7, 1].map((op, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: op < 0.3 ? T.card2 : T.accent, opacity: op }} />)}
-                    <span className="text-[9px]" style={{ color: T.textMuted }}>Mais</span>
+                  {/* Legend */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", marginTop: "8px" }}>
+                    <span style={{ fontSize: "10px", color: T.textMuted }}>Menos</span>
+                    {[
+                      T.card2,
+                      T.accentDim,
+                      `${T.accent}55`,
+                      `${T.accent}99`,
+                      T.accent,
+                    ].map((bg, i) => (
+                      <div key={i} style={{
+                        width: "12px", height: "12px", borderRadius: "3px",
+                        background: bg,
+                        border: `1px solid ${T.border}`,
+                      }} />
+                    ))}
+                    <span style={{ fontSize: "10px", color: T.textMuted }}>Mais</span>
                   </div>
                 </div>
               </div>
@@ -460,15 +546,48 @@ const AchievementsTab = ({ streak, longestStreak, unlockedMilestones, onNavigate
           {/* Locked achievements */}
           {lockedList.length > 0 && (
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: T.textMuted }}>Bloqueadas</p>
-              <div className="grid grid-cols-4 gap-2">
-                {lockedList.slice(0, 20).map((a) => (
-                  <div key={a.key} className="p-3 text-center opacity-30 grayscale transition-all duration-300" style={gridCard}>
-                    <Lock className="w-5 h-5 mx-auto mb-1" style={{ color: T.textDim }} />
-                    <p className="text-[9px] font-medium truncate" style={{ color: T.textMuted }}>{a.title}</p>
-                    <p className="text-[8px] mt-0.5 leading-tight" style={{ color: T.textDim }}>{a.description.slice(0, 30)}…</p>
-                  </div>
-                ))}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.875rem" }}>
+                <Lock size={13} color={T.textDim} />
+                <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  Bloqueadas
+                </span>
+                <span style={{
+                  fontSize: "10px", fontWeight: 700, color: T.textMuted,
+                  background: T.card2, borderRadius: "9999px",
+                  padding: "1px 6px", marginLeft: "2px",
+                }}>
+                  {lockedList.length}
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.625rem" }}>
+                {lockedList.slice(0, 20).map((a) => {
+                  const LockedIcon = getLockedIcon(a.key);
+                  return (
+                    <div key={a.key} style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: "6px",
+                      opacity: 0.35,
+                      filter: "grayscale(1)",
+                    }}>
+                      <div style={{
+                        width: "48px", height: "48px",
+                        borderRadius: "14px",
+                        background: T.card2, border: `1px solid ${T.border}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <LockedIcon size={20} color={T.textMuted} />
+                      </div>
+                      <span style={{
+                        fontSize: "9px", fontWeight: 700, color: T.textMuted,
+                        textAlign: "center", lineHeight: 1.2,
+                        overflow: "hidden", textOverflow: "ellipsis",
+                        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
+                        maxWidth: "56px",
+                      }}>
+                        {a.title}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
               {lockedList.length > 20 && <p className="text-xs text-center mt-2" style={{ color: T.textMuted }}>+{lockedList.length - 20} conquistas restantes</p>}
             </div>
