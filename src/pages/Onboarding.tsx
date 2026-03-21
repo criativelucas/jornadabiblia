@@ -176,7 +176,7 @@ const Onboarding = () => {
             onClick={handleFinish}
             className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
           >
-            Começar minha jornada 🌿
+            Começar minha jornada
           </button>
         )}
         {step > 1 && (

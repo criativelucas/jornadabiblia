@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CheckCircle2, XCircle, BookOpen, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, BookOpen, Zap, Trophy, Star } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 
 interface Question {

@@ -157,7 +157,7 @@ export default function AppSidebar({ activeSection, onNavigate, streak, avatarUr
               fontSize: "18px",
             }}
           >
-            {isDark ? "☀️" : "🌙"}
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           {/* Avatar */}
