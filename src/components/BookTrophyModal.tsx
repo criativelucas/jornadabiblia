@@ -209,7 +209,7 @@ const BookTrophyModal = ({
             onClick={handleContinue}
             className="w-full py-3 rounded-[10px] font-semibold text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
           >
-            Fazer o quiz 🧠
+            Fazer o quiz
           </button>
           <button
             onClick={handleClose}
