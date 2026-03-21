@@ -1,4 +1,4 @@
-import { BookOpen, ArrowLeft } from "lucide-react";
+import { BookOpen, ArrowLeft, Calendar, PenTool } from "lucide-react";
 import { useThemeContext, Eyebrow } from "@/contexts/ThemeContext";
 import { getBookSummary } from "@/data/bookSummaries";
 import type { BibleBook } from "@/data/bibleBooks";
