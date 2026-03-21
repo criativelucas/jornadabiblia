@@ -68,9 +68,8 @@ export function getBookName(abbrev: string): string {
   return ABBREV_TO_NAME[abbrev] || abbrev;
 }
 
-export function getBookEmoji(abbrev: string): string {
-  const idx = ABBREV_ORDER.indexOf(abbrev);
-  return idx >= 0 && bibleBooks[idx] ? bibleBooks[idx].emoji : '📖';
+export function getBookEmoji(_abbrev: string): string {
+  return '';
 }
 
 export function getBookCategory(abbrev: string): string {

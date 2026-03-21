@@ -25,8 +25,8 @@ export default function BookPanorama({ book, chaptersRead, onContinue, onBack }:
 
       {/* Hero */}
       <div className="flex flex-col items-center text-center gap-3 pt-2">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
-          {book.emoji}
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
+          <BookOpen size={28} style={{ color: T.accent }} />
         </div>
         <div>
           <h2 className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>{book.name}</h2>
