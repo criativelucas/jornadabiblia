@@ -225,8 +225,7 @@ const BookTrophyModal = ({
               }}
               className="w-full py-3 rounded-[10px] font-medium text-sm border border-border text-muted-foreground hover:bg-muted transition-all"
             >
-              Ver mapa mental 🗺️
-{" "}
+              <span className="flex items-center justify-center gap-1.5"><Map size={14} /> Ver mapa mental</span>
             </button>
           )}
           <button
