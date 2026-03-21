@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Award } from "lucide-react";
+import { BookOpen, Award, Zap, Map, Share2 } from "lucide-react";
 import { playBookComplete } from "@/utils/sounds";
 import { shareBookAchievement } from "@/utils/shareAchievement";
 import QuizModal from "@/components/QuizModal";
