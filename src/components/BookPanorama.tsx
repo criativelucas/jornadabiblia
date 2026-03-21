@@ -52,8 +52,8 @@ export default function BookPanorama({ book, chaptersRead, onContinue, onBack }:
             <Eyebrow accent>Panorama</Eyebrow>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: T.textPrimary }}>{summary.summary}</p>
             <div className="flex gap-3 mt-3 text-xs" style={{ color: T.textMuted }}>
-              <span>📅 {summary.period}</span>
-              <span>✍️ {summary.author}</span>
+              <span className="flex items-center gap-1"><Calendar size={11} /> {summary.period}</span>
+              <span className="flex items-center gap-1"><PenTool size={11} /> {summary.author}</span>
             </div>
           </div>
 

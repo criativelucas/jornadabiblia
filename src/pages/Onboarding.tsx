@@ -7,10 +7,10 @@ import PlanSelector from "@/components/PlanSelector";
 import { planOptions } from "@/data/planData";
 
 const OBJECTIVES = [
-  { value: "completo", label: "Ler a Bíblia completa", icon: BookOpen, emoji: "📖" },
-  { value: "fe", label: "Aprofundar minha fé", icon: Heart, emoji: "🙏" },
-  { value: "estudo", label: "Estudar livros específicos", icon: GraduationCap, emoji: "📚" },
-  { value: "habito", label: "Criar um hábito diário", icon: Sprout, emoji: "🌱" },
+  { value: "completo", label: "Ler a Bíblia completa", icon: BookOpen },
+  { value: "fe", label: "Aprofundar minha fé", icon: Heart },
+  { value: "estudo", label: "Estudar livros específicos", icon: GraduationCap },
+  { value: "habito", label: "Criar um hábito diário", icon: Sprout },
 ] as const;
 
 const TIME_OPTIONS = [5, 10, 15, 20, 30, 45, 60];
