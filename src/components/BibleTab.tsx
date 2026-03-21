@@ -200,7 +200,7 @@ export default function BibleTab() {
               className="p-4 text-left transition-all hover:opacity-90 flex items-center gap-3"
               style={clipCard}
             >
-              <span className="text-xl">{book.emoji}</span>
+              <BookOpen size={20} style={{ color: T.accent, flexShrink: 0 }} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate" style={{ color: T.textPrimary }}>{book.name}</p>
                 <p className="text-[10px]" style={{ color: T.textMuted }}>{book.chapters} capítulos</p>
