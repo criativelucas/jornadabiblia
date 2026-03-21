@@ -283,7 +283,7 @@ const Index = () => {
       eq("user_id", user.id);
     }
     const totalCh = getTotalChaptersForConfig(config);
-    toast.success(`Plano criado! Meta: ${Math.ceil(totalCh / Math.max(durationInDays, 1))} capítulos/dia 📖`);
+    toast.success(`Plano criado! Meta: ${Math.ceil(totalCh / Math.max(durationInDays, 1))} capítulos/dia`);
   };
 
   const [confirmModal, setConfirmModal] = useState<{
