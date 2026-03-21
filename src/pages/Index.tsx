@@ -465,9 +465,8 @@ const Index = () => {
 
   const heroState = useMemo(() => {
     if (readToday) return "done" as const;
-    if (recovery && recovery.behind >= 15) return "late" as const;
     return "pending" as const;
-  }, [readToday, recovery]);
+  }, [readToday]);
 
   const isLate = recovery && recovery.behind >= 15;
 
