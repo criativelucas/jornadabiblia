@@ -842,32 +842,32 @@ const Index = () => {
                         </div>
                       )}
 
-                      {/* ── BLOCO 4 — Status do Plano ── */}
+                      {/* ── BLOCO 4 — Status do Plano (always visible) ── */}
                       {planStartDate && (
                         <div style={{
                           borderRadius: "0.875rem", padding: "1rem 1.25rem",
                           background: T.card,
                           border: `1px solid ${T.border}`,
-                          borderLeft: `3px solid ${isLate ? "#f59e0b" : T.accent}`,
+                          borderLeft: `3px solid ${recovery && recovery.behind >= 15 ? "#f59e0b" : T.accent}`,
                           display: "flex", alignItems: "center", gap: "1rem",
                           marginBottom: "0.875rem",
                         }}>
                           <div style={{
                             width: "36px", height: "36px", borderRadius: "0.5rem", flexShrink: 0,
-                            background: isLate ? "rgba(245,158,11,0.1)" : T.accentDim,
+                            background: recovery && recovery.behind >= 15 ? "rgba(245,158,11,0.1)" : T.accentDim,
                             display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
-                            {isLate
+                            {recovery && recovery.behind >= 15
                               ? <Zap size={18} color="#f59e0b" />
                               : <CheckCircle size={18} color={T.accent} />}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <p style={{ fontWeight: 700, fontSize: "14px", color: T.textPrimary }}>
-                              {isLate ? "Plano recalibrado" : "Em dia com o plano!"}
+                              {recovery && recovery.behind >= 15 ? "Plano recalibrado" : "Em dia com o plano!"}
                             </p>
                             <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "1px" }}>
-                              {isLate
-                                ? `${recovery?.newDaily} caps/dia pelos próximos ${recovery?.remaining} dias`
+                              {recovery && recovery.behind >= 15
+                                ? `${recovery.newDaily} caps/dia pelos próximos ${recovery.remaining} dias`
                                 : `${daysRemaining ?? 0} dias restantes${dailyGoal ? ` · ${dailyGoal} cap${dailyGoal > 1 ? "s" : ""} para hoje` : ""}`}
                             </p>
                           </div>
