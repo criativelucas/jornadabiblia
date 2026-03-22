@@ -853,36 +853,141 @@ const Index = () => {
                         </div>
                       )}
 
-                      {/* ── BLOCO 4 — Status do Plano (always visible) ── */}
-                      {planStartDate && (
-                        <div style={{
-                          borderRadius: "0.875rem", padding: "1rem 1.25rem",
-                          background: T.card,
-                          border: `1px solid ${T.border}`,
-                          borderLeft: `3px solid ${recovery && recovery.behind >= 15 ? "#f59e0b" : T.accent}`,
-                          display: "flex", alignItems: "center", gap: "1rem",
-                          marginBottom: "0.875rem",
-                        }}>
+                      {/* ── BLOCO 4 — Status do Plano (3-section card) ── */}
+                      {planStartDate && planStatus && (
+                        planStatus.isComplete ? (
                           <div style={{
-                            width: "36px", height: "36px", borderRadius: "0.5rem", flexShrink: 0,
-                            background: recovery && recovery.behind >= 15 ? "rgba(245,158,11,0.1)" : T.accentDim,
-                            display: "flex", alignItems: "center", justifyContent: "center",
+                            borderRadius: "0.875rem", padding: "1.25rem", textAlign: "center",
+                            background: T.card, border: `1px solid ${T.borderAc}`,
+                            marginBottom: "0.875rem",
                           }}>
-                            {recovery && recovery.behind >= 15
-                              ? <Zap size={18} color="#f59e0b" />
-                              : <CheckCircle size={18} color={T.accent} />}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <p style={{ fontWeight: 700, fontSize: "14px", color: T.textPrimary }}>
-                              {recovery && recovery.behind >= 15 ? "Plano recalibrado" : "Em dia com o plano!"}
-                            </p>
-                            <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "1px" }}>
-                              {recovery && recovery.behind >= 15
-                                ? `${recovery.newDaily} caps/dia pelos próximos ${recovery.remaining} dias`
-                                : `${daysRemaining ?? 0} dias restantes${dailyGoal ? ` · ${dailyGoal} cap${dailyGoal > 1 ? "s" : ""} para hoje` : ""}`}
+                            <Trophy size={32} color={T.accent} style={{ margin: "0 auto 0.5rem" }} />
+                            <p style={{ fontWeight: 900, fontSize: "18px", color: T.textPrimary }}>Parabéns!</p>
+                            <p style={{ fontSize: "13px", color: T.textMuted, marginTop: "4px" }}>
+                              Você leu {planStatus.chaptersRead} capítulos e completou o plano!
                             </p>
                           </div>
-                        </div>
+                        ) : planStatus.isFinished ? (
+                          <div style={{
+                            borderRadius: "0.875rem", padding: "1.25rem", textAlign: "center",
+                            background: T.card, border: `1px solid ${T.border}`,
+                            borderLeft: "3px solid #f59e0b",
+                            marginBottom: "0.875rem",
+                          }}>
+                            <p style={{ fontWeight: 900, fontSize: "14px", color: T.textPrimary }}>Prazo encerrado</p>
+                            <p style={{ fontSize: "13px", color: T.textMuted, marginTop: "4px" }}>
+                              Você leu {Math.round((planStatus.chaptersRead / totalChaptersInPlan) * 100)}% da Bíblia — continue no seu ritmo!
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{
+                            borderRadius: "0.875rem",
+                            background: T.card,
+                            border: `1px solid ${T.border}`,
+                            borderLeft: `3px solid ${planStatus.isOnTrack || planStatus.isAhead ? T.accent : "#f59e0b"}`,
+                            overflow: "hidden",
+                            marginBottom: "0.875rem",
+                          }}>
+                            {/* Linha 1: status geral */}
+                            <div style={{
+                              padding: "0.875rem 1.25rem",
+                              display: "flex", alignItems: "center", gap: "0.75rem",
+                              borderBottom: `1px solid ${T.border}`,
+                            }}>
+                              <div style={{
+                                width: "32px", height: "32px", borderRadius: "8px", flexShrink: 0,
+                                background: planStatus.isOnTrack || planStatus.isAhead ? T.accentDim : "rgba(245,158,11,0.12)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}>
+                                {planStatus.isAhead
+                                  ? <TrendingUp size={16} color={T.accent} />
+                                  : planStatus.isOnTrack
+                                  ? <CheckCircle size={16} color={T.accent} />
+                                  : <Zap size={16} color="#f59e0b" />}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <p style={{ fontWeight: 900, fontSize: "14px", color: T.textPrimary, letterSpacing: "-0.02em" }}>
+                                  {planStatus.isAhead
+                                    ? "Você está adiantado!"
+                                    : planStatus.isOnTrack
+                                    ? "Em dia com o plano"
+                                    : "Plano recalibrado"}
+                                </p>
+                                <p style={{ fontSize: "11px", color: T.textMuted, marginTop: "1px" }}>
+                                  {planStatus.isAhead
+                                    ? `${planStatus.chaptersRead - planStatus.expectedByNow} capítulos à frente do esperado`
+                                    : planStatus.isOnTrack
+                                    ? `No ritmo certo para terminar em ${planStatus.daysRemain} dias`
+                                    : `${planStatus.chaptersLate} capítulos abaixo do esperado para hoje`}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Linha 2: progresso do tempo */}
+                            <div style={{ padding: "0.75rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                                <span style={{ fontSize: "10px", color: T.textMuted, fontWeight: 600 }}>
+                                  Dia {planStatus.daysElapsed} de {planStatus.totalPlanDays}
+                                </span>
+                                <span style={{ fontSize: "10px", color: T.textMuted, fontWeight: 600 }}>
+                                  {planStatus.daysRemain} dias restantes
+                                </span>
+                              </div>
+                              <div style={{ height: "4px", borderRadius: "9999px", background: T.card2, overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%", borderRadius: "9999px",
+                                  width: `${Math.min(100, (planStatus.daysElapsed / planStatus.totalPlanDays) * 100)}%`,
+                                  background: T.accent,
+                                  transition: "width 0.8s ease",
+                                }} />
+                              </div>
+                            </div>
+
+                            {/* Linha 3: ritmo necessário */}
+                            <div style={{
+                              padding: "0.75rem 1.25rem",
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                            }}>
+                              <div>
+                                <p style={{ fontSize: "10px", color: T.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                  Ritmo necessário
+                                </p>
+                                <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginTop: "2px" }}>
+                                  <span style={{
+                                    fontSize: "1.75rem", fontWeight: 900,
+                                    color: planStatus.isOnTrack || planStatus.isAhead ? T.accent : "#f59e0b",
+                                    letterSpacing: "-0.05em", lineHeight: 1,
+                                  }}>
+                                    {planStatus.capsPerDay}
+                                  </span>
+                                  <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>
+                                    caps/dia
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div style={{ width: "1px", height: "36px", background: T.border }} />
+
+                              <div style={{ textAlign: "right" }}>
+                                <p style={{ fontSize: "10px", color: T.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                  Restam ler
+                                </p>
+                                <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginTop: "2px", justifyContent: "flex-end" }}>
+                                  <span style={{
+                                    fontSize: "1.75rem", fontWeight: 900,
+                                    color: T.textPrimary,
+                                    letterSpacing: "-0.05em", lineHeight: 1,
+                                  }}>
+                                    {planStatus.chaptersRemaining}
+                                  </span>
+                                  <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>
+                                    capítulos
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
                       )}
 
                       {/* ── BLOCO 5 — Ação rápida ── */}
