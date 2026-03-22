@@ -128,18 +128,29 @@ const Index = () => {
     return 1189;
   }, [selectedPlan, customConfig]);
 
-  const recovery = useMemo(() => {
+  const planStatus = useMemo(() => {
     if (!planStartDate || activeDays.length === 0) return null;
     const start = new Date(planStartDate);
-    const elapsed = Math.floor((new Date().getTime() - start.getTime()) / 86400000);
-    if (elapsed <= 0 || elapsed >= activeDays.length) return null;
-    const expected = Math.round(elapsed / activeDays.length * totalChaptersInPlan);
-    const read = Math.round(completedDays.size / activeDays.length * totalChaptersInPlan);
-    const behind = expected - read;
-    if (behind < 15) return null;
-    const remaining = activeDays.length - elapsed;
-    return { behind, newDaily: Math.ceil((totalChaptersInPlan - read) / remaining), remaining };
+    const daysElapsed = Math.floor((new Date().getTime() - start.getTime()) / 86400000);
+    const totalPlanDays = activeDays.length;
+    const daysRemain = Math.max(1, totalPlanDays - daysElapsed);
+    const chaptersRead = Math.round(completedDays.size / totalPlanDays * totalChaptersInPlan);
+    const chaptersRemaining = Math.max(0, totalChaptersInPlan - chaptersRead);
+    const expectedByNow = daysElapsed <= 0 ? 0 : Math.floor((daysElapsed / totalPlanDays) * totalChaptersInPlan);
+    const chaptersLate = Math.max(0, expectedByNow - chaptersRead);
+    const capsPerDay = Math.ceil(chaptersRemaining / daysRemain);
+    const isFinished = daysElapsed >= totalPlanDays;
+    const isComplete = chaptersRemaining <= 0;
+    const isAhead = chaptersRead > expectedByNow;
+    const isOnTrack = chaptersLate === 0;
+    return { daysElapsed, totalPlanDays, daysRemain, chaptersRead, chaptersRemaining, expectedByNow, chaptersLate, capsPerDay, isFinished, isComplete, isAhead, isOnTrack };
   }, [completedDays, planStartDate, activeDays, totalChaptersInPlan]);
+
+  // Keep recovery for backward compat (RecoveryBanner etc)
+  const recovery = useMemo(() => {
+    if (!planStatus || planStatus.chaptersLate < 15) return null;
+    return { behind: planStatus.chaptersLate, newDaily: planStatus.capsPerDay, remaining: planStatus.daysRemain };
+  }, [planStatus]);
 
   useEffect(() => {
     setSelectedMonth(0);
