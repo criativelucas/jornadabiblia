@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { fetchTranslation, getTestament, VERSION_LABELS, type BibleVersion, type BibleBook as BibleDataBook } from "@/hooks/useBibleData";
 import { Skeleton } from "@/components/ui/skeleton";
 import BookPanorama from "@/components/BookPanorama";
+import QuizModal from "@/components/QuizModal";
+import StrongsPanel from "@/components/StrongsPanel";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 
@@ -28,6 +30,13 @@ export default function BibleTab() {
   const [version, setVersion] = useState<BibleVersion>("nvi");
   const [bibleData, setBibleData] = useState<BibleDataBook[] | null>(null);
   const [loadingBible, setLoadingBible] = useState(false);
+
+  // Quiz state
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizBookName, setQuizBookName] = useState("");
+
+  // Strong's panel state
+  const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
 
   useEffect(() => {
     setLoadingBible(true);
@@ -50,7 +59,6 @@ export default function BibleTab() {
 
   const handleSelectBook = async (book: typeof bibleBooks[0]) => {
     setSelectedBook(book);
-    // Count read chapters for this book
     let readCount = 0;
     if (user) {
       const { count } = await supabase
@@ -69,6 +77,7 @@ export default function BibleTab() {
     setSelectedChapter(ch);
     setView("reading");
     setMarkedRead(false);
+    setSelectedVerse(null);
     setLoadingText(true);
 
     const bookData = findBookData(selectedBook.name);
@@ -97,11 +106,48 @@ export default function BibleTab() {
         user_id: user.id,
         achievement_key: `chapter_${selectedBook.id}_${selectedChapter}`,
       }, { onConflict: 'user_id,achievement_key' });
-    toast.success(`${selectedBook.name} ${selectedChapter} marcado como lido! ✓`);
+
+    toast.success(`${selectedBook.name} ${selectedChapter} marcado como lido!`);
+
+    // Check if the entire book is now complete
+    const { count } = await supabase
+      .from("achievements")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .like("achievement_key", `chapter_${selectedBook.id}_%`);
+
+    const totalRead = count ?? 0;
+    setChaptersReadForBook(totalRead);
+
+    if (totalRead >= selectedBook.chapters) {
+      // Check if quiz was already done for this book
+      const { data: existingQuiz } = await supabase
+        .from("quiz_results")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("book_name", selectedBook.name)
+        .limit(1);
+
+      if (!existingQuiz || existingQuiz.length === 0) {
+        // Record book achievement
+        await supabase
+          .from("achievements")
+          .upsert({
+            user_id: user.id,
+            achievement_key: `book_${selectedBook.id}`,
+          }, { onConflict: 'user_id,achievement_key' });
+
+        // Show quiz after a short delay
+        setTimeout(() => {
+          setQuizBookName(selectedBook.name);
+          setShowQuiz(true);
+        }, 800);
+      }
+    }
   };
 
   const goBack = () => {
-    if (view === "reading") setView("chapters");
+    if (view === "reading") { setSelectedVerse(null); setView("chapters"); }
     else if (view === "chapters") setView("panorama");
     else if (view === "panorama") setView("books");
     else if (view === "books") setView("testament");
@@ -134,6 +180,11 @@ export default function BibleTab() {
       ))}
     </div>
   );
+
+  // Quiz modal
+  if (showQuiz && quizBookName) {
+    return <QuizModal bookName={quizBookName} onClose={() => { setShowQuiz(false); setQuizBookName(""); }} />;
+  }
 
   if (loadingBible && !bibleData) {
     return (
@@ -213,7 +264,7 @@ export default function BibleTab() {
     );
   }
 
-  // ── Panorama view (NEW)
+  // ── Panorama view
   if (view === "panorama" && selectedBook) {
     return (
       <div>
@@ -293,6 +344,11 @@ export default function BibleTab() {
           </div>
         </div>
 
+        {/* Hint: tap verse for Strong's */}
+        <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic" }}>
+          Toque em um versículo para abrir o Dicionário Strong
+        </p>
+
         {loadingText ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: T.accent }} />
@@ -304,7 +360,17 @@ export default function BibleTab() {
         ) : (
           <div className="p-5 leading-relaxed" style={{ ...clipCard, fontSize }}>
             {verses.map((v) => (
-              <span key={v.verse}>
+              <span
+                key={v.verse}
+                onClick={() => setSelectedVerse({ number: v.verse, text: v.text })}
+                style={{
+                  cursor: "pointer",
+                  borderRadius: selectedVerse?.number === v.verse ? "4px" : undefined,
+                  background: selectedVerse?.number === v.verse ? T.accentDim : undefined,
+                  padding: selectedVerse?.number === v.verse ? "2px 4px" : undefined,
+                  transition: "background 0.2s",
+                }}
+              >
                 <sup className="font-black mr-1" style={{ color: T.accent, fontSize: "0.65em" }}>{v.verse}</sup>
                 <span style={{ color: T.textPrimary }}>{v.text} </span>
               </span>
@@ -340,11 +406,26 @@ export default function BibleTab() {
           style={{ background: markedRead ? T.card2 : T.accent, color: markedRead ? T.textMuted : T.page, letterSpacing: "-0.02em" }}
         >
           {markedRead ? (
-            <span className="flex items-center justify-center gap-2"><Check size={18} /> Lido ✓</span>
+            <span className="flex items-center justify-center gap-2"><Check size={18} /> Lido</span>
           ) : (
             "Marcar como lido"
           )}
         </button>
+
+        {/* Strong's overlay */}
+        {selectedVerse && (
+          <>
+            <div
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99 }}
+              onClick={() => setSelectedVerse(null)}
+            />
+            <StrongsPanel
+              verse={selectedVerse}
+              bookTestament={selectedBook.testament}
+              onClose={() => setSelectedVerse(null)}
+            />
+          </>
+        )}
       </div>
     );
   }

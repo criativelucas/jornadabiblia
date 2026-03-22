@@ -16,93 +16,102 @@ export default function BookPanorama({ book, chaptersRead, onContinue, onBack }:
   const percent = book.chapters > 0 ? (chaptersRead / book.chapters) * 100 : 0;
 
   return (
-    <div className="space-y-5">
-      {/* Back */}
-      <button onClick={onBack} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
-        <ArrowLeft size={16} />
-        <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
-      </button>
+    <div style={{ position: "relative", minHeight: "calc(100vh - 8rem)" }}>
+      {/* Scrollable content */}
+      <div style={{ paddingBottom: "5rem" }} className="space-y-5">
+        {/* Back */}
+        <button onClick={onBack} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
+          <ArrowLeft size={16} />
+          <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
+        </button>
 
-      {/* Hero */}
-      <div className="flex flex-col items-center text-center gap-3 pt-2">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
-          <BookOpen size={28} style={{ color: T.accent }} />
-        </div>
+        {/* Title + meta */}
         <div>
-          <h2 className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>{book.name}</h2>
-          <p className="text-xs mt-1" style={{ color: T.textMuted }}>
-            {book.testament} · {book.chapters} capítulos · {book.category}
+          <p style={{ fontSize: "10px", fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            {book.testament} · {book.category}
           </p>
+          <h1 style={{ fontSize: "2.25rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.04em", lineHeight: 1, marginTop: "4px" }}>
+            {book.name}
+          </h1>
+          {summary && (
+            <p style={{ fontSize: "13px", color: T.textMuted, marginTop: "4px" }}>por {summary.author} · {summary.period}</p>
+          )}
         </div>
+
         {/* Progress */}
-        <div className="w-full max-w-xs">
-          <div style={{ background: T.card2, borderRadius: "9999px", height: "8px", overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: "9999px", width: `${percent}%`, background: T.accent, transition: "width 0.8s cubic-bezier(0.65,0.05,0,1)" }} />
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+            <span style={{ fontSize: "11px", color: T.textMuted, fontWeight: 600 }}>Progresso</span>
+            <span style={{ fontSize: "11px", color: T.accent, fontWeight: 700 }}>{chaptersRead}/{book.chapters} capítulos</span>
           </div>
-          <p style={{ color: T.textMuted, fontSize: "11px", marginTop: "4px" }}>
-            {chaptersRead} de {book.chapters} capítulos lidos
-          </p>
+          <div style={{ height: "6px", borderRadius: "9999px", background: T.card2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${percent}%`, background: T.accent, borderRadius: "9999px", transition: "width 0.8s ease" }} />
+          </div>
         </div>
+
+        {summary && (
+          <>
+            {/* Summary — ABOVE the button */}
+            <div style={{ borderRadius: "0.875rem", padding: "1rem", background: T.card, border: `1px solid ${T.border}` }}>
+              <p style={{ fontSize: "14px", color: T.textPrimary, lineHeight: 1.65 }}>
+                {summary.summary}
+              </p>
+            </div>
+
+            {/* Themes */}
+            <div>
+              <Eyebrow accent>Temas Principais</Eyebrow>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {summary.themes.map(t => (
+                  <span key={t} style={{ borderRadius: "9999px", padding: "4px 12px", fontSize: "11px", fontWeight: 700, background: T.accentDim, color: T.accent, border: `1px solid ${T.borderAc}` }}>
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Characters */}
+            <div>
+              <Eyebrow accent>Personagens</Eyebrow>
+              <p className="text-sm mt-2" style={{ color: T.textMuted }}>
+                {summary.characters.join(" · ")}
+              </p>
+            </div>
+
+            {/* Key Verse */}
+            <div style={{ borderRadius: "0.875rem", padding: "1rem", background: T.card2, borderLeft: `3px solid ${T.accent}` }}>
+              <p style={{ color: T.textPrimary, fontStyle: "italic", fontSize: "14px", lineHeight: 1.6 }}>
+                "{summary.keyVerse}"
+              </p>
+              <p style={{ color: T.accent, fontSize: "11px", fontWeight: 700, marginTop: "6px" }}>
+                — {summary.keyVerseRef}
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
-      {summary && (
-        <>
-          {/* Panorama */}
-          <div>
-            <Eyebrow accent>Panorama</Eyebrow>
-            <p className="text-sm mt-2 leading-relaxed" style={{ color: T.textPrimary }}>{summary.summary}</p>
-            <div className="flex gap-3 mt-3 text-xs" style={{ color: T.textMuted }}>
-              <span className="flex items-center gap-1"><Calendar size={11} /> {summary.period}</span>
-              <span className="flex items-center gap-1"><PenTool size={11} /> {summary.author}</span>
-            </div>
-          </div>
-
-          {/* Themes */}
-          <div>
-            <Eyebrow accent>Temas Principais</Eyebrow>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {summary.themes.map(t => (
-                <span key={t} style={{ borderRadius: "9999px", padding: "4px 12px", fontSize: "11px", fontWeight: 700, background: T.accentDim, color: T.accent, border: `1px solid ${T.borderAc}` }}>
-                  {t}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Characters */}
-          <div>
-            <Eyebrow accent>Personagens</Eyebrow>
-            <p className="text-sm mt-2" style={{ color: T.textPrimary }}>
-              {summary.characters.join(" · ")}
-            </p>
-          </div>
-
-          {/* Key Verse */}
-          <div style={{ borderRadius: "0.875rem", padding: "1rem", background: T.card2, borderLeft: `3px solid ${T.accent}` }}>
-            <p style={{ color: T.textPrimary, fontStyle: "italic", fontSize: "14px", lineHeight: 1.6 }}>
-              "{summary.keyVerse}"
-            </p>
-            <p style={{ color: T.accent, fontSize: "11px", fontWeight: 700, marginTop: "6px" }}>
-              — {summary.keyVerseRef}
-            </p>
-          </div>
-        </>
-      )}
-
-      {/* CTA */}
-      <button
-        onClick={onContinue}
-        style={{
-          width: "100%", padding: "1rem",
-          background: T.accent, color: T.page,
-          fontWeight: 900, fontSize: "15px",
-          border: "none", borderRadius: "0.875rem",
-          clipPath: "polygon(0 0, calc(100% - 0.75rem) 0, 100% 0.75rem, 100% 100%, 0 100%)",
-          cursor: "pointer", letterSpacing: "-0.02em",
-        }}
-      >
-        Ler Capítulos →
-      </button>
+      {/* Fixed bottom CTA */}
+      <div style={{
+        position: "sticky", bottom: 0, left: 0, right: 0,
+        padding: "1rem 0",
+        paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
+        background: `linear-gradient(to top, ${T.page} 80%, transparent)`,
+      }}>
+        <button
+          onClick={onContinue}
+          style={{
+            width: "100%", padding: "1rem",
+            background: T.accent, color: T.page,
+            fontWeight: 900, fontSize: "15px",
+            border: "none", borderRadius: "0.875rem",
+            clipPath: "polygon(0 0, calc(100% - 0.75rem) 0, 100% 0.75rem, 100% 100%, 0 100%)",
+            cursor: "pointer", letterSpacing: "-0.02em",
+          }}
+        >
+          Ler Capítulos →
+        </button>
+      </div>
     </div>
   );
 }
