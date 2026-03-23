@@ -421,6 +421,8 @@ export default function BibleTab() {
             />
             <StrongsPanel
               verse={selectedVerse}
+              bookId={selectedBook.id}
+              chapter={selectedChapter}
               bookTestament={selectedBook.testament}
               onClose={() => setSelectedVerse(null)}
             />
