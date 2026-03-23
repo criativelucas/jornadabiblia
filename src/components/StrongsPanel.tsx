@@ -165,7 +165,7 @@ export default function StrongsPanel({ verse, bookTestament, onClose }: Props) {
         {!searched && (
           <div style={{ borderRadius: "0.875rem", padding: "0.875rem", background: T.page, border: `1px solid ${T.border}` }}>
             <p style={{ fontSize: "11px", color: T.textMuted, lineHeight: 1.6 }}>
-              <BookOpen size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px", color: T.accent }} />
+              <BookOpen size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px", color: T.accent }} />{" "}
               <strong style={{ color: T.textPrimary }}>Como usar:</strong> Digite o número Strong com o prefixo ({lang === "hebrew" ? "H para hebraico, ex: H430 = Elohim" : "G para grego, ex: G3056 = Logos"}) ou a transliteração da palavra em inglês.
             </p>
           </div>
