@@ -6,9 +6,7 @@ import {
   ArrowLeft,
   Flame,
   BookOpen,
-  Trophy,
   Calendar,
-  Lock,
   Camera,
   Bell,
   BellOff,
@@ -17,7 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useThemeContext, ThemeToggle, Eyebrow } from "@/contexts/ThemeContext";
+import { useThemeContext, ThemeToggle } from "@/contexts/ThemeContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProfileData {
@@ -35,26 +33,41 @@ interface DayReading { read_date: string; }
 interface QuizResult { bonus_points: number; completed_at: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const TOTAL_BIBLE_CHAPTERS = 1189;
+
 const TIME_GROUPS = [
   { label: "Manhã", times: ["05:00","05:30","06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00"] },
   { label: "Tarde", times: ["12:00","18:00"] },
   { label: "Noite", times: ["19:00","20:00","21:00","22:00"] },
 ];
+
 function reminderMessage(time: string) {
   const h = parseInt(time);
   if (h < 12) return "Bom dia! Que tal começar o dia na Palavra?";
   if (h < 18) return "Pausa para a leitura bíblica de hoje.";
   return "Antes de dormir, um capítulo te espera.";
 }
+
 function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (6 - i));
     return d.toISOString().split("T")[0];
   });
 }
+
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function getToday() { return new Date().toISOString().split("T")[0]; }
+
+function getLevel(streak: number): string {
+  if (streak === 0) return "✦ Iniciante";
+  if (streak < 7) return "✦ Semente";
+  if (streak < 14) return "✦✦ Muda";
+  if (streak < 30) return "✦✦ Crescendo";
+  if (streak < 60) return "✦✦✦ Raízes";
+  if (streak < 100) return "✦✦✦ Árvore";
+  return "✦✦✦✦ Floresta";
+}
 
 // ─── CropModal ────────────────────────────────────────────────────────────────
 function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (blob: Blob) => void; onCancel: () => void }) {
@@ -169,20 +182,20 @@ export default function Profile() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-save name states
   const [savingName, setSavingName] = useState(false);
   const [savedName, setSavedName] = useState(false);
 
   const [chartMode, setChartMode] = useState<"week" | "month">("week");
   const [readingDays, setReadingDays] = useState<string[]>([]);
+  const [readCountByDate, setReadCountByDate] = useState<Record<string, number>>({});
   const [totalChapters, setTotalChapters] = useState(0);
-  const [quizPoints, setQuizPoints] = useState(0);
 
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("20:00");
   const [savingReminder, setSavingReminder] = useState(false);
 
   const today = getToday();
+  const bibleProgress = totalChapters / TOTAL_BIBLE_CHAPTERS;
 
   useEffect(() => {
     if (!user) return;
@@ -198,15 +211,14 @@ export default function Profile() {
       }
       const { data: days } = await supabase.from("completed_days").select("read_date").eq("user_id", user.id).not("read_date", "is", null);
       if (days) {
-        setReadingDays((days as DayReading[]).map((d) => d.read_date));
+        const dates = (days as DayReading[]).map((d) => d.read_date);
+        setReadingDays(dates);
         setTotalChapters(days.length);
+        // Count chapters per date
+        const counts: Record<string, number> = {};
+        dates.forEach((d) => { counts[d] = (counts[d] ?? 0) + 1; });
+        setReadCountByDate(counts);
       }
-      const now = new Date();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-      monday.setHours(0, 0, 0, 0);
-      const { data: qr } = await supabase.from("quiz_results").select("bonus_points, completed_at").eq("user_id", user.id).gte("completed_at", monday.toISOString());
-      if (qr) setQuizPoints((qr as QuizResult[]).reduce((s, r) => s + (r.bonus_points ?? 0), 0));
     })();
   }, [user]);
 
@@ -224,28 +236,27 @@ export default function Profile() {
     return () => clearTimeout(timer);
   }, [displayName, user, profile]);
 
-  // ── Week chart data
+  // Week chart data with proportional counts
   const weekData = useMemo(() => {
     const days = getLast7Days();
-    const set = new Set(readingDays);
     return days.map((date) => {
       const d = new Date(date + "T12:00:00");
-      return { date, label: DAY_LABELS[d.getDay()], read: set.has(date) };
+      return { date, label: DAY_LABELS[d.getDay()], count: readCountByDate[date] ?? 0 };
     });
-  }, [readingDays]);
+  }, [readCountByDate]);
 
-  // ── Month calendar data
+  const maxWeekCount = useMemo(() => Math.max(...weekData.map(d => d.count), 1), [weekData]);
+
+  // Month calendar data
   const monthCalendar = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
-    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const readSet = new Set(readingDays);
     return { year, month, firstDay, daysInMonth, readSet };
   }, [readingDays]);
-
-  const readCount = weekData.filter((d) => d.read).length;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -255,6 +266,7 @@ export default function Profile() {
     reader.readAsDataURL(file);
     e.target.value = "";
   };
+
   const handleCropConfirm = async (blob: Blob) => {
     if (!user) return;
     setCropSrc(null);
@@ -284,6 +296,7 @@ export default function Profile() {
     setSavingReminder(false);
     toast.success(newVal ? "Lembrete ativado!" : "Lembrete desativado.");
   };
+
   const handleSaveTime = async (t: string) => {
     if (!user) return;
     setReminderTime(t);
@@ -296,126 +309,156 @@ export default function Profile() {
     navigate("/auth");
   };
 
-  const clipCard = {
-    background: T.card,
-    border: `1px solid ${T.border}`,
-    borderRadius: "1.25rem",
-    clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
-  };
   const gridCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
     borderRadius: "0.875rem",
   };
 
+  const streak = profile?.streak ?? 0;
+  const longestStreak = profile?.longest_streak ?? 0;
+  const progressRadius = 38;
+  const progressCircumference = 2 * Math.PI * progressRadius;
+  const progressOffset = progressCircumference * (1 - bibleProgress);
+
   return (
-    <div className="min-h-screen pb-28 relative overflow-x-hidden transition-colors duration-500" style={{ background: T.page }}>
+    <div className="min-h-screen pb-28 relative overflow-x-hidden transition-colors duration-500 page-enter" style={{ background: T.page }}>
       {isDark && (
         <div className="pointer-events-none fixed inset-0 z-10" style={{ background: "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)" }} />
       )}
 
       {cropSrc && <CropModal src={cropSrc} onConfirm={handleCropConfirm} onCancel={() => setCropSrc(null)} />}
 
-      {/* ── Header ────────────────────────────────────── */}
-      <div className="px-5 pt-12 pb-4">
-        <div className="flex items-center justify-between mb-4">
+      {/* ── HERO SECTION ──────────────────────────────────── */}
+      <div className="relative overflow-hidden" style={{ background: T.card, borderBottom: `1px solid ${T.border}` }}>
+        {/* Glow background */}
+        {isDark && (
+          <div className="absolute pointer-events-none" style={{
+            width: "200px", height: "200px", top: "-60px", right: "-40px",
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${T.accentGlow} 0%, transparent 70%)`,
+            filter: "blur(40px)",
+          }} />
+        )}
+
+        {/* Back + Theme */}
+        <div className="px-5 pt-12 pb-2 flex items-center justify-between relative z-20">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ color: T.textMuted }}>
             <ArrowLeft size={16} />
             <span className="text-xs font-bold uppercase tracking-widest">Voltar</span>
           </button>
           <ThemeToggle />
         </div>
-        <h1 className="text-3xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>Perfil</h1>
-        <p className="text-sm mt-1" style={{ color: T.textMuted }}>{displayName}</p>
-      </div>
 
-      <div className="px-5 flex flex-col gap-4 relative z-0">
-        {/* ── Avatar + name ──────────────────────────────── */}
-        <div className="relative p-6 flex flex-col items-center gap-5 transition-colors duration-500" style={clipCard}>
-          <div className="absolute top-0 right-0 pointer-events-none" style={{ width: "2rem", height: "2rem", borderTop: `1.5px solid ${T.accent}`, borderRight: `1.5px solid ${T.accent}` }} />
-
-          <div className="relative">
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="relative group block">
-              <div className="w-24 h-24 rounded-full overflow-hidden" style={{ border: `3px solid ${T.accent}`, boxShadow: `0 0 28px ${T.accentGlow}` }}>
+        {/* Avatar + Info */}
+        <div className="px-5 pb-6 flex items-center gap-5 relative z-20">
+          {/* Avatar with progress ring */}
+          <div className="relative shrink-0">
+            <svg width="88" height="88" viewBox="0 0 88 88">
+              <circle cx="44" cy="44" r={progressRadius} fill="none" stroke={T.card2} strokeWidth="4" />
+              <circle
+                cx="44" cy="44" r={progressRadius} fill="none"
+                stroke={T.accent} strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={progressCircumference}
+                strokeDashoffset={progressOffset}
+                transform="rotate(-90 44 44)"
+                style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.65,0.05,0,1)" }}
+              />
+            </svg>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute group block"
+              style={{ top: "8px", left: "8px", width: "72px", height: "72px" }}
+            >
+              <div className="w-full h-full rounded-full overflow-hidden" style={{ border: `2px solid ${T.accent}` }}>
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" onError={() => setAvatarUrl(null)} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl font-black" style={{ background: T.accentDim, color: T.accent }}>
-                    {displayName?.[0]?.toUpperCase() ?? "?"}
+                  <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${T.accentDim}, ${T.card2})` }}>
+                    <span style={{ fontSize: "1.75rem", fontWeight: 900, color: T.accent }}>
+                      {displayName?.[0]?.toUpperCase() ?? "J"}
+                    </span>
                   </div>
                 )}
               </div>
-              <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.55)" }}>
-                {uploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera size={20} color="white" />}
+              {/* Camera overlay on hover */}
+              <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.5)" }}>
+                {uploading ? <Loader size={16} color="white" className="animate-spin" /> : <Camera size={16} color="white" />}
               </div>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>
 
-          {/* Name — auto-save */}
-          <div className="w-full">
-            <Eyebrow>Nome de exibição</Eyebrow>
-            <div className="relative mt-2">
+          {/* Name + Streak */}
+          <div className="flex-1 min-w-0">
+            {/* Inline editable name */}
+            <div className="relative">
               <input
                 value={displayName}
                 onChange={(e) => { setDisplayName(e.target.value); setSavedName(false); }}
-                className="w-full px-4 py-3 text-sm outline-none transition-all"
                 style={{
-                  borderRadius: "0.875rem",
-                  background: T.card2,
+                  fontSize: "1.5rem", fontWeight: 900, letterSpacing: "-0.04em",
                   color: T.textPrimary,
-                  border: `1.5px solid ${savingName ? T.borderAc : savedName ? T.accent : T.border}`,
-                  paddingRight: "2.5rem",
-                  fontSize: "15px",
-                  fontWeight: 600,
+                  background: "transparent", border: "none", outline: "none",
+                  width: "100%", padding: 0,
+                  borderBottom: `1px solid ${savingName ? T.accent : savedName ? T.accent : "transparent"}`,
+                  transition: "border-color 0.2s",
                 }}
                 placeholder="Seu nome"
               />
-              <div style={{ position: "absolute", right: "0.875rem", top: "50%", transform: "translateY(-50%)" }}>
-                {savingName && <Loader size={14} style={{ color: T.textMuted }} className="animate-spin" />}
-                {savedName && <Check size={14} style={{ color: T.accent }} />}
+              <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                {savingName && <Loader size={12} style={{ color: T.textMuted }} className="animate-spin" />}
+                {savedName && <Check size={12} style={{ color: T.accent }} />}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* ── Streak card — current + record ─────────────── */}
-        <div style={{ ...gridCard, padding: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Sequência atual</p>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px" }}>
-              <span style={{ fontSize: "3rem", fontWeight: 900, color: T.accent, letterSpacing: "-0.05em", lineHeight: 1 }}>
-                {profile?.streak ?? 0}
+            {/* Streak pill + Level */}
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full" style={{ background: T.accentDim, border: `1px solid ${T.borderAc}` }}>
+                <Flame size={12} color={T.accent} />
+                <span style={{ fontSize: "12px", fontWeight: 900, color: T.accent }}>{streak} dias</span>
+              </div>
+              <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, letterSpacing: "0.04em" }}>
+                {getLevel(streak)}
               </span>
-              <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
-            </div>
-          </div>
-          <div style={{ width: "1px", height: "48px", background: T.border }} />
-          <div style={{ textAlign: "right" }}>
-            <p style={{ color: T.textMuted, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Recorde</p>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "4px", justifyContent: "flex-end" }}>
-              <span style={{ fontSize: "2rem", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
-                {profile?.longest_streak ?? 0}
-              </span>
-              <span style={{ fontSize: "12px", color: T.textMuted, fontWeight: 600 }}>dias</span>
             </div>
           </div>
         </div>
 
-        {/* ── Stats row ─────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-5 flex flex-col gap-1 transition-colors duration-500" style={{ background: T.accent, borderRadius: "1.25rem", clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)" }}>
-            <BookOpen size={18} color={T.page} />
-            <p className="text-4xl font-black mt-1" style={{ color: T.page, letterSpacing: "-0.05em", lineHeight: 1 }}>{totalChapters}</p>
-            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: `${T.page}99` }}>capítulos lidos</p>
+        {/* Bible progress bar */}
+        <div className="px-5 pb-5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em" }}>Progresso na Bíblia</span>
+            <span style={{ fontSize: "10px", fontWeight: 900, color: T.accent }}>{Math.round(bibleProgress * 100)}%</span>
           </div>
-          <div className="p-5 relative overflow-hidden transition-colors duration-500" style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: "1.25rem" }}>
-            <Trophy size={18} color={T.accent} />
-            <p className="text-4xl font-black mt-1" style={{ color: T.textPrimary, letterSpacing: "-0.05em", lineHeight: 1 }}>
-              {(readCount * 10 + quizPoints).toLocaleString()}
-            </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: T.textMuted }}>pontos semanais</p>
+          <div style={{ height: "5px", borderRadius: "9999px", background: T.card2, overflow: "hidden" }}>
+            <div className="progress-shimmer" style={{ height: "100%", width: `${bibleProgress * 100}%`, background: T.accent, borderRadius: "9999px", transition: "width 0.8s ease" }} />
           </div>
+          <p style={{ fontSize: "10px", color: T.textDim, marginTop: "4px" }}>
+            {totalChapters} capítulos lidos de {TOTAL_BIBLE_CHAPTERS}
+          </p>
+        </div>
+      </div>
+
+      <div className="px-5 flex flex-col gap-4 mt-4 relative z-0">
+        {/* ── STATS — 3 unique numbers ─────────────────────── */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { value: `${Math.round(bibleProgress * 100)}%`, label: "da Bíblia", color: T.accent },
+            { value: totalChapters.toString(), label: "capítulos", color: T.textPrimary },
+            { value: longestStreak.toString(), label: "recorde 🔥", color: T.textPrimary },
+          ].map((s, i) => (
+            <div key={i} className="p-4 flex flex-col items-center gap-1" style={gridCard}>
+              <span style={{ fontSize: "1.75rem", fontWeight: 900, color: s.color, letterSpacing: "-0.04em", lineHeight: 1 }}>
+                {s.value}
+              </span>
+              <span style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {s.label}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* ── Chart ─────────────────────────────────────── */}
@@ -443,18 +486,23 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* WEEK mode */}
+          {/* WEEK mode — proportional bars */}
           {chartMode === "week" && (
             <div style={{ display: "flex", gap: "6px", height: "80px", alignItems: "flex-end" }}>
               {weekData.map((d, i) => {
                 const isToday = d.date === today;
+                const heightPct = d.count > 0 ? Math.max(20, (d.count / maxWeekCount) * 100) : 10;
                 return (
                   <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                    {/* Count label */}
+                    {d.count > 0 && (
+                      <span style={{ fontSize: "9px", fontWeight: 900, color: T.accent, lineHeight: 1 }}>{d.count}</span>
+                    )}
                     <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
                       <div style={{
                         width: "100%", borderRadius: "4px 4px 0 0",
-                        height: d.read ? "100%" : "12%",
-                        background: isToday ? T.accent : d.read ? `${T.accent}99` : T.card2,
+                        height: `${heightPct}%`,
+                        background: isToday ? T.accent : d.count > 0 ? `${T.accent}99` : T.card2,
                         transition: "height 0.5s cubic-bezier(0.65,0.05,0,1)",
                         position: "relative",
                       }}>
