@@ -412,21 +412,15 @@ export default function BibleTab() {
           )}
         </button>
 
-        {/* Strong's overlay */}
+        {/* Strong's modal */}
         {selectedVerse && (
-          <>
-            <div
-              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99 }}
-              onClick={() => setSelectedVerse(null)}
-            />
-            <StrongsPanel
-              verse={selectedVerse}
-              bookId={selectedBook.id}
-              chapter={selectedChapter}
-              bookTestament={selectedBook.testament}
-              onClose={() => setSelectedVerse(null)}
-            />
-          </>
+          <StrongsPanel
+            verse={selectedVerse}
+            bookId={selectedBook.id}
+            chapter={selectedChapter}
+            bookTestament={selectedBook.testament}
+            onClose={() => setSelectedVerse(null)}
+          />
         )}
       </div>
     );
