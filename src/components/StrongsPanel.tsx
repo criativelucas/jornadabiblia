@@ -97,10 +97,15 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay with blur */}
       <div
         onClick={onClose}
-        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 99 }}
+        style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(0,0,0,0.7)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+        }}
       />
 
       {/* Centered modal */}
@@ -109,19 +114,18 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           position: "fixed",
           top: "50%", left: "50%",
           transform: "translate(-50%, -50%)",
-          zIndex: 100,
-          width: "calc(100% - 2rem)",
-          maxWidth: "420px",
-          maxHeight: "80vh",
+          zIndex: 101,
+          width: "min(480px, calc(100vw - 2rem))",
+          maxHeight: "82vh",
           background: T.card,
           borderRadius: "1.25rem",
           border: `1px solid ${T.border}`,
           display: "flex",
           flexDirection: "column",
-          boxShadow: `0 20px 60px ${T.shadow}`,
+          boxShadow: `0 32px 80px rgba(0,0,0,0.5)`,
           overflow: "hidden",
         }}
-        className="animate-scale-in"
+        className="page-enter"
       >
         {/* Header */}
         <div className="flex items-center justify-between shrink-0" style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
@@ -129,39 +133,55 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             <p style={{ fontSize: "10px", fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Dicionário Strong · {bookTestament === "AT" ? "Hebraico" : "Grego"}
             </p>
-            <p style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary, marginTop: "1px" }}>
+            <p style={{ fontSize: "15px", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.02em", marginTop: "2px" }}>
               Versículo {verse.number}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: T.card2, border: "none", borderRadius: "9999px", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <button onClick={onClose} style={{
+            width: "32px", height: "32px", borderRadius: "9999px",
+            background: T.card2, border: `1px solid ${T.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", flexShrink: 0,
+          }}>
             <X size={14} color={T.textMuted} />
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div style={{ overflowY: "auto", flex: 1, padding: "1rem 1.25rem" }}>
+        <div style={{ overflowY: "auto", flex: 1, padding: "1.25rem" }}>
           {/* Verse text */}
           <div style={{ borderRadius: "0.75rem", padding: "0.875rem", background: T.card2, borderLeft: `3px solid ${T.accent}`, marginBottom: "1.25rem" }}>
             <p style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.7 }}>{verse.text}</p>
           </div>
 
           {/* Original words chips */}
-          {loadingWords ? (
-            <div style={{ marginBottom: "1.25rem" }}>
-              <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
-                Palavras originais
-              </p>
+          <div style={{ marginBottom: "1.25rem" }}>
+            <p style={{
+              fontSize: "10px", fontWeight: 700, color: T.textMuted,
+              textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px",
+            }}>
+              {loadingWords
+                ? "Carregando palavras originais..."
+                : words.length > 0
+                ? "Toque em uma palavra para ver a definição"
+                : "Palavras indisponíveis — use busca manual"}
+            </p>
+
+            {/* Skeleton loading */}
+            {loadingWords && (
               <div className="flex flex-wrap gap-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="skeleton-shimmer" style={{ width: "52px", height: "48px", borderRadius: "0.625rem" }} />
+                {[52, 64, 48, 72, 56].map((w, i) => (
+                  <div key={i} style={{
+                    width: `${w}px`, height: "56px", borderRadius: "0.75rem",
+                    background: T.card2, opacity: 0.6,
+                    animation: "pulse 1.5s ease-in-out infinite",
+                  }} />
                 ))}
               </div>
-            </div>
-          ) : words.length > 0 ? (
-            <div style={{ marginBottom: "1.25rem" }}>
-              <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
-                Toque em uma palavra para ver a definição
-              </p>
+            )}
+
+            {/* Word chips */}
+            {!loadingWords && words.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {words.map((w, i) => {
                   const isSelected = selectedWord?.strongs === w.strongs && selectedWord?.word === w.word;
@@ -170,77 +190,106 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
                       key={`${w.strongs}-${i}`}
                       onClick={() => handleWordClick(w)}
                       style={{
-                        padding: "8px 12px",
+                        padding: "8px 10px",
                         borderRadius: "0.75rem",
                         background: isSelected ? T.accentDim : T.card2,
                         border: `1.5px solid ${isSelected ? T.accent : T.border}`,
                         cursor: "pointer",
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
+                        display: "flex", flexDirection: "column",
+                        alignItems: "center", gap: "4px",
                         transition: "all 0.15s",
-                        minWidth: "52px",
+                        minWidth: "48px",
                       }}
                     >
                       <span style={{
-                        fontSize: bookTestament === "AT" ? "17px" : "14px",
+                        fontSize: bookTestament === "AT" ? "19px" : "15px",
+                        fontWeight: 600, lineHeight: 1.2,
                         color: isSelected ? T.accent : T.textPrimary,
-                        fontWeight: 700,
                         direction: bookTestament === "AT" ? "rtl" : "ltr",
-                        lineHeight: 1.2,
+                        letterSpacing: "0.02em",
                       }}>
                         {w.word}
                       </span>
-                      <span style={{ fontSize: "9px", fontWeight: 700, color: T.textMuted, letterSpacing: "0.04em" }}>
+                      <span style={{
+                        fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
+                        color: isSelected ? T.accent : T.textDim,
+                      }}>
                         {w.strongs}
                       </span>
                     </button>
                   );
                 })}
               </div>
-            </div>
-          ) : (
-            <div style={{ marginBottom: "1.25rem", padding: "1rem", borderRadius: "0.75rem", background: T.card2, textAlign: "center" }}>
-              <p style={{ fontSize: "12px", color: T.textMuted }}>
-                Palavras originais não disponíveis para este versículo.
-              </p>
-              <p style={{ fontSize: "11px", color: T.textDim, marginTop: "4px" }}>
-                Use a busca manual abaixo.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Manual search — always visible */}
+          <div style={{ marginBottom: "1.25rem" }}>
+            <p style={{
+              fontSize: "10px", fontWeight: 700, color: T.textMuted,
+              textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px",
+            }}>
+              Busca direta por número
+            </p>
+            <ManualSearch testament={bookTestament} />
+          </div>
 
           {/* Loading definition */}
           {loadingDef && (
-            <div className="flex items-center gap-2 mb-4">
-              <Loader2 size={14} color={T.accent} className="animate-spin" />
-              <span style={{ fontSize: "12px", color: T.textMuted }}>Buscando definição...</span>
+            <div className="flex items-center gap-2 mb-4" style={{
+              borderRadius: "0.875rem", background: T.card2,
+              padding: "1.25rem",
+            }}>
+              <div style={{
+                width: "16px", height: "16px", borderRadius: "9999px",
+                border: `2px solid ${T.accent}`, borderTopColor: "transparent",
+                animation: "spin 0.7s linear infinite", flexShrink: 0,
+              }} />
+              <span style={{ fontSize: "13px", color: T.textMuted }}>
+                Buscando definição de {selectedWord?.strongs}...
+              </span>
             </div>
           )}
 
           {/* Definition card */}
           {definition && !loadingDef && (
-            <div style={{ borderRadius: "0.875rem", background: T.card2, border: `1px solid ${T.borderAc}`, overflow: "hidden", marginBottom: "1rem" }}>
-              <div className="flex items-start justify-between" style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ borderRadius: "0.875rem", border: `1px solid ${T.borderAc}`, overflow: "hidden", marginBottom: "1rem" }}>
+              {/* Header with lemma */}
+              <div className="flex items-start justify-between" style={{
+                padding: "1rem 1.25rem",
+                background: T.accentDim,
+                borderBottom: `1px solid ${T.borderAc}`,
+              }}>
                 <div>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, letterSpacing: "0.06em" }}>{definition.strongs_num}</span>
-                  <p style={{
-                    fontSize: definition.language === "hebrew" ? "2rem" : "1.75rem",
-                    color: T.textPrimary, fontWeight: 900, marginTop: "2px",
-                    direction: definition.language === "hebrew" ? "rtl" : "ltr",
-                    letterSpacing: "0.03em", lineHeight: 1,
-                  }}>
-                    {definition.lemma}
-                  </p>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, letterSpacing: "0.06em" }}>
+                    {definition.strongs_num}
+                  </span>
+                  {definition.lemma && (
+                    <p style={{
+                      fontSize: definition.language === "hebrew" ? "2rem" : "1.75rem",
+                      fontWeight: 900, color: T.textPrimary,
+                      marginTop: "4px", lineHeight: 1,
+                      direction: definition.language === "hebrew" ? "rtl" : "ltr",
+                    }}>
+                      {definition.lemma}
+                    </p>
+                  )}
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ fontSize: "13px", color: T.textMuted, fontStyle: "italic" }}>{definition.xlit}</p>
-                  <p style={{ fontSize: "11px", color: T.textDim, marginTop: "2px" }}>{definition.pronunciation}</p>
+                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "1rem" }}>
+                  {definition.xlit && (
+                    <p style={{ fontSize: "14px", color: T.textMuted, fontStyle: "italic" }}>{definition.xlit}</p>
+                  )}
+                  {definition.pronunciation && (
+                    <p style={{ fontSize: "11px", color: T.textDim, marginTop: "3px" }}>/{definition.pronunciation}/</p>
+                  )}
                 </div>
               </div>
 
+              {/* Definition text */}
               {definition.definition && (
                 <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
                   <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>
-                    Definição
+                    Definição Strong's
                   </p>
                   <p
                     style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.65 }}
@@ -249,6 +298,7 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
                 </div>
               )}
 
+              {/* KJV usage */}
               {definition.kjv_usage && (
                 <div style={{ padding: "0.75rem 1.25rem" }}>
                   <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
@@ -262,19 +312,15 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
 
           {/* Not found */}
           {!loadingDef && selectedWord && !definition && (
-            <p style={{ fontSize: "12px", color: T.textMuted, textAlign: "center", marginBottom: "1rem" }}>
-              Definição não encontrada para "{selectedWord.strongs}"
-            </p>
+            <div style={{
+              borderRadius: "0.875rem", background: T.card2,
+              padding: "1.25rem", textAlign: "center", marginBottom: "1rem",
+            }}>
+              <p style={{ fontSize: "13px", color: T.textMuted }}>
+                Nenhuma definição para <strong style={{ color: T.textPrimary }}>{selectedWord.strongs}</strong>
+              </p>
+            </div>
           )}
-
-          {/* Manual search */}
-          <details style={{ marginTop: "0.5rem" }}>
-            <summary style={{ fontSize: "11px", color: T.textMuted, cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: "4px" }}>
-              <Search size={10} />
-              Buscar outro número Strong manualmente
-            </summary>
-            <ManualSearch testament={bookTestament} />
-          </details>
         </div>
       </div>
     </>
