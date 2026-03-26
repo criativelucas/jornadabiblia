@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
-import { getVerseStrongs, lookupStrongs, type StrongsEntry } from "@/services/StrongsService";
+import { getVerseStrongs, type StrongsEntry } from "@/services/StrongsService";
 
 interface Props {
   verse: { number: number; text: string };
@@ -11,115 +11,126 @@ interface Props {
   onClose: () => void;
 }
 
-// ─── Cache local de traduções manuais ─────────────────────────────────────
-const manualTranslationCache: Record<string, StrongsEntry> = {};
-
-async function translateEntry(entry: Omit<StrongsEntry, "word">, word: string): Promise<StrongsEntry> {
-  const cacheKey = entry.num;
-  if (manualTranslationCache[cacheKey]) return manualTranslationCache[cacheKey];
-
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 300,
-        messages: [
-          {
-            role: "user",
-            content: `Você é especialista em teologia bíblica e línguas bíblicas.
-Traduza os campos abaixo para português brasileiro de forma concisa e teológica.
-Responda APENAS com JSON válido, sem markdown, sem texto extra.
-
-def: "${entry.def}"
-kjv: "${entry.kjv}"
-
-Formato: {"def":"...","kjv":"..."}`,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const text: string = data?.content?.[0]?.text || "";
-    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-
-    const result: StrongsEntry = {
-      ...entry,
-      word,
-      def: parsed.def || entry.def,
-      kjv: parsed.kjv || entry.kjv,
-    };
-    manualTranslationCache[cacheKey] = result;
-    return result;
-  } catch {
-    return { ...entry, word };
-  }
-}
-
 function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Formata a definição em tópicos se houver numeração tipo "1) ... 1a) ..."
+  const formatDef = (def: string) => {
+    if (!def) return null;
+    const lines = def
+      .split(/(?=\b\d+[a-z]?\d*\))/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (lines.length <= 1) {
+      return <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.7 }}>{def}</p>;
+    }
+
+    return (
+      <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+        {lines.map((line, i) => {
+          const isSubItem = /^\d+[a-z]/.test(line);
+          return (
+            <li
+              key={i}
+              style={{
+                fontSize: isSubItem ? "12px" : "13px",
+                color: isSubItem ? T.textDim : T.textMuted,
+                lineHeight: 1.7,
+                paddingLeft: isSubItem ? "1rem" : "0",
+                borderLeft: isSubItem ? `2px solid ${T.border}` : "none",
+                marginLeft: isSubItem ? "0.5rem" : "0",
+                marginBottom: "2px",
+              }}
+            >
+              {line}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
   return (
     <div
-      onClick={() => setExpanded((e) => !e)}
       style={{
-        borderRadius: "0.875rem",
+        borderRadius: "1rem",
         background: T.card2,
         border: `1px solid ${T.border}`,
         overflow: "hidden",
-        cursor: "pointer",
-        transition: "border-color 0.2s",
+        marginBottom: "10px",
       }}
-      className="ln4-glow"
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0.75rem 0.875rem" }}>
+      {/* Cabeçalho sempre visível */}
+      <div
+        onClick={() => setExpanded((e) => !e)}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+          padding: "1rem",
+          cursor: "pointer",
+        }}
+      >
+        {/* Número Strong + caractere original */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            minWidth: "52px",
+            minWidth: "60px",
             flexShrink: 0,
-            padding: "4px 6px",
+            padding: "6px 8px",
             borderRadius: "0.625rem",
             background: T.accentDim,
           }}
         >
-          <span style={{ fontSize: "9px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
+          <span style={{ fontSize: "9px", fontWeight: 700, color: T.accent, letterSpacing: "0.05em" }}>
             {entry.num}
           </span>
           <span
             style={{
-              fontSize: entry.lang === "hebrew" ? "18px" : "15px",
+              fontSize: entry.lang === "hebrew" ? "22px" : "17px",
               fontWeight: 700,
               color: T.textPrimary,
-              lineHeight: 1.2,
+              lineHeight: 1.3,
               direction: entry.lang === "hebrew" ? "rtl" : "ltr",
+              marginTop: "2px",
             }}
           >
             {entry.lemma || entry.word}
           </span>
+          {entry.xlit && (
+            <span
+              style={{
+                fontSize: "9px",
+                color: T.textMuted,
+                fontStyle: "italic",
+                marginTop: "2px",
+                textAlign: "center",
+              }}
+            >
+              {entry.xlit}
+            </span>
+          )}
+          {entry.pron && <span style={{ fontSize: "9px", color: T.textDim, marginTop: "1px" }}>/{entry.pron}/</span>}
         </div>
 
+        {/* Gloss + def resumida */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary }}>{entry.word}</span>
-            {entry.xlit && (
-              <span style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic" }}>{entry.xlit}</span>
-            )}
-            {entry.pron && <span style={{ fontSize: "10px", color: T.textDim }}>/{entry.pron}/</span>}
-          </div>
+          <span style={{ fontSize: "15px", fontWeight: 700, color: T.textPrimary }}>{entry.word}</span>
+          {entry.grammar && (
+            <p style={{ fontSize: "11px", color: T.accent, marginTop: "3px", fontStyle: "italic" }}>{entry.grammar}</p>
+          )}
           <p
             style={{
-              fontSize: "12px",
+              fontSize: "13px",
               color: T.textMuted,
-              lineHeight: 1.5,
-              marginTop: "3px",
+              lineHeight: 1.6,
+              marginTop: "4px",
               overflow: "hidden",
               display: "-webkit-box",
-              WebkitLineClamp: expanded ? 99 : 2,
+              WebkitLineClamp: expanded ? 999 : 2,
               WebkitBoxOrient: "vertical",
             }}
           >
@@ -128,36 +139,57 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
         </div>
 
         <ChevronDown
-          size={14}
+          size={16}
           style={{
             color: T.textDim,
             flexShrink: 0,
+            marginTop: "4px",
             transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.2s",
           }}
         />
       </div>
 
-      {expanded && entry.kjv && (
+      {/* Definição expandida completa */}
+      {expanded && (
         <div
           style={{
-            padding: "0.5rem 0.875rem 0.75rem",
+            padding: "0 1rem 1rem",
             borderTop: `1px solid ${T.border}`,
+            paddingTop: "0.75rem",
           }}
         >
           <p
             style={{
               fontSize: "9px",
               fontWeight: 700,
-              color: T.textMuted,
+              color: T.accent,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
-              marginBottom: "4px",
+              marginBottom: "8px",
             }}
           >
-            Traduzido como (KJV)
+            Definição completa
           </p>
-          <p style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.5 }}>{entry.kjv}</p>
+          {formatDef(entry.def)}
+
+          {entry.kjv && (
+            <div style={{ marginTop: "12px" }}>
+              <p
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  color: T.textMuted,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "4px",
+                }}
+              >
+                Traduzido como (KJV)
+              </p>
+              <p style={{ fontSize: "12px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.6 }}>{entry.kjv}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -168,10 +200,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
   const { T } = useThemeContext();
   const [entries, setEntries] = useState<StrongsEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [manualNum, setManualNum] = useState("");
-  const [manualResult, setManualResult] = useState<StrongsEntry | null>(null);
-  const [manualSearched, setManualSearched] = useState(false);
-  const [manualLoading, setManualLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -181,28 +209,9 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
       .finally(() => setLoading(false));
   }, [bookId, chapter, verse.number, bookTestament]);
 
-  const searchManual = async () => {
-    const q = manualNum.trim().toUpperCase();
-    if (!q) return;
-    const searchKey = /^[HG]/i.test(q) ? q : `${bookTestament === "AT" ? "H" : "G"}${q}`;
-    setManualLoading(true);
-    setManualSearched(false);
-    try {
-      const raw = lookupStrongs(searchKey);
-      if (!raw) {
-        setManualResult(null);
-      } else {
-        const translated = await translateEntry(raw, "—");
-        setManualResult(translated);
-      }
-    } finally {
-      setManualLoading(false);
-      setManualSearched(true);
-    }
-  };
-
   return (
     <>
+      {/* Overlay */}
       <div
         onClick={onClose}
         style={{
@@ -213,6 +222,7 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
         }}
       />
 
+      {/* Slide-up panel */}
       <div
         style={{
           position: "fixed",
@@ -220,7 +230,7 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           left: 0,
           right: 0,
           zIndex: 101,
-          maxHeight: "75vh",
+          maxHeight: "85vh",
           display: "flex",
           flexDirection: "column",
           background: T.card,
@@ -231,18 +241,21 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           animation: "slideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
+        {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
           <div style={{ width: "36px", height: "4px", borderRadius: "9999px", background: T.textDim, opacity: 0.5 }} />
         </div>
 
+        {/* Header */}
         <div
           style={{
-            padding: "0.5rem 1.25rem 0.75rem",
+            padding: "0.75rem 1.25rem 0.875rem",
             borderBottom: `1px solid ${T.border}`,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
             flexShrink: 0,
+            gap: "12px",
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -253,19 +266,18 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
                 color: T.accent,
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
+                marginBottom: "6px",
               }}
             >
-              Dicionário Strong · Versículo {verse.number} · {bookTestament === "AT" ? "Hebraico" : "Grego"}
+              Strong's Lexicon · Versículo {verse.number} · {bookTestament === "AT" ? "Hebraico" : "Grego"}
             </p>
+            {/* Versículo destacado */}
             <p
               style={{
-                fontSize: "13px",
-                color: T.textMuted,
-                marginTop: "3px",
-                lineHeight: 1.5,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                fontSize: "15px",
+                color: T.textPrimary,
+                lineHeight: 1.7,
+                fontStyle: "italic",
               }}
             >
               {verse.text}
@@ -284,29 +296,30 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
               justifyContent: "center",
               cursor: "pointer",
               flexShrink: 0,
-              marginLeft: "12px",
             }}
           >
             <X size={14} color={T.textMuted} />
           </button>
         </div>
 
+        {/* Scrollable content */}
         <div
           style={{
             overflowY: "auto",
             flex: 1,
-            padding: "1rem 1.25rem",
-            paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
+            padding: "1.25rem",
+            paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))",
           }}
         >
+          {/* Loading skeleton */}
           {loading && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {[1, 2, 3, 4].map((i) => (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {[1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={i}
                   style={{
-                    height: "68px",
-                    borderRadius: "0.875rem",
+                    height: "88px",
+                    borderRadius: "1rem",
                     background: T.card2,
                     opacity: 0.6,
                     animation: "pulse 1.5s ease-in-out infinite",
@@ -316,95 +329,26 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             </div>
           )}
 
+          {/* No data */}
           {!loading && entries.length === 0 && (
             <div
               style={{
-                padding: "1.5rem",
+                padding: "2rem",
                 textAlign: "center",
-                borderRadius: "0.875rem",
+                borderRadius: "1rem",
                 background: T.card2,
-                marginBottom: "1rem",
               }}
             >
-              <p style={{ fontSize: "13px", color: T.textMuted }}>
+              <p style={{ fontSize: "14px", color: T.textMuted }}>
                 Análise Strong's não disponível para este versículo.
               </p>
-              <p style={{ fontSize: "11px", color: T.textDim, marginTop: "4px" }}>
-                Use a busca manual abaixo para consultar por número.
-              </p>
             </div>
           )}
 
-          {!loading && entries.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "1rem" }}>
-              {entries.map((entry, i) => (
-                <StrongsWordCard key={`${entry.num}-${i}`} entry={entry} T={T} />
-              ))}
-            </div>
-          )}
-
-          <div style={{ marginBottom: "0.5rem" }}>
-            <p
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: T.textMuted,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: "8px",
-              }}
-            >
-              Busca direta por número
-            </p>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input
-                value={manualNum}
-                onChange={(e) => {
-                  setManualNum(e.target.value);
-                  setManualSearched(false);
-                }}
-                onKeyDown={(e) => e.key === "Enter" && searchManual()}
-                placeholder={bookTestament === "AT" ? "Ex: H430, H7225" : "Ex: G3056, G26"}
-                style={{
-                  flex: 1,
-                  borderRadius: "0.75rem",
-                  padding: "0.625rem 0.875rem",
-                  background: T.card2,
-                  color: T.textPrimary,
-                  border: `1.5px solid ${T.border}`,
-                  fontSize: "13px",
-                  outline: "none",
-                }}
-              />
-              <button
-                onClick={searchManual}
-                disabled={manualLoading}
-                style={{
-                  padding: "0.625rem 1rem",
-                  background: T.accent,
-                  color: T.page,
-                  border: "none",
-                  borderRadius: "0.75rem",
-                  fontWeight: 700,
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  opacity: manualLoading ? 0.7 : 1,
-                }}
-              >
-                {manualLoading ? "..." : "Ir"}
-              </button>
-            </div>
-            {manualSearched && manualResult && (
-              <div style={{ marginTop: "8px" }}>
-                <StrongsWordCard entry={manualResult} T={T} />
-              </div>
-            )}
-            {manualSearched && !manualResult && !manualLoading && (
-              <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "8px", textAlign: "center" }}>
-                Nenhum resultado encontrado
-              </p>
-            )}
-          </div>
+          {/* Word cards */}
+          {!loading &&
+            entries.length > 0 &&
+            entries.map((entry, i) => <StrongsWordCard key={`${entry.num}-${i}`} entry={entry} T={T} />)}
         </div>
       </div>
     </>
