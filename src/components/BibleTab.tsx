@@ -45,11 +45,10 @@ export default function BibleTab() {
       .finally(() => setLoadingBible(false));
   }, [version]);
 
-  const findBookData = (bookName: string): BibleDataBook | undefined => {
+  const findBookData = (book: typeof bibleBooks[0]): BibleDataBook | undefined => {
     if (!bibleData) return undefined;
-    const bookIndex = bibleBooks.findIndex((b) => b.name === bookName);
-    if (bookIndex >= 0 && bibleData[bookIndex]) return bibleData[bookIndex];
-    return undefined;
+    const bookIndex = bibleBooks.findIndex((b) => b.id === book.id);
+    return bookIndex >= 0 ? bibleData[bookIndex] : undefined;
   };
 
   const handleSelectTestament = (t: "AT" | "NT") => {
@@ -80,7 +79,7 @@ export default function BibleTab() {
     setSelectedVerse(null);
     setLoadingText(true);
 
-    const bookData = findBookData(selectedBook.name);
+    const bookData = findBookData(selectedBook);
     if (bookData && bookData.chapters[ch - 1]) {
       const chapterVerses = bookData.chapters[ch - 1].map((text, i) => ({
         verse: i + 1,
@@ -416,7 +415,7 @@ export default function BibleTab() {
         {selectedVerse && (
           <StrongsPanel
             verse={selectedVerse}
-            bookId={selectedBook.id}
+            bookId={findBookData(selectedBook)?.abbrev ?? ""}
             chapter={selectedChapter}
             bookTestament={selectedBook.testament}
             onClose={() => setSelectedVerse(null)}
