@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
-import { getVerseStrongs, lookupStrongsAsync, type StrongsEntry } from "@/services/StrongsService";
+import { getVerseStrongs, lookupStrongs, type StrongsEntry } from "@/services/StrongsService";
 
 interface Props {
   verse: { number: number; text: string };
@@ -9,6 +9,54 @@ interface Props {
   chapter: number;
   bookTestament: "AT" | "NT";
   onClose: () => void;
+}
+
+// ─── Cache local de traduções manuais ─────────────────────────────────────
+const manualTranslationCache: Record<string, StrongsEntry> = {};
+
+async function translateEntry(entry: Omit<StrongsEntry, "word">, word: string): Promise<StrongsEntry> {
+  const cacheKey = entry.num;
+  if (manualTranslationCache[cacheKey]) return manualTranslationCache[cacheKey];
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "user",
+            content: `Você é especialista em teologia bíblica e línguas bíblicas.
+Traduza os campos abaixo para português brasileiro de forma concisa e teológica.
+Responda APENAS com JSON válido, sem markdown, sem texto extra.
+
+def: "${entry.def}"
+kjv: "${entry.kjv}"
+
+Formato: {"def":"...","kjv":"..."}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const text: string = data?.content?.[0]?.text || "";
+    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+
+    const result: StrongsEntry = {
+      ...entry,
+      word,
+      def: parsed.def || entry.def,
+      kjv: parsed.kjv || entry.kjv,
+    };
+    manualTranslationCache[cacheKey] = result;
+    return result;
+  } catch {
+    return { ...entry, word };
+  }
 }
 
 function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
@@ -26,9 +74,7 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
       }}
       className="ln4-glow"
     >
-      {/* Main row */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0.75rem 0.875rem" }}>
-        {/* Strong number + lemma */}
         <div
           style={{
             display: "flex",
@@ -57,7 +103,6 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
           </span>
         </div>
 
-        {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary }}>{entry.word}</span>
@@ -82,7 +127,6 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
           </p>
         </div>
 
-        {/* Chevron */}
         <ChevronDown
           size={14}
           style={{
@@ -94,7 +138,6 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
         />
       </div>
 
-      {/* Expanded: uso traduzido */}
       {expanded && entry.kjv && (
         <div
           style={{
@@ -145,8 +188,13 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
     setManualLoading(true);
     setManualSearched(false);
     try {
-      const result = await lookupStrongsAsync(searchKey);
-      setManualResult(result ? { ...result, word: "—" } : null);
+      const raw = lookupStrongs(searchKey);
+      if (!raw) {
+        setManualResult(null);
+      } else {
+        const translated = await translateEntry(raw, "—");
+        setManualResult(translated);
+      }
     } finally {
       setManualLoading(false);
       setManualSearched(true);
@@ -155,7 +203,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
 
   return (
     <>
-      {/* Overlay */}
       <div
         onClick={onClose}
         style={{
@@ -166,7 +213,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
         }}
       />
 
-      {/* Slide-up banner */}
       <div
         style={{
           position: "fixed",
@@ -185,12 +231,10 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           animation: "slideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
-        {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
           <div style={{ width: "36px", height: "4px", borderRadius: "9999px", background: T.textDim, opacity: 0.5 }} />
         </div>
 
-        {/* Header */}
         <div
           style={{
             padding: "0.5rem 1.25rem 0.75rem",
@@ -247,7 +291,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           </button>
         </div>
 
-        {/* Scrollable content */}
         <div
           style={{
             overflowY: "auto",
@@ -256,7 +299,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
           }}
         >
-          {/* Loading skeleton */}
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[1, 2, 3, 4].map((i) => (
@@ -274,7 +316,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             </div>
           )}
 
-          {/* No data */}
           {!loading && entries.length === 0 && (
             <div
               style={{
@@ -294,7 +335,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             </div>
           )}
 
-          {/* Word cards */}
           {!loading && entries.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "1rem" }}>
               {entries.map((entry, i) => (
@@ -303,7 +343,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             </div>
           )}
 
-          {/* Manual search */}
           <div style={{ marginBottom: "0.5rem" }}>
             <p
               style={{
