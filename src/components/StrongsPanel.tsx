@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, ChevronDown, Search } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
-import { getVerseStrongs, lookupStrongs, type StrongsEntry } from "@/services/StrongsService";
+import { getVerseStrongs, lookupStrongsAsync, type StrongsEntry } from "@/services/StrongsService";
 
 interface Props {
   verse: { number: number; text: string };
@@ -29,20 +29,30 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
       {/* Main row */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0.75rem 0.875rem" }}>
         {/* Strong number + lemma */}
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          minWidth: "52px", flexShrink: 0,
-          padding: "4px 6px", borderRadius: "0.625rem",
-          background: T.accentDim,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            minWidth: "52px",
+            flexShrink: 0,
+            padding: "4px 6px",
+            borderRadius: "0.625rem",
+            background: T.accentDim,
+          }}
+        >
           <span style={{ fontSize: "9px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
             {entry.num}
           </span>
-          <span style={{
-            fontSize: entry.lang === "hebrew" ? "18px" : "15px",
-            fontWeight: 700, color: T.textPrimary, lineHeight: 1.2,
-            direction: entry.lang === "hebrew" ? "rtl" : "ltr",
-          }}>
+          <span
+            style={{
+              fontSize: entry.lang === "hebrew" ? "18px" : "15px",
+              fontWeight: 700,
+              color: T.textPrimary,
+              lineHeight: 1.2,
+              direction: entry.lang === "hebrew" ? "rtl" : "ltr",
+            }}
+          >
             {entry.lemma || entry.word}
           </span>
         </div>
@@ -50,28 +60,24 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary }}>
-              {entry.word}
-            </span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary }}>{entry.word}</span>
             {entry.xlit && (
-              <span style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic" }}>
-                {entry.xlit}
-              </span>
+              <span style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic" }}>{entry.xlit}</span>
             )}
-            {entry.pron && (
-              <span style={{ fontSize: "10px", color: T.textDim }}>
-                /{entry.pron}/
-              </span>
-            )}
+            {entry.pron && <span style={{ fontSize: "10px", color: T.textDim }}>/{entry.pron}/</span>}
           </div>
-          <p style={{
-            fontSize: "12px", color: T.textMuted, lineHeight: 1.5,
-            marginTop: "3px",
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: expanded ? 99 : 2,
-            WebkitBoxOrient: "vertical",
-          }}>
+          <p
+            style={{
+              fontSize: "12px",
+              color: T.textMuted,
+              lineHeight: 1.5,
+              marginTop: "3px",
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: expanded ? 99 : 2,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
             {entry.def}
           </p>
         </div>
@@ -80,28 +86,35 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
         <ChevronDown
           size={14}
           style={{
-            color: T.textDim, flexShrink: 0,
+            color: T.textDim,
+            flexShrink: 0,
             transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.2s",
           }}
         />
       </div>
 
-      {/* Expanded: KJV usage */}
+      {/* Expanded: uso traduzido */}
       {expanded && entry.kjv && (
-        <div style={{
-          padding: "0.5rem 0.875rem 0.75rem",
-          borderTop: `1px solid ${T.border}`,
-        }}>
-          <p style={{
-            fontSize: "9px", fontWeight: 700, color: T.textMuted,
-            textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px",
-          }}>
+        <div
+          style={{
+            padding: "0.5rem 0.875rem 0.75rem",
+            borderTop: `1px solid ${T.border}`,
+          }}
+        >
+          <p
+            style={{
+              fontSize: "9px",
+              fontWeight: 700,
+              color: T.textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "4px",
+            }}
+          >
             Traduzido como (KJV)
           </p>
-          <p style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.5 }}>
-            {entry.kjv}
-          </p>
+          <p style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.5 }}>{entry.kjv}</p>
         </div>
       )}
     </div>
@@ -115,6 +128,7 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
   const [manualNum, setManualNum] = useState("");
   const [manualResult, setManualResult] = useState<StrongsEntry | null>(null);
   const [manualSearched, setManualSearched] = useState(false);
+  const [manualLoading, setManualLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -124,13 +138,19 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
       .finally(() => setLoading(false));
   }, [bookId, chapter, verse.number, bookTestament]);
 
-  const searchManual = () => {
+  const searchManual = async () => {
     const q = manualNum.trim().toUpperCase();
     if (!q) return;
     const searchKey = /^[HG]/i.test(q) ? q : `${bookTestament === "AT" ? "H" : "G"}${q}`;
-    const result = lookupStrongs(searchKey);
-    setManualResult(result ? { ...result, word: "—" } : null);
-    setManualSearched(true);
+    setManualLoading(true);
+    setManualSearched(false);
+    try {
+      const result = await lookupStrongsAsync(searchKey);
+      setManualResult(result ? { ...result, word: "—" } : null);
+    } finally {
+      setManualLoading(false);
+      setManualSearched(true);
+    }
   };
 
   return (
@@ -139,7 +159,9 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
       <div
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, zIndex: 100,
+          position: "fixed",
+          inset: 0,
+          zIndex: 100,
           background: "rgba(0,0,0,0.5)",
         }}
       />
@@ -148,10 +170,13 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
       <div
         style={{
           position: "fixed",
-          bottom: 0, left: 0, right: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
           zIndex: 101,
           maxHeight: "75vh",
-          display: "flex", flexDirection: "column",
+          display: "flex",
+          flexDirection: "column",
           background: T.card,
           borderRadius: "1.25rem 1.25rem 0 0",
           border: `1px solid ${T.border}`,
@@ -166,34 +191,56 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
         </div>
 
         {/* Header */}
-        <div style={{
-          padding: "0.5rem 1.25rem 0.75rem",
-          borderBottom: `1px solid ${T.border}`,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0,
-        }}>
+        <div
+          style={{
+            padding: "0.5rem 1.25rem 0.75rem",
+            borderBottom: `1px solid ${T.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexShrink: 0,
+          }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{
-              fontSize: "10px", fontWeight: 700, color: T.accent,
-              textTransform: "uppercase", letterSpacing: "0.08em",
-            }}>
+            <p
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: T.accent,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
               Dicionário Strong · Versículo {verse.number} · {bookTestament === "AT" ? "Hebraico" : "Grego"}
             </p>
-            <p style={{
-              fontSize: "13px", color: T.textMuted, marginTop: "3px",
-              lineHeight: 1.5,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
+            <p
+              style={{
+                fontSize: "13px",
+                color: T.textMuted,
+                marginTop: "3px",
+                lineHeight: 1.5,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               {verse.text}
             </p>
           </div>
           <button
             onClick={onClose}
             style={{
-              width: "32px", height: "32px", borderRadius: "9999px",
-              background: T.card2, border: `1px solid ${T.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", flexShrink: 0, marginLeft: "12px",
+              width: "32px",
+              height: "32px",
+              borderRadius: "9999px",
+              background: T.card2,
+              border: `1px solid ${T.border}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+              marginLeft: "12px",
             }}
           >
             <X size={14} color={T.textMuted} />
@@ -201,11 +248,14 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
         </div>
 
         {/* Scrollable content */}
-        <div style={{
-          overflowY: "auto", flex: 1,
-          padding: "1rem 1.25rem",
-          paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
-        }}>
+        <div
+          style={{
+            overflowY: "auto",
+            flex: 1,
+            padding: "1rem 1.25rem",
+            paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
+          }}
+        >
           {/* Loading skeleton */}
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -213,8 +263,10 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
                 <div
                   key={i}
                   style={{
-                    height: "68px", borderRadius: "0.875rem",
-                    background: T.card2, opacity: 0.6,
+                    height: "68px",
+                    borderRadius: "0.875rem",
+                    background: T.card2,
+                    opacity: 0.6,
                     animation: "pulse 1.5s ease-in-out infinite",
                   }}
                 />
@@ -224,11 +276,15 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
 
           {/* No data */}
           {!loading && entries.length === 0 && (
-            <div style={{
-              padding: "1.5rem", textAlign: "center",
-              borderRadius: "0.875rem", background: T.card2,
-              marginBottom: "1rem",
-            }}>
+            <div
+              style={{
+                padding: "1.5rem",
+                textAlign: "center",
+                borderRadius: "0.875rem",
+                background: T.card2,
+                marginBottom: "1rem",
+              }}
+            >
               <p style={{ fontSize: "13px", color: T.textMuted }}>
                 Análise Strong's não disponível para este versículo.
               </p>
@@ -249,36 +305,54 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
 
           {/* Manual search */}
           <div style={{ marginBottom: "0.5rem" }}>
-            <p style={{
-              fontSize: "10px", fontWeight: 700, color: T.textMuted,
-              textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px",
-            }}>
+            <p
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: T.textMuted,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "8px",
+              }}
+            >
               Busca direta por número
             </p>
             <div style={{ display: "flex", gap: "8px" }}>
               <input
                 value={manualNum}
-                onChange={(e) => { setManualNum(e.target.value); setManualSearched(false); }}
+                onChange={(e) => {
+                  setManualNum(e.target.value);
+                  setManualSearched(false);
+                }}
                 onKeyDown={(e) => e.key === "Enter" && searchManual()}
                 placeholder={bookTestament === "AT" ? "Ex: H430, H7225" : "Ex: G3056, G26"}
                 style={{
-                  flex: 1, borderRadius: "0.75rem",
+                  flex: 1,
+                  borderRadius: "0.75rem",
                   padding: "0.625rem 0.875rem",
-                  background: T.card2, color: T.textPrimary,
+                  background: T.card2,
+                  color: T.textPrimary,
                   border: `1.5px solid ${T.border}`,
-                  fontSize: "13px", outline: "none",
+                  fontSize: "13px",
+                  outline: "none",
                 }}
               />
               <button
                 onClick={searchManual}
+                disabled={manualLoading}
                 style={{
                   padding: "0.625rem 1rem",
-                  background: T.accent, color: T.page,
-                  border: "none", borderRadius: "0.75rem",
-                  fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                  background: T.accent,
+                  color: T.page,
+                  border: "none",
+                  borderRadius: "0.75rem",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  opacity: manualLoading ? 0.7 : 1,
                 }}
               >
-                Ir
+                {manualLoading ? "..." : "Ir"}
               </button>
             </div>
             {manualSearched && manualResult && (
@@ -286,7 +360,7 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
                 <StrongsWordCard entry={manualResult} T={T} />
               </div>
             )}
-            {manualSearched && !manualResult && (
+            {manualSearched && !manualResult && !manualLoading && (
               <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "8px", textAlign: "center" }}>
                 Nenhum resultado encontrado
               </p>
