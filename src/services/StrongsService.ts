@@ -15,8 +15,9 @@ export interface StrongsEntry {
   lemma: string; // original form (Hebrew/Greek)
   xlit: string; // transliteration
   pron: string; // pronunciation
-  def: string; // definition (em português)
-  kjv: string; // KJV usage (em português)
+  def: string; // definição completa em português
+  kjv: string; // uso KJV em português
+  grammar?: string; // info gramatical (ex: "Substantivo masculino plural")
   lang: "hebrew" | "greek";
 }
 
@@ -97,58 +98,51 @@ const STEP_BOOK: Record<string, string> = {
 // ─── Tradução automática para português via Claude API ────────────────────
 async function translateToPT(num: string, def: string, kjv: string): Promise<{ def: string; kjv: string }> {
   if (translationCache[num]) return translationCache[num];
-
-  // Se não tiver conteúdo para traduzir, retorna vazio
   if (!def && !kjv) return { def: "", kjv: "" };
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 300,
+        max_tokens: 600,
         messages: [
           {
             role: "user",
-            content: `Você é um especialista em teologia bíblica e línguas bíblicas (hebraico e grego).
-Traduza os campos abaixo para português brasileiro de forma concisa, clara e teológica.
-Responda APENAS com JSON válido, sem markdown, sem texto adicional.
+            content: `Você é especialista em teologia bíblica, hebraico e grego.
+Traduza os campos abaixo para português brasileiro de forma teológica e precisa.
+Mantenha a estrutura de numeração (1) 1a) 1b) etc.) intacta.
+Responda APENAS com JSON válido, sem markdown, sem texto extra.
 
-Campos para traduzir:
-- def: "${def}"
-- kjv: "${kjv}"
+def: "${def}"
+kjv: "${kjv}"
 
-Formato esperado: {"def":"tradução da definição aqui","kjv":"tradução do uso KJV aqui"}`,
+Formato: {"def":"...","kjv":"..."}`,
           },
         ],
       }),
     });
 
     if (!response.ok) throw new Error(`Claude API HTTP ${response.status}`);
-
     const data = await response.json();
     const text: string = data?.content?.[0]?.text || "";
     const clean = text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(clean);
 
-    if (parsed?.def !== undefined && parsed?.kjv !== undefined) {
-      translationCache[num] = { def: parsed.def, kjv: parsed.kjv };
+    if (parsed?.def !== undefined) {
+      translationCache[num] = { def: parsed.def, kjv: parsed.kjv || kjv };
       return translationCache[num];
     }
-
-    throw new Error("Resposta inválida da API");
+    throw new Error("Resposta inválida");
   } catch (err) {
     console.warn("[StrongsService] Tradução falhou, usando inglês:", err);
-    // Fallback: retorna o original em inglês
     return { def, kjv };
   }
 }
 
 // ─── Lookup in bundled dictionary ─────────────────────────────────────────
-function lookup(num: string): Omit<StrongsEntry, "word"> | null {
+function lookup(num: string): Omit<StrongsEntry, "word" | "grammar"> | null {
   const key = num.toUpperCase().replace(/[^HG0-9]/g, "");
   const isHebrew = key.startsWith("H");
   const dict = isHebrew ? strongsHebrew : strongsGreek;
@@ -160,28 +154,91 @@ function lookup(num: string): Omit<StrongsEntry, "word"> | null {
     xlit: raw.xlit || "",
     pron: raw.pron || "",
     def: (raw.strongs_def || "").trim().replace(/^[,\s]+/, ""),
-    kjv: (raw.kjv_def || "").split(",").slice(0, 5).join(", ").trim(),
+    kjv: (raw.kjv_def || "").split(",").slice(0, 8).join(", ").trim(),
     lang: isHebrew ? "hebrew" : "greek",
   };
 }
 
-// ─── Parse STEP Bible HTML → word-Strong pairs ───────────────────────────
-function parseStepHtml(html: string): { word: string; num: string }[] {
-  const results: { word: string; num: string }[] = [];
-  const regex = /strong='([HG]\d+)\w*'[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
+// ─── Parse STEP Bible HTML → word + Strong number + grammar ──────────────
+function parseStepHtml(html: string): { word: string; num: string; grammar?: string }[] {
+  const results: { word: string; num: string; grammar?: string }[] = [];
+
+  // Captura strong number, palavra e morph (gramática)
+  const regex =
+    /strong='([HG]\d+)\w*'(?:[^>]*morph='([^']*)')?[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(html)) !== null) {
-    const word = m[2].replace(/\u00a0/g, "").trim();
     const num = m[1].toUpperCase();
-    if (word && num) results.push({ word, num });
+    const morph = m[2] || "";
+    const word = m[3].replace(/\u00a0/g, "").trim();
+    if (word && num) results.push({ word, num, grammar: morph || undefined });
   }
-  // Deduplicate by Strong's number
+
+  // Fallback sem morph
+  if (results.length === 0) {
+    const fallback = /strong='([HG]\d+)\w*'[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
+    while ((m = fallback.exec(html)) !== null) {
+      const word = m[2].replace(/\u00a0/g, "").trim();
+      const num = m[1].toUpperCase();
+      if (word && num) results.push({ word, num });
+    }
+  }
+
   const seen = new Set<string>();
   return results.filter((r) => {
     if (seen.has(r.num)) return false;
     seen.add(r.num);
     return true;
   });
+}
+
+// ─── Traduz código morfológico para português legível ─────────────────────
+function parseMorph(morph: string, lang: "hebrew" | "greek"): string {
+  if (!morph) return "";
+
+  if (lang === "hebrew") {
+    const map: Record<string, string> = {
+      HNm: "Substantivo masculino",
+      HNf: "Substantivo feminino",
+      HVq: "Verbo - Qal",
+      HVn: "Verbo - Niphal",
+      HVp: "Verbo - Piel",
+      HVh: "Verbo - Hiphil",
+      HVt: "Verbo - Hitpael",
+      HAa: "Adjetivo",
+      HRp: "Preposição",
+      HC: "Conjunção",
+      HTd: "Artigo definido",
+      HPp: "Pronome pessoal",
+      HPr: "Pronome relativo",
+      HNp: "Nome próprio",
+    };
+    for (const [k, v] of Object.entries(map)) {
+      if (morph.includes(k)) return v;
+    }
+    return morph
+      .replace(/^H/, "")
+      .replace(/([A-Z])/g, " $1")
+      .trim();
+  }
+
+  // Grego
+  const map: Record<string, string> = {
+    "N-": "Substantivo",
+    "V-": "Verbo",
+    "A-": "Adjetivo",
+    "P-": "Preposição",
+    "C-": "Conjunção",
+    "D-": "Advérbio",
+    "R-": "Pronome relativo",
+    "T-": "Artigo",
+    "I-": "Interjeição",
+    "X-": "Partícula",
+  };
+  for (const [k, v] of Object.entries(map)) {
+    if (morph.startsWith(k)) return v;
+  }
+  return morph;
 }
 
 // ─── Main: get all Strong's entries for a verse ───────────────────────────
@@ -211,7 +268,6 @@ export async function getVerseStrongs(
 
     const pairs = parseStepHtml(html);
 
-    // Traduz todas as entradas em paralelo
     const entries: StrongsEntry[] = (
       await Promise.all(
         pairs.map(async (p) => {
@@ -219,12 +275,14 @@ export async function getVerseStrongs(
           if (!info) return null;
 
           const translated = await translateToPT(p.num, info.def, info.kjv);
+          const grammar = p.grammar ? parseMorph(p.grammar, info.lang) : undefined;
 
           return {
             ...info,
             word: p.word,
             def: translated.def || info.def,
             kjv: translated.kjv || info.kjv,
+            grammar,
           } as StrongsEntry;
         }),
       )
@@ -239,19 +297,7 @@ export async function getVerseStrongs(
   }
 }
 
-// ─── Manual lookup by Strong's number (para busca manual) ────────────────
-export async function lookupStrongsAsync(num: string): Promise<Omit<StrongsEntry, "word"> | null> {
-  const info = lookup(num);
-  if (!info) return null;
-  const translated = await translateToPT(info.num, info.def, info.kjv);
-  return {
-    ...info,
-    def: translated.def || info.def,
-    kjv: translated.kjv || info.kjv,
-  };
-}
-
 // ─── Manual lookup síncrono (mantido para compatibilidade) ────────────────
 export function lookupStrongs(num: string): Omit<StrongsEntry, "word"> | null {
-  return lookup(num);
+  return lookup(num) as Omit<StrongsEntry, "word"> | null;
 }
