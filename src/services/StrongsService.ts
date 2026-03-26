@@ -1,6 +1,7 @@
 // ─── Strong's Dictionary Service ──────────────────────────────────────────
 // Word mapping: STEP Bible API (stepbible.org) — free, no key
 // Definitions: bundled npm `strongs` package — offline, instant
+// Translations: Claude API — automático para português
 
 // @ts-ignore — no types
 import strongsGreek from "strongs/greek/strongs-greek-dictionary.js";
@@ -9,41 +10,142 @@ import strongsHebrew from "strongs/hebrew/strongs-hebrew-dictionary.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 export interface StrongsEntry {
-  num: string;       // "H430" or "G3056"
-  word: string;      // English gloss from interlinear
-  lemma: string;     // original form (Hebrew/Greek)
-  xlit: string;      // transliteration
-  pron: string;      // pronunciation
-  def: string;       // definition
-  kjv: string;       // KJV usage (first 5)
+  num: string; // "H430" or "G3056"
+  word: string; // gloss from interlinear
+  lemma: string; // original form (Hebrew/Greek)
+  xlit: string; // transliteration
+  pron: string; // pronunciation
+  def: string; // definition (em português)
+  kjv: string; // KJV usage (em português)
   lang: "hebrew" | "greek";
 }
 
 // ─── Caches ───────────────────────────────────────────────────────────────
 const verseCache: Record<string, StrongsEntry[]> = {};
+const translationCache: Record<string, { def: string; kjv: string }> = {};
 
 // ─── STEP Bible book abbreviation map ─────────────────────────────────────
 const STEP_BOOK: Record<string, string> = {
-  gn: "Gen", ex: "Exod", lv: "Lev", nm: "Num", dt: "Deut",
-  js: "Josh", jz: "Judg", rt: "Ruth",
-  "1sm": "1Sam", "2sm": "2Sam", "1rs": "1Kgs", "2rs": "2Kgs",
-  "1cr": "1Chr", "2cr": "2Chr",
-  ed: "Ezra", ne: "Neh", et: "Esth", "jó": "Job",
-  sl: "Ps", pv: "Prov", ec: "Eccl", ct: "Song",
-  is: "Isa", jr: "Jer", lm: "Lam", ez: "Ezek", dn: "Dan",
-  os: "Hos", jl: "Joel", am: "Amos", ob: "Obad",
-  jn: "Jonah", mq: "Mic", na: "Nah", hc: "Hab",
-  sf: "Zeph", ag: "Hag", zc: "Zech", ml: "Mal",
-  mt: "Matt", mc: "Mark", lc: "Luke", jo: "John",
-  at: "Acts", rm: "Rom",
-  "1co": "1Cor", "2co": "2Cor", gl: "Gal", ef: "Eph",
-  fp: "Phil", cl: "Col",
-  "1ts": "1Thess", "2ts": "2Thess", "1tm": "1Tim", "2tm": "2Tim",
-  tt: "Titus", fm: "Phlm",
-  hb: "Heb", tg: "Jas", "1pe": "1Pet", "2pe": "2Pet",
-  "1jo": "1John", "2jo": "2John", "3jo": "3John",
-  jd: "Jude", ap: "Rev",
+  gn: "Gen",
+  ex: "Exod",
+  lv: "Lev",
+  nm: "Num",
+  dt: "Deut",
+  js: "Josh",
+  jz: "Judg",
+  rt: "Ruth",
+  "1sm": "1Sam",
+  "2sm": "2Sam",
+  "1rs": "1Kgs",
+  "2rs": "2Kgs",
+  "1cr": "1Chr",
+  "2cr": "2Chr",
+  ed: "Ezra",
+  ne: "Neh",
+  et: "Esth",
+  jó: "Job",
+  sl: "Ps",
+  pv: "Prov",
+  ec: "Eccl",
+  ct: "Song",
+  is: "Isa",
+  jr: "Jer",
+  lm: "Lam",
+  ez: "Ezek",
+  dn: "Dan",
+  os: "Hos",
+  jl: "Joel",
+  am: "Amos",
+  ob: "Obad",
+  jn: "Jonah",
+  mq: "Mic",
+  na: "Nah",
+  hc: "Hab",
+  sf: "Zeph",
+  ag: "Hag",
+  zc: "Zech",
+  ml: "Mal",
+  mt: "Matt",
+  mc: "Mark",
+  lc: "Luke",
+  jo: "John",
+  at: "Acts",
+  rm: "Rom",
+  "1co": "1Cor",
+  "2co": "2Cor",
+  gl: "Gal",
+  ef: "Eph",
+  fp: "Phil",
+  cl: "Col",
+  "1ts": "1Thess",
+  "2ts": "2Thess",
+  "1tm": "1Tim",
+  "2tm": "2Tim",
+  tt: "Titus",
+  fm: "Phlm",
+  hb: "Heb",
+  tg: "Jas",
+  "1pe": "1Pet",
+  "2pe": "2Pet",
+  "1jo": "1John",
+  "2jo": "2John",
+  "3jo": "3John",
+  jd: "Jude",
+  ap: "Rev",
 };
+
+// ─── Tradução automática para português via Claude API ────────────────────
+async function translateToPT(num: string, def: string, kjv: string): Promise<{ def: string; kjv: string }> {
+  if (translationCache[num]) return translationCache[num];
+
+  // Se não tiver conteúdo para traduzir, retorna vazio
+  if (!def && !kjv) return { def: "", kjv: "" };
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "user",
+            content: `Você é um especialista em teologia bíblica e línguas bíblicas (hebraico e grego).
+Traduza os campos abaixo para português brasileiro de forma concisa, clara e teológica.
+Responda APENAS com JSON válido, sem markdown, sem texto adicional.
+
+Campos para traduzir:
+- def: "${def}"
+- kjv: "${kjv}"
+
+Formato esperado: {"def":"tradução da definição aqui","kjv":"tradução do uso KJV aqui"}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Claude API HTTP ${response.status}`);
+
+    const data = await response.json();
+    const text: string = data?.content?.[0]?.text || "";
+    const clean = text.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(clean);
+
+    if (parsed?.def !== undefined && parsed?.kjv !== undefined) {
+      translationCache[num] = { def: parsed.def, kjv: parsed.kjv };
+      return translationCache[num];
+    }
+
+    throw new Error("Resposta inválida da API");
+  } catch (err) {
+    console.warn("[StrongsService] Tradução falhou, usando inglês:", err);
+    // Fallback: retorna o original em inglês
+    return { def, kjv };
+  }
+}
 
 // ─── Lookup in bundled dictionary ─────────────────────────────────────────
 function lookup(num: string): Omit<StrongsEntry, "word"> | null {
@@ -66,7 +168,6 @@ function lookup(num: string): Omit<StrongsEntry, "word"> | null {
 // ─── Parse STEP Bible HTML → word-Strong pairs ───────────────────────────
 function parseStepHtml(html: string): { word: string; num: string }[] {
   const results: { word: string; num: string }[] = [];
-  // Pattern: strong='H7225G' or strong='G3056' ... class='w ' ... class='text'>word</span>
   const regex = /strong='([HG]\d+)\w*'[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(html)) !== null) {
@@ -88,7 +189,7 @@ export async function getVerseStrongs(
   abbrev: string,
   chapter: number,
   verseNum: number,
-  testament: "AT" | "NT"
+  testament: "AT" | "NT",
 ): Promise<StrongsEntry[]> {
   const key = `${abbrev}-${chapter}-${verseNum}`;
   if (verseCache[key]) return verseCache[key];
@@ -103,21 +204,31 @@ export async function getVerseStrongs(
   const ref = `${stepBook}.${chapter}.${verseNum}`;
 
   try {
-    const res = await fetch(
-      `https://www.stepbible.org/rest/search/masterSearch/reference=${ref}/${version}`
-    );
+    const res = await fetch(`https://www.stepbible.org/rest/search/masterSearch/reference=${ref}/${version}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const html: string = data?.value || "";
 
     const pairs = parseStepHtml(html);
-    const entries: StrongsEntry[] = pairs
-      .map((p) => {
-        const info = lookup(p.num);
-        if (!info) return null;
-        return { ...info, word: p.word };
-      })
-      .filter((e): e is StrongsEntry => e !== null);
+
+    // Traduz todas as entradas em paralelo
+    const entries: StrongsEntry[] = (
+      await Promise.all(
+        pairs.map(async (p) => {
+          const info = lookup(p.num);
+          if (!info) return null;
+
+          const translated = await translateToPT(p.num, info.def, info.kjv);
+
+          return {
+            ...info,
+            word: p.word,
+            def: translated.def || info.def,
+            kjv: translated.kjv || info.kjv,
+          } as StrongsEntry;
+        }),
+      )
+    ).filter((e): e is StrongsEntry => e !== null);
 
     verseCache[key] = entries;
     return entries;
@@ -128,7 +239,19 @@ export async function getVerseStrongs(
   }
 }
 
-// ─── Manual lookup by Strong's number (for search) ────────────────────────
+// ─── Manual lookup by Strong's number (para busca manual) ────────────────
+export async function lookupStrongsAsync(num: string): Promise<Omit<StrongsEntry, "word"> | null> {
+  const info = lookup(num);
+  if (!info) return null;
+  const translated = await translateToPT(info.num, info.def, info.kjv);
+  return {
+    ...info,
+    def: translated.def || info.def,
+    kjv: translated.kjv || info.kjv,
+  };
+}
+
+// ─── Manual lookup síncrono (mantido para compatibilidade) ────────────────
 export function lookupStrongs(num: string): Omit<StrongsEntry, "word"> | null {
   return lookup(num);
 }
