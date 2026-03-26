@@ -1,28 +1,28 @@
-// ─── Strong's Dictionary Service ───────────────────────────────────────────
-// Uses STEP Bible API for interlinear word data (Strong's numbers)
-// Uses bolls.life for dictionary definitions
+// ─── Strong's Dictionary Service ──────────────────────────────────────────
+// Word mapping: STEP Bible API (stepbible.org) — free, no key
+// Definitions: bundled npm `strongs` package — offline, instant
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-export interface OrigWord {
-  word: string;       // English gloss from STEP Bible
-  strongs: string;    // e.g. "H430" or "G3056"
-}
+// @ts-ignore — no types
+import strongsGreek from "strongs/greek/strongs-greek-dictionary.js";
+// @ts-ignore
+import strongsHebrew from "strongs/hebrew/strongs-hebrew-dictionary.js";
 
+// ─── Types ────────────────────────────────────────────────────────────────
 export interface StrongsEntry {
-  strongs_num: string;
-  lemma: string;
-  xlit: string;
-  pronunciation: string;
-  definition: string;
-  kjv_usage: string;
-  language: "hebrew" | "greek";
+  num: string;       // "H430" or "G3056"
+  word: string;      // English gloss from interlinear
+  lemma: string;     // original form (Hebrew/Greek)
+  xlit: string;      // transliteration
+  pron: string;      // pronunciation
+  def: string;       // definition
+  kjv: string;       // KJV usage (first 5)
+  lang: "hebrew" | "greek";
 }
 
-// ─── Caches ────────────────────────────────────────────────────────────────
-const verseCache: Record<string, OrigWord[]> = {};
-const defCache: Record<string, StrongsEntry | null> = {};
+// ─── Caches ───────────────────────────────────────────────────────────────
+const verseCache: Record<string, StrongsEntry[]> = {};
 
-// ─── Book abbreviation → STEP Bible book name ─────────────────────────────
+// ─── STEP Bible book abbreviation map ─────────────────────────────────────
 const STEP_BOOK: Record<string, string> = {
   gn: "Gen", ex: "Exod", lv: "Lev", nm: "Num", dt: "Deut",
   js: "Josh", jz: "Judg", rt: "Ruth",
@@ -45,53 +45,61 @@ const STEP_BOOK: Record<string, string> = {
   jd: "Jude", ap: "Rev",
 };
 
-// ─── Parse STEP Bible HTML to extract word-Strong's pairs ──────────────────
-function parseStepHtml(html: string, prefix: "H" | "G"): OrigWord[] {
-  const results: OrigWord[] = [];
-
-  // Match: strong='H1234X' class='w '><span ... class='text'>word</span>
-  const regex = /strong='([HG]\d+)\w*'\s+class='w\s+'>([\s\S]*?)(?=<span[^>]*strong=|<\/div>|$)/gi;
-  let m: RegExpExecArray | null;
-
-  while ((m = regex.exec(html)) !== null) {
-    const strongRaw = m[1];
-    const inner = m[2];
-
-    // Extract English text
-    const textMatch = inner.match(/class='text'>([^<]+)/);
-    const word = textMatch ? textMatch[1].replace(/\u00a0/g, "").trim() : "";
-
-    // Normalize strong number (remove leading zeros for display but keep for lookup)
-    const strongs = strongRaw.toUpperCase();
-
-    if (word && strongs) {
-      results.push({ word, strongs });
-    }
-  }
-
-  return results;
+// ─── Lookup in bundled dictionary ─────────────────────────────────────────
+function lookup(num: string): Omit<StrongsEntry, "word"> | null {
+  const key = num.toUpperCase().replace(/[^HG0-9]/g, "");
+  const isHebrew = key.startsWith("H");
+  const dict = isHebrew ? strongsHebrew : strongsGreek;
+  const raw = (dict as Record<string, any>)[key];
+  if (!raw) return null;
+  return {
+    num: key,
+    lemma: raw.lemma || "",
+    xlit: raw.xlit || "",
+    pron: raw.pron || "",
+    def: (raw.strongs_def || "").trim().replace(/^[,\s]+/, ""),
+    kjv: (raw.kjv_def || "").split(",").slice(0, 5).join(", ").trim(),
+    lang: isHebrew ? "hebrew" : "greek",
+  };
 }
 
-// ─── Fetch verse words with Strong's via STEP Bible API ────────────────────
-export async function fetchVerseWords(
-  bookId: string,
+// ─── Parse STEP Bible HTML → word-Strong pairs ───────────────────────────
+function parseStepHtml(html: string): { word: string; num: string }[] {
+  const results: { word: string; num: string }[] = [];
+  // Pattern: strong='H7225G' or strong='G3056' ... class='w ' ... class='text'>word</span>
+  const regex = /strong='([HG]\d+)\w*'[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(html)) !== null) {
+    const word = m[2].replace(/\u00a0/g, "").trim();
+    const num = m[1].toUpperCase();
+    if (word && num) results.push({ word, num });
+  }
+  // Deduplicate by Strong's number
+  const seen = new Set<string>();
+  return results.filter((r) => {
+    if (seen.has(r.num)) return false;
+    seen.add(r.num);
+    return true;
+  });
+}
+
+// ─── Main: get all Strong's entries for a verse ───────────────────────────
+export async function getVerseStrongs(
+  abbrev: string,
   chapter: number,
   verseNum: number,
   testament: "AT" | "NT"
-): Promise<OrigWord[]> {
-  const cacheKey = `${bookId}-${chapter}-${verseNum}`;
-  if (cacheKey in verseCache) return verseCache[cacheKey];
+): Promise<StrongsEntry[]> {
+  const key = `${abbrev}-${chapter}-${verseNum}`;
+  if (verseCache[key]) return verseCache[key];
 
-  const stepBook = STEP_BOOK[bookId.toLowerCase()];
+  const stepBook = STEP_BOOK[abbrev.toLowerCase()];
   if (!stepBook) {
-    console.warn("StrongsService: unknown bookId", bookId);
-    verseCache[cacheKey] = [];
+    verseCache[key] = [];
     return [];
   }
 
-  // THOT = Hebrew OT interlinear, SBLG = Greek NT interlinear
   const version = testament === "AT" ? "THOT" : "SBLG";
-  const prefix = testament === "AT" ? "H" : "G";
   const ref = `${stepBook}.${chapter}.${verseNum}`;
 
   try {
@@ -99,67 +107,28 @@ export async function fetchVerseWords(
       `https://www.stepbible.org/rest/search/masterSearch/reference=${ref}/${version}`
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
     const data = await res.json();
-    const html = data?.value || "";
+    const html: string = data?.value || "";
 
-    const words = parseStepHtml(html, prefix);
+    const pairs = parseStepHtml(html);
+    const entries: StrongsEntry[] = pairs
+      .map((p) => {
+        const info = lookup(p.num);
+        if (!info) return null;
+        return { ...info, word: p.word };
+      })
+      .filter((e): e is StrongsEntry => e !== null);
 
-    verseCache[cacheKey] = words;
-    return words;
+    verseCache[key] = entries;
+    return entries;
   } catch (err) {
-    console.warn(`StrongsService: STEP Bible failed for ${ref}`, err);
-    verseCache[cacheKey] = [];
+    console.error("[StrongsService]", err);
+    verseCache[key] = [];
     return [];
   }
 }
 
-// ─── Fetch definition by Strong's number ───────────────────────────────────
-// bolls.life/dictionary-definition/BDBT/{H430}
-export async function getStrongsDefinition(num: string): Promise<StrongsEntry | null> {
-  const key = num.toUpperCase().trim();
-  if (key in defCache) return defCache[key];
-
-  try {
-    const res = await fetch(`https://bolls.life/dictionary-definition/BDBT/${key}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const data = await res.json();
-    if (!data || (Array.isArray(data) && data.length === 0)) {
-      defCache[key] = null;
-      return null;
-    }
-
-    const d = Array.isArray(data) ? data[0] : data;
-
-    // Extract lemma from HTML if needed
-    let lemma = d.lexeme ?? d.original_word ?? d.lemma ?? d.topic ?? "";
-    // Clean HTML from definition
-    const definition = d.definition ?? d.strongs_def ?? d.short_definition ?? "";
-
-    // Try to extract transliteration and pronunciation from definition HTML
-    let xlit = "";
-    let pronunciation = "";
-    const xlitMatch = definition.match(/Transliteration:\s*<b>([^<]+)<\/b>/);
-    if (xlitMatch) xlit = xlitMatch[1].trim();
-    const pronMatch = definition.match(/Phonetic:\s*<b>([^<]+)<\/b>/);
-    if (pronMatch) pronunciation = pronMatch[1].trim();
-
-    const entry: StrongsEntry = {
-      strongs_num: key,
-      lemma,
-      xlit,
-      pronunciation,
-      definition,
-      kjv_usage: d.usage ?? d.kjv_def ?? "",
-      language: key.startsWith("H") ? "hebrew" : "greek",
-    };
-
-    defCache[key] = entry;
-    return entry;
-  } catch (err) {
-    console.error("StrongsService getDefinition error:", err, "key:", key);
-    defCache[key] = null;
-    return null;
-  }
+// ─── Manual lookup by Strong's number (for search) ────────────────────────
+export function lookupStrongs(num: string): Omit<StrongsEntry, "word"> | null {
+  return lookup(num);
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, Loader2, Search } from "lucide-react";
+import { X, ChevronDown, Search } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
-import { fetchVerseWords, getStrongsDefinition, type OrigWord, type StrongsEntry } from "@/services/StrongsService";
+import { getVerseStrongs, lookupStrongs, type StrongsEntry } from "@/services/StrongsService";
 
 interface Props {
   verse: { number: number; text: string };
@@ -11,56 +11,96 @@ interface Props {
   onClose: () => void;
 }
 
-function ManualSearch({ testament }: { testament: "AT" | "NT" }) {
-  const { T } = useThemeContext();
-  const prefix = testament === "AT" ? "H" : "G";
-  const [query, setQuery] = useState("");
-  const [result, setResult] = useState<StrongsEntry | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-
-  const search = async () => {
-    if (!query.trim()) return;
-    setLoading(true);
-    const q = query.trim().toUpperCase();
-    const searchKey = /^[HG]/i.test(q) ? q : `${prefix}${q}`;
-    const def = await getStrongsDefinition(searchKey);
-    setResult(def);
-    setSearched(true);
-    setLoading(false);
-  };
-
+function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <div style={{ marginTop: "0.75rem" }}>
-      <div className="flex gap-2">
-        <input
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setSearched(false); }}
-          onKeyDown={(e) => e.key === "Enter" && search()}
-          placeholder={`Ex: ${prefix}430, ${prefix}3056`}
-          className="flex-1"
-          style={{ borderRadius: "0.75rem", padding: "0.625rem 0.875rem", background: T.card2, color: T.textPrimary, border: `1.5px solid ${T.border}`, fontSize: "13px", outline: "none" }}
-        />
-        <button
-          onClick={search}
-          style={{ padding: "0.625rem 1rem", background: T.accent, color: T.page, border: "none", borderRadius: "0.75rem", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}
-        >
-          {loading ? "..." : "Ir"}
-        </button>
-      </div>
-      {searched && !result && (
-        <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "8px", textAlign: "center" }}>
-          Nenhum resultado encontrado
-        </p>
-      )}
-      {result && (
-        <div style={{ marginTop: "8px", padding: "0.75rem", borderRadius: "0.75rem", background: T.card2, border: `1px solid ${T.border}` }}>
-          <p style={{ fontSize: "13px", color: T.textPrimary }}>
-            <strong style={{ color: T.accent }}>{result.lemma}</strong>{" "}
-            <span style={{ color: T.textMuted, fontStyle: "italic" }}>({result.xlit})</span>
+    <div
+      onClick={() => setExpanded((e) => !e)}
+      style={{
+        borderRadius: "0.875rem",
+        background: T.card2,
+        border: `1px solid ${T.border}`,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "border-color 0.2s",
+      }}
+      className="ln4-glow"
+    >
+      {/* Main row */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "0.75rem 0.875rem" }}>
+        {/* Strong number + lemma */}
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          minWidth: "52px", flexShrink: 0,
+          padding: "4px 6px", borderRadius: "0.625rem",
+          background: T.accentDim,
+        }}>
+          <span style={{ fontSize: "9px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
+            {entry.num}
+          </span>
+          <span style={{
+            fontSize: entry.lang === "hebrew" ? "18px" : "15px",
+            fontWeight: 700, color: T.textPrimary, lineHeight: 1.2,
+            direction: entry.lang === "hebrew" ? "rtl" : "ltr",
+          }}>
+            {entry.lemma || entry.word}
+          </span>
+        </div>
+
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary }}>
+              {entry.word}
+            </span>
+            {entry.xlit && (
+              <span style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic" }}>
+                {entry.xlit}
+              </span>
+            )}
+            {entry.pron && (
+              <span style={{ fontSize: "10px", color: T.textDim }}>
+                /{entry.pron}/
+              </span>
+            )}
+          </div>
+          <p style={{
+            fontSize: "12px", color: T.textMuted, lineHeight: 1.5,
+            marginTop: "3px",
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: expanded ? 99 : 2,
+            WebkitBoxOrient: "vertical",
+          }}>
+            {entry.def}
           </p>
-          <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "4px", lineHeight: 1.5 }}>
-            {result.definition.slice(0, 200)}{result.definition.length > 200 ? "…" : ""}
+        </div>
+
+        {/* Chevron */}
+        <ChevronDown
+          size={14}
+          style={{
+            color: T.textDim, flexShrink: 0,
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s",
+          }}
+        />
+      </div>
+
+      {/* Expanded: KJV usage */}
+      {expanded && entry.kjv && (
+        <div style={{
+          padding: "0.5rem 0.875rem 0.75rem",
+          borderTop: `1px solid ${T.border}`,
+        }}>
+          <p style={{
+            fontSize: "9px", fontWeight: 700, color: T.textMuted,
+            textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px",
+          }}>
+            Traduzido como (KJV)
+          </p>
+          <p style={{ fontSize: "11px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.5 }}>
+            {entry.kjv}
           </p>
         </div>
       )}
@@ -70,257 +110,188 @@ function ManualSearch({ testament }: { testament: "AT" | "NT" }) {
 
 export default function StrongsPanel({ verse, bookId, chapter, bookTestament, onClose }: Props) {
   const { T } = useThemeContext();
-  const [words, setWords] = useState<OrigWord[]>([]);
-  const [loadingWords, setLoadingWords] = useState(true);
-  const [selectedWord, setSelectedWord] = useState<OrigWord | null>(null);
-  const [definition, setDefinition] = useState<StrongsEntry | null>(null);
-  const [loadingDef, setLoadingDef] = useState(false);
+  const [entries, setEntries] = useState<StrongsEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [manualNum, setManualNum] = useState("");
+  const [manualResult, setManualResult] = useState<StrongsEntry | null>(null);
+  const [manualSearched, setManualSearched] = useState(false);
 
   useEffect(() => {
-    setLoadingWords(true);
-    setWords([]);
-    setSelectedWord(null);
-    setDefinition(null);
-    fetchVerseWords(bookId, chapter, verse.number, bookTestament)
-      .then(setWords)
-      .finally(() => setLoadingWords(false));
+    setLoading(true);
+    setEntries([]);
+    getVerseStrongs(bookId, chapter, verse.number, bookTestament)
+      .then(setEntries)
+      .finally(() => setLoading(false));
   }, [bookId, chapter, verse.number, bookTestament]);
 
-  const handleWordClick = async (word: OrigWord) => {
-    setSelectedWord(word);
-    setDefinition(null);
-    setLoadingDef(true);
-    const def = await getStrongsDefinition(word.strongs);
-    setDefinition(def);
-    setLoadingDef(false);
+  const searchManual = () => {
+    const q = manualNum.trim().toUpperCase();
+    if (!q) return;
+    const searchKey = /^[HG]/i.test(q) ? q : `${bookTestament === "AT" ? "H" : "G"}${q}`;
+    const result = lookupStrongs(searchKey);
+    setManualResult(result ? { ...result, word: "—" } : null);
+    setManualSearched(true);
   };
 
   return (
     <>
-      {/* Overlay with blur */}
+      {/* Overlay */}
       <div
         onClick={onClose}
         style={{
           position: "fixed", inset: 0, zIndex: 100,
-          background: "rgba(0,0,0,0.7)",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
+          background: "rgba(0,0,0,0.5)",
         }}
       />
 
-      {/* Centered modal */}
+      {/* Slide-up banner */}
       <div
         style={{
           position: "fixed",
-          top: "50%", left: "50%",
-          transform: "translate(-50%, -50%)",
+          bottom: 0, left: 0, right: 0,
           zIndex: 101,
-          width: "min(480px, calc(100vw - 2rem))",
-          maxHeight: "82vh",
+          maxHeight: "75vh",
+          display: "flex", flexDirection: "column",
           background: T.card,
-          borderRadius: "1.25rem",
+          borderRadius: "1.25rem 1.25rem 0 0",
           border: `1px solid ${T.border}`,
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: `0 32px 80px rgba(0,0,0,0.5)`,
-          overflow: "hidden",
+          borderBottom: "none",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.4)",
+          animation: "slideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
         }}
-        className="page-enter"
       >
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
+          <div style={{ width: "36px", height: "4px", borderRadius: "9999px", background: T.textDim, opacity: 0.5 }} />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between shrink-0" style={{ padding: "1rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
-          <div>
-            <p style={{ fontSize: "10px", fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Dicionário Strong · {bookTestament === "AT" ? "Hebraico" : "Grego"}
+        <div style={{
+          padding: "0.5rem 1.25rem 0.75rem",
+          borderBottom: `1px solid ${T.border}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{
+              fontSize: "10px", fontWeight: 700, color: T.accent,
+              textTransform: "uppercase", letterSpacing: "0.08em",
+            }}>
+              Dicionário Strong · Versículo {verse.number} · {bookTestament === "AT" ? "Hebraico" : "Grego"}
             </p>
-            <p style={{ fontSize: "15px", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.02em", marginTop: "2px" }}>
-              Versículo {verse.number}
+            <p style={{
+              fontSize: "13px", color: T.textMuted, marginTop: "3px",
+              lineHeight: 1.5,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {verse.text}
             </p>
           </div>
-          <button onClick={onClose} style={{
-            width: "32px", height: "32px", borderRadius: "9999px",
-            background: T.card2, border: `1px solid ${T.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", flexShrink: 0,
-          }}>
+          <button
+            onClick={onClose}
+            style={{
+              width: "32px", height: "32px", borderRadius: "9999px",
+              background: T.card2, border: `1px solid ${T.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", flexShrink: 0, marginLeft: "12px",
+            }}
+          >
             <X size={14} color={T.textMuted} />
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div style={{ overflowY: "auto", flex: 1, padding: "1.25rem" }}>
-          {/* Verse text */}
-          <div style={{ borderRadius: "0.75rem", padding: "0.875rem", background: T.card2, borderLeft: `3px solid ${T.accent}`, marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.7 }}>{verse.text}</p>
-          </div>
-
-          {/* Original words chips */}
-          <div style={{ marginBottom: "1.25rem" }}>
-            <p style={{
-              fontSize: "10px", fontWeight: 700, color: T.textMuted,
-              textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px",
-            }}>
-              {loadingWords
-                ? "Carregando palavras originais..."
-                : words.length > 0
-                ? "Toque em uma palavra para ver a definição"
-                : "Palavras indisponíveis — use busca manual"}
-            </p>
-
-            {/* Skeleton loading */}
-            {loadingWords && (
-              <div className="flex flex-wrap gap-2">
-                {[52, 64, 48, 72, 56].map((w, i) => (
-                  <div key={i} style={{
-                    width: `${w}px`, height: "56px", borderRadius: "0.75rem",
+        <div style={{
+          overflowY: "auto", flex: 1,
+          padding: "1rem 1.25rem",
+          paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
+        }}>
+          {/* Loading skeleton */}
+          {loading && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: "68px", borderRadius: "0.875rem",
                     background: T.card2, opacity: 0.6,
                     animation: "pulse 1.5s ease-in-out infinite",
-                  }} />
-                ))}
-              </div>
-            )}
+                  }}
+                />
+              ))}
+            </div>
+          )}
 
-            {/* Word chips */}
-            {!loadingWords && words.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {words.map((w, i) => {
-                  const isSelected = selectedWord?.strongs === w.strongs && selectedWord?.word === w.word;
-                  return (
-                    <button
-                      key={`${w.strongs}-${i}`}
-                      onClick={() => handleWordClick(w)}
-                      style={{
-                        padding: "8px 10px",
-                        borderRadius: "0.75rem",
-                        background: isSelected ? T.accentDim : T.card2,
-                        border: `1.5px solid ${isSelected ? T.accent : T.border}`,
-                        cursor: "pointer",
-                        display: "flex", flexDirection: "column",
-                        alignItems: "center", gap: "4px",
-                        transition: "all 0.15s",
-                        minWidth: "48px",
-                      }}
-                    >
-                      <span style={{
-                        fontSize: bookTestament === "AT" ? "19px" : "15px",
-                        fontWeight: 600, lineHeight: 1.2,
-                        color: isSelected ? T.accent : T.textPrimary,
-                        direction: bookTestament === "AT" ? "rtl" : "ltr",
-                        letterSpacing: "0.02em",
-                      }}>
-                        {w.word}
-                      </span>
-                      <span style={{
-                        fontSize: "9px", fontWeight: 700, letterSpacing: "0.04em",
-                        color: isSelected ? T.accent : T.textDim,
-                      }}>
-                        {w.strongs}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* No data */}
+          {!loading && entries.length === 0 && (
+            <div style={{
+              padding: "1.5rem", textAlign: "center",
+              borderRadius: "0.875rem", background: T.card2,
+              marginBottom: "1rem",
+            }}>
+              <p style={{ fontSize: "13px", color: T.textMuted }}>
+                Análise Strong's não disponível para este versículo.
+              </p>
+              <p style={{ fontSize: "11px", color: T.textDim, marginTop: "4px" }}>
+                Use a busca manual abaixo para consultar por número.
+              </p>
+            </div>
+          )}
 
-          {/* Manual search — always visible */}
-          <div style={{ marginBottom: "1.25rem" }}>
+          {/* Word cards */}
+          {!loading && entries.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "1rem" }}>
+              {entries.map((entry, i) => (
+                <StrongsWordCard key={`${entry.num}-${i}`} entry={entry} T={T} />
+              ))}
+            </div>
+          )}
+
+          {/* Manual search */}
+          <div style={{ marginBottom: "0.5rem" }}>
             <p style={{
               fontSize: "10px", fontWeight: 700, color: T.textMuted,
               textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px",
             }}>
               Busca direta por número
             </p>
-            <ManualSearch testament={bookTestament} />
-          </div>
-
-          {/* Loading definition */}
-          {loadingDef && (
-            <div className="flex items-center gap-2 mb-4" style={{
-              borderRadius: "0.875rem", background: T.card2,
-              padding: "1.25rem",
-            }}>
-              <div style={{
-                width: "16px", height: "16px", borderRadius: "9999px",
-                border: `2px solid ${T.accent}`, borderTopColor: "transparent",
-                animation: "spin 0.7s linear infinite", flexShrink: 0,
-              }} />
-              <span style={{ fontSize: "13px", color: T.textMuted }}>
-                Buscando definição de {selectedWord?.strongs}...
-              </span>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                value={manualNum}
+                onChange={(e) => { setManualNum(e.target.value); setManualSearched(false); }}
+                onKeyDown={(e) => e.key === "Enter" && searchManual()}
+                placeholder={bookTestament === "AT" ? "Ex: H430, H7225" : "Ex: G3056, G26"}
+                style={{
+                  flex: 1, borderRadius: "0.75rem",
+                  padding: "0.625rem 0.875rem",
+                  background: T.card2, color: T.textPrimary,
+                  border: `1.5px solid ${T.border}`,
+                  fontSize: "13px", outline: "none",
+                }}
+              />
+              <button
+                onClick={searchManual}
+                style={{
+                  padding: "0.625rem 1rem",
+                  background: T.accent, color: T.page,
+                  border: "none", borderRadius: "0.75rem",
+                  fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                }}
+              >
+                Ir
+              </button>
             </div>
-          )}
-
-          {/* Definition card */}
-          {definition && !loadingDef && (
-            <div style={{ borderRadius: "0.875rem", border: `1px solid ${T.borderAc}`, overflow: "hidden", marginBottom: "1rem" }}>
-              {/* Header with lemma */}
-              <div className="flex items-start justify-between" style={{
-                padding: "1rem 1.25rem",
-                background: T.accentDim,
-                borderBottom: `1px solid ${T.borderAc}`,
-              }}>
-                <div>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, letterSpacing: "0.06em" }}>
-                    {definition.strongs_num}
-                  </span>
-                  {definition.lemma && (
-                    <p style={{
-                      fontSize: definition.language === "hebrew" ? "2rem" : "1.75rem",
-                      fontWeight: 900, color: T.textPrimary,
-                      marginTop: "4px", lineHeight: 1,
-                      direction: definition.language === "hebrew" ? "rtl" : "ltr",
-                    }}>
-                      {definition.lemma}
-                    </p>
-                  )}
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "1rem" }}>
-                  {definition.xlit && (
-                    <p style={{ fontSize: "14px", color: T.textMuted, fontStyle: "italic" }}>{definition.xlit}</p>
-                  )}
-                  {definition.pronunciation && (
-                    <p style={{ fontSize: "11px", color: T.textDim, marginTop: "3px" }}>/{definition.pronunciation}/</p>
-                  )}
-                </div>
+            {manualSearched && manualResult && (
+              <div style={{ marginTop: "8px" }}>
+                <StrongsWordCard entry={manualResult} T={T} />
               </div>
-
-              {/* Definition text */}
-              {definition.definition && (
-                <div style={{ padding: "0.875rem 1.25rem", borderBottom: `1px solid ${T.border}` }}>
-                  <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>
-                    Definição Strong's
-                  </p>
-                  <p
-                    style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.65 }}
-                    dangerouslySetInnerHTML={{ __html: definition.definition }}
-                  />
-                </div>
-              )}
-
-              {/* KJV usage */}
-              {definition.kjv_usage && (
-                <div style={{ padding: "0.75rem 1.25rem" }}>
-                  <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
-                    Traduzido como (KJV)
-                  </p>
-                  <p style={{ fontSize: "12px", color: T.textMuted, fontStyle: "italic" }}>{definition.kjv_usage}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Not found */}
-          {!loadingDef && selectedWord && !definition && (
-            <div style={{
-              borderRadius: "0.875rem", background: T.card2,
-              padding: "1.25rem", textAlign: "center", marginBottom: "1rem",
-            }}>
-              <p style={{ fontSize: "13px", color: T.textMuted }}>
-                Nenhuma definição para <strong style={{ color: T.textPrimary }}>{selectedWord.strongs}</strong>
+            )}
+            {manualSearched && !manualResult && (
+              <p style={{ fontSize: "12px", color: T.textMuted, marginTop: "8px", textAlign: "center" }}>
+                Nenhum resultado encontrado
               </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>
