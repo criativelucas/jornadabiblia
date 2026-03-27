@@ -6,7 +6,6 @@ export interface BibleBook {
 
 export type BibleVersion = "nvi" | "naa" | "ntlh";
 
-// ─── Formato do repositório damarals/biblias (NAA e NTLH) ─────────────────
 interface DamaralsVerse {
   verse: number;
   text: string;
@@ -47,52 +46,82 @@ export const VERSION_DESCRIPTIONS: Record<BibleVersion, string> = {
   ntlh: "Ling. Hoje",
 };
 
-// ─── Cache duplo: memória + sessionStorage ────────────────────────────────
-const CACHE_KEY_PREFIX = "bible_cache_v2_";
+// ─── Cache em memória (instantâneo) ───────────────────────────────────────
 const memoryCache: Record<string, BibleBook[]> = {};
 
-export async function fetchTranslation(version: BibleVersion): Promise<BibleBook[]> {
-  // 1. Memória — instantâneo
-  if (memoryCache[version]) return memoryCache[version];
+// ─── Cache em localStorage (persiste entre sessões) ───────────────────────
+// Diferença crítica vs sessionStorage: não apaga ao fechar a aba.
+// Na segunda visita ao app, a Bíblia já está salva localmente → carrega em <50ms.
+const LS_PREFIX = "jb_bible_v3_";
 
-  // 2. sessionStorage — persiste durante a sessão
+function lsGet(version: BibleVersion): BibleBook[] | null {
   try {
-    const stored = sessionStorage.getItem(CACHE_KEY_PREFIX + version);
-    if (stored) {
-      const parsed = JSON.parse(stored) as BibleBook[];
-      memoryCache[version] = parsed;
-      return parsed;
-    }
-  } catch {}
-
-  // 3. Rede
-  const res = await fetch(VERSION_URLS[version]);
-  if (!res.ok) throw new Error(`Erro ao carregar ${version}: HTTP ${res.status}`);
-  const raw = await res.json();
-
-  // NAA e NTLH têm formato diferente — normaliza
-  const isDamarals = version === "naa" || version === "ntlh";
-  const data: BibleBook[] = isDamarals ? normalizeDamarals(raw) : raw;
-
-  memoryCache[version] = data;
-  try {
-    sessionStorage.setItem(CACHE_KEY_PREFIX + version, JSON.stringify(data));
-  } catch {}
-
-  return data;
+    const raw = localStorage.getItem(LS_PREFIX + version);
+    return raw ? (JSON.parse(raw) as BibleBook[]) : null;
+  } catch {
+    return null;
+  }
 }
 
-/** Verifica se uma versão já está em cache sem fazer fetch */
+function lsSet(version: BibleVersion, data: BibleBook[]): void {
+  try {
+    localStorage.setItem(LS_PREFIX + version, JSON.stringify(data));
+  } catch {
+    // Se localStorage estiver cheio, remove entradas antigas e tenta novamente
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("jb_bible_"))
+        .forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem(LS_PREFIX + version, JSON.stringify(data));
+    } catch {}
+  }
+}
+
+// ─── Promessas em voo — evita fetch duplicado se chamado duas vezes seguidas ──
+const inFlight: Record<string, Promise<BibleBook[]>> = {};
+
+export async function fetchTranslation(version: BibleVersion): Promise<BibleBook[]> {
+  // 1. Memória — 0ms
+  if (memoryCache[version]) return memoryCache[version];
+
+  // 2. localStorage — ~5-20ms (persiste entre sessões)
+  const cached = lsGet(version);
+  if (cached) {
+    memoryCache[version] = cached;
+    return cached;
+  }
+
+  // 3. Evita downloads paralelos da mesma versão
+  if (inFlight[version]) return inFlight[version];
+
+  // 4. Rede
+  inFlight[version] = (async () => {
+    const res = await fetch(VERSION_URLS[version]);
+    if (!res.ok) throw new Error(`Erro ao carregar ${version}: HTTP ${res.status}`);
+    const raw = await res.json();
+
+    const isDamarals = version === "naa" || version === "ntlh";
+    const data: BibleBook[] = isDamarals ? normalizeDamarals(raw) : raw;
+
+    memoryCache[version] = data;
+    lsSet(version, data); // salva para próximas visitas
+    delete inFlight[version];
+    return data;
+  })();
+
+  return inFlight[version];
+}
+
 export function isVersionCached(version: BibleVersion): boolean {
   if (memoryCache[version]) return true;
   try {
-    return sessionStorage.getItem(CACHE_KEY_PREFIX + version) !== null;
+    return localStorage.getItem(LS_PREFIX + version) !== null;
   } catch {
     return false;
   }
 }
 
-// ─── Helpers de testamento ────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────
 const NT_ABBREVS = new Set([
   "mt",
   "mc",
@@ -124,11 +153,9 @@ const NT_ABBREVS = new Set([
 ]);
 
 export function getTestament(abbrev: string): "AT" | "NT" {
-  if (NT_ABBREVS.has(abbrev)) return "NT";
-  return "AT";
+  return NT_ABBREVS.has(abbrev.toLowerCase()) ? "NT" : "AT";
 }
 
-// ─── Mapeamento abbrev → nome PT ──────────────────────────────────────────
 import { bibleBooks } from "@/data/bibleBooks";
 
 const ABBREV_ORDER = [
