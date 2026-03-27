@@ -8,23 +8,19 @@ import { toast } from "sonner";
 import {
   fetchTranslation,
   isVersionCached,
-  getTestament,
   VERSION_LABELS,
   VERSION_DESCRIPTIONS,
   type BibleVersion,
   type BibleBook as BibleDataBook,
 } from "@/hooks/useBibleData";
-import { Skeleton } from "@/components/ui/skeleton";
 import BookPanorama from "@/components/BookPanorama";
 import QuizModal from "@/components/QuizModal";
 import StrongsPanel from "@/components/StrongsPanel";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
-
-// ✅ MUDANÇA 1: versões corretas
 const ALL_VERSIONS: BibleVersion[] = ["nvi", "naa", "ntlh"];
 
-// ── Dropdown de versão ──────────────────────────────────────────────────────
+// ── Dropdown de versão ─────────────────────────────────────────────────────
 function VersionPicker({
   value,
   onChange,
@@ -32,21 +28,19 @@ function VersionPicker({
   label,
 }: {
   value: BibleVersion;
-  onChange: (v: BibleVersion) => void;
+  onChange: (v: BibleVersion | "compare") => void;
   T: any;
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const h = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
-
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
@@ -69,10 +63,9 @@ function VersionPicker({
         {VERSION_LABELS[value]}
         <ChevronDown
           size={11}
-          style={{ opacity: 0.7, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+          style={{ opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
         />
       </button>
-
       {open && (
         <div
           style={{
@@ -85,7 +78,7 @@ function VersionPicker({
             overflow: "hidden",
             boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
             zIndex: 200,
-            minWidth: "150px",
+            minWidth: "160px",
           }}
         >
           {ALL_VERSIONS.map((v) => (
@@ -113,11 +106,9 @@ function VersionPicker({
               <span style={{ fontSize: "9px", color: T.textDim }}>{VERSION_DESCRIPTIONS[v]}</span>
             </button>
           ))}
-
-          {/* Botão comparar */}
           <button
             onClick={() => {
-              onChange("compare" as any);
+              onChange("compare");
               setOpen(false);
             }}
             style={{
@@ -126,15 +117,14 @@ function VersionPicker({
               gap: "6px",
               width: "100%",
               padding: "10px 14px",
-              background: (value as any) === "compare" ? T.accentDim : "transparent",
-              color: (value as any) === "compare" ? T.accent : T.textMuted,
+              background: "transparent",
+              color: T.textMuted,
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            <Columns2 size={13} />
-            Comparar versões
+            <Columns2 size={13} /> Comparar versões
           </button>
         </div>
       )}
@@ -142,7 +132,6 @@ function VersionPicker({
   );
 }
 
-// ── Painel de comparação ────────────────────────────────────────────────────
 function CompareVersionPicker({
   leftVersion,
   rightVersion,
@@ -157,10 +146,10 @@ function CompareVersionPicker({
   T: any;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-      <VersionPicker value={leftVersion} onChange={onChangeLeft} T={T} label="A" />
-      <span style={{ fontSize: "11px", color: T.textDim }}>vs</span>
-      <VersionPicker value={rightVersion} onChange={onChangeRight} T={T} label="B" />
+    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <VersionPicker value={leftVersion} onChange={(v) => v !== "compare" && onChangeLeft(v)} T={T} label="A" />
+      <span style={{ fontSize: "10px", color: T.textDim }}>vs</span>
+      <VersionPicker value={rightVersion} onChange={(v) => v !== "compare" && onChangeRight(v)} T={T} label="B" />
     </div>
   );
 }
@@ -168,6 +157,7 @@ function CompareVersionPicker({
 export default function BibleTab() {
   const { T } = useThemeContext();
   const { user } = useAuth();
+
   const [view, setView] = useState<View>("testament");
   const [testament, setTestament] = useState<"AT" | "NT">("AT");
   const [selectedBook, setSelectedBook] = useState<(typeof bibleBooks)[0] | null>(null);
@@ -179,77 +169,124 @@ export default function BibleTab() {
   const [markedRead, setMarkedRead] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [chaptersReadForBook, setChaptersReadForBook] = useState(0);
-
-  // ✅ MUDANÇA 2: versão padrão nvi, e limpa cache antigo de versões removidas
-  const [version, setVersionState] = useState<BibleVersion | "compare">(() => {
-    const saved = localStorage.getItem("bible_preferred_version") as BibleVersion;
-    // Se o usuário tinha 'acf' ou 'aa' salvo, reseta para 'nvi'
-    if (saved && ["nvi", "naa", "ntlh"].includes(saved)) return saved;
-    return "nvi";
-  });
-
-  // ✅ MUDANÇA 3: padrão do compare usa naa no lado direito
-  const [compareLeft, setCompareLeft] = useState<BibleVersion>("nvi");
-  const [compareRight, setCompareRight] = useState<BibleVersion>("naa");
-
-  const handleVersionChange = useCallback((v: BibleVersion | "compare") => {
-    setVersionState(v);
-    if (v !== "compare") {
-      localStorage.setItem("bible_preferred_version", v);
-    }
-  }, []);
-
-  const [bibleData, setBibleData] = useState<BibleDataBook[] | null>(null);
-  const [bibleDataB, setBibleDataB] = useState<BibleDataBook[] | null>(null);
-  const [loadingBible, setLoadingBible] = useState(false);
-
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizBookName, setQuizBookName] = useState("");
   const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
 
+  const [version, setVersionState] = useState<BibleVersion | "compare">(() => {
+    const saved = localStorage.getItem("jb_preferred_version") as BibleVersion;
+    return saved && ALL_VERSIONS.includes(saved) ? saved : "nvi";
+  });
+  const [compareLeft, setCompareLeft] = useState<BibleVersion>("nvi");
+  const [compareRight, setCompareRight] = useState<BibleVersion>("naa");
   const isCompare = version === "compare";
-  const activeVersion: BibleVersion = isCompare ? compareLeft : (version as BibleVersion);
 
-  // Prefetch NVI ao montar
-  useEffect(() => {
-    fetchTranslation("nvi");
+  // Dados da Bíblia — inicializa do cache instantaneamente se disponível
+  const [bibleData, setBibleData] = useState<BibleDataBook[] | null>(() => {
+    // Se NVI já está no localStorage, carrega SÍNCRONO — tela não pisca
+    const v = (localStorage.getItem("jb_preferred_version") as BibleVersion) || "nvi";
+    if (!ALL_VERSIONS.includes(v)) return null;
+    try {
+      const raw = localStorage.getItem(`jb_bible_v3_${v}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [bibleDataB, setBibleDataB] = useState<BibleDataBook[] | null>(null);
+
+  const handleVersionChange = useCallback((v: BibleVersion | "compare") => {
+    setVersionState(v);
+    if (v !== "compare") localStorage.setItem("jb_preferred_version", v);
   }, []);
 
-  // Carrega versão principal
+  // ── Prefetch NVI ao montar (background, sem bloquear UI) ──────────────────
+  useEffect(() => {
+    // Prefetch silencioso — sem mostrar loading
+    if (!isVersionCached("nvi")) fetchTranslation("nvi").then(setBibleData);
+    // Prefetch das outras versões em background com delay para não competir
+    const t1 = setTimeout(() => fetchTranslation("naa"), 2000);
+    const t2 = setTimeout(() => fetchTranslation("ntlh"), 4000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+
+  // ── Quando versão muda, carrega em background sem loading ────────────────
   useEffect(() => {
     if (isCompare) return;
-    setLoadingBible(true);
-    fetchTranslation(version as BibleVersion)
-      .then(setBibleData)
-      .finally(() => setLoadingBible(false));
+    const v = version as BibleVersion;
+    if (isVersionCached(v)) {
+      fetchTranslation(v).then(setBibleData); // cache → instantâneo
+    } else {
+      // Rede: mostra loading só se já está na tela de leitura
+      if (view === "reading") setLoadingText(true);
+      fetchTranslation(v).then((data) => {
+        setBibleData(data);
+        setLoadingText(false);
+        // Atualiza versículos se capítulo aberto
+        if (view === "reading" && selectedBook) {
+          const idx = bibleBooks.findIndex((b) => b.id === selectedBook.id);
+          const chData = idx >= 0 ? data[idx]?.chapters[selectedChapter - 1] : undefined;
+          if (chData) setVerses(chData.map((text, i) => ({ verse: i + 1, text: text.trim() })));
+        }
+      });
+    }
   }, [version]);
 
-  // Carrega versões de comparação
+  // ── Comparação ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isCompare) return;
     fetchTranslation(compareLeft).then(setBibleData);
     fetchTranslation(compareRight).then(setBibleDataB);
   }, [isCompare, compareLeft, compareRight]);
 
-  const findBookData = (book: (typeof bibleBooks)[0], data: BibleDataBook[] | null): BibleDataBook | undefined => {
-    if (!data) return undefined;
-    const bookIndex = bibleBooks.findIndex((b) => b.id === book.id);
-    return bookIndex >= 0 ? data[bookIndex] : undefined;
+  const findBookIdx = (book: (typeof bibleBooks)[0]) => bibleBooks.findIndex((b) => b.id === book.id);
+
+  const findBookData = (book: (typeof bibleBooks)[0], data: BibleDataBook[] | null) => {
+    const idx = findBookIdx(book);
+    return idx >= 0 && data ? data[idx] : undefined;
   };
+
+  const handleSelectChapter = async (ch: number) => {
+    if (!selectedBook) return;
+    setSelectedChapter(ch);
+    setView("reading");
+    setMarkedRead(false);
+    setSelectedVerse(null);
+    scrollRef.current?.scrollTo(0, 0);
+
+    const bookIdx = findBookIdx(selectedBook);
+
+    if (isCompare) {
+      const bothCached = isVersionCached(compareLeft) && isVersionCached(compareRight);
+      if (!bothCached) setLoadingText(true);
+      const [dataA, dataB] = await Promise.all([fetchTranslation(compareLeft), fetchTranslation(compareRight)]);
+      setBibleData(dataA);
+      setBibleDataB(dataB);
+      setVerses(dataA[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+      setVersesB(dataB[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+      setLoadingText(false);
+    } else {
+      const ver = version as BibleVersion;
+      if (!isVersionCached(ver)) setLoadingText(true);
+      const data = await fetchTranslation(ver);
+      setBibleData(data);
+      setVerses(data[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+      setLoadingText(false);
+    }
+  };
+
+  // Reload quando versões de comparação mudam
+  useEffect(() => {
+    if (isCompare && selectedBook && view === "reading") handleSelectChapter(selectedChapter);
+  }, [compareLeft, compareRight]);
 
   const handleSelectTestament = (t: "AT" | "NT") => {
     setTestament(t);
     setView("books");
   };
-
-  const handleBookHover = useCallback(() => {
-    if (!isCompare) {
-      fetchTranslation(version as BibleVersion);
-    } else {
-      fetchTranslation(compareLeft);
-      fetchTranslation(compareRight);
-    }
-  }, [version, isCompare, compareLeft, compareRight]);
 
   const handleSelectBook = async (book: (typeof bibleBooks)[0]) => {
     setSelectedBook(book);
@@ -265,56 +302,6 @@ export default function BibleTab() {
     setChaptersReadForBook(readCount);
     setView("panorama");
   };
-
-  const handleSelectChapter = async (ch: number) => {
-    if (!selectedBook) return;
-    setSelectedChapter(ch);
-    setView("reading");
-    setMarkedRead(false);
-    setSelectedVerse(null);
-
-    if (isCompare) {
-      const bothCached = isVersionCached(compareLeft) && isVersionCached(compareRight);
-      if (!bothCached) setLoadingText(true);
-
-      const [dataA, dataB] = await Promise.all([fetchTranslation(compareLeft), fetchTranslation(compareRight)]);
-      setBibleData(dataA);
-      setBibleDataB(dataB);
-      setVerses(
-        findBookData(selectedBook, dataA)?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ??
-          [],
-      );
-      setVersesB(
-        findBookData(selectedBook, dataB)?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ??
-          [],
-      );
-      setLoadingText(false);
-    } else {
-      const ver = version as BibleVersion;
-      const cached = isVersionCached(ver);
-      if (!cached) setLoadingText(true);
-
-      const data = await fetchTranslation(ver);
-      setBibleData(data);
-      const bookData = findBookData(selectedBook, data);
-      setVerses(bookData?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ?? []);
-      setLoadingText(false);
-    }
-
-    scrollRef.current?.scrollTo(0, 0);
-  };
-
-  useEffect(() => {
-    if (isCompare && selectedBook && view === "reading") {
-      handleSelectChapter(selectedChapter);
-    }
-  }, [compareLeft, compareRight]);
-
-  useEffect(() => {
-    if (!isCompare && selectedBook && view === "reading") {
-      handleSelectChapter(selectedChapter);
-    }
-  }, [version]);
 
   const handleMarkRead = async () => {
     if (!user || !selectedBook) {
@@ -374,6 +361,7 @@ export default function BibleTab() {
     clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
   };
 
+  // Pills — mostrados nas telas de navegação
   const versionPills = (
     <div className="flex gap-2 mb-4 flex-wrap">
       {ALL_VERSIONS.map((v) => (
@@ -416,19 +404,14 @@ export default function BibleTab() {
     );
   }
 
-  if (loadingBible && !bibleData) {
-    return (
-      <div className="space-y-4">
-        {versionPills}
-        <div className="grid grid-cols-2 gap-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="skeleton-shimmer h-16 rounded-xl" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // ── CRÍTICO: sem skeleton global ─────────────────────────────────────────
+  // O skeleton antigo bloqueava TODA a UI até o fetch completar.
+  // Agora a navegação (testamento → livros → capítulos) aparece imediatamente.
+  // O loading só aparece dentro da tela de leitura, onde realmente é necessário.
 
+  const activeVersion: BibleVersion = isCompare ? compareLeft : (version as BibleVersion);
+
+  // ── Testament ──────────────────────────────────────────────────────────────
   if (view === "testament") {
     return (
       <div className="space-y-6">
@@ -438,33 +421,31 @@ export default function BibleTab() {
           Escolha o Testamento
         </h2>
         <div className="grid grid-cols-2 gap-4">
-          {(["AT", "NT"] as const).map((t) => {
-            const count = t === "AT" ? AT_BOOKS.length : NT_BOOKS.length;
-            return (
-              <button
-                key={t}
-                onClick={() => handleSelectTestament(t)}
-                className="p-6 text-left transition-all hover:opacity-90"
-                style={clipCard}
-              >
-                <BookOpen className="w-8 h-8 mb-3" style={{ color: T.accent }} />
-                <p className="text-lg font-black" style={{ color: T.textPrimary, letterSpacing: "-0.03em" }}>
-                  {t === "AT" ? "Antigo" : "Novo"}
-                </p>
-                <p className="text-sm font-bold" style={{ color: T.textPrimary }}>
-                  Testamento
-                </p>
-                <p className="text-xs mt-2" style={{ color: T.textMuted }}>
-                  {count} livros
-                </p>
-              </button>
-            );
-          })}
+          {(["AT", "NT"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => handleSelectTestament(t)}
+              className="p-6 text-left transition-all hover:opacity-90"
+              style={clipCard}
+            >
+              <BookOpen className="w-8 h-8 mb-3" style={{ color: T.accent }} />
+              <p className="text-lg font-black" style={{ color: T.textPrimary, letterSpacing: "-0.03em" }}>
+                {t === "AT" ? "Antigo" : "Novo"}
+              </p>
+              <p className="text-sm font-bold" style={{ color: T.textPrimary }}>
+                Testamento
+              </p>
+              <p className="text-xs mt-2" style={{ color: T.textMuted }}>
+                {t === "AT" ? AT_BOOKS.length : NT_BOOKS.length} livros
+              </p>
+            </button>
+          ))}
         </div>
       </div>
     );
   }
 
+  // ── Books ──────────────────────────────────────────────────────────────────
   if (view === "books") {
     const books = testament === "AT" ? AT_BOOKS : NT_BOOKS;
     return (
@@ -484,7 +465,14 @@ export default function BibleTab() {
             <button
               key={book.id}
               onClick={() => handleSelectBook(book)}
-              onMouseEnter={handleBookHover}
+              onMouseEnter={() => {
+                // Pré-carrega ao hover — se já em cache não faz nada
+                if (!isCompare) fetchTranslation(version as BibleVersion);
+                else {
+                  fetchTranslation(compareLeft);
+                  fetchTranslation(compareRight);
+                }
+              }}
               className="p-4 text-left transition-all hover:opacity-90 flex items-center gap-3"
               style={clipCard}
             >
@@ -505,6 +493,7 @@ export default function BibleTab() {
     );
   }
 
+  // ── Panorama ───────────────────────────────────────────────────────────────
   if (view === "panorama" && selectedBook) {
     return (
       <div>
@@ -519,6 +508,7 @@ export default function BibleTab() {
     );
   }
 
+  // ── Chapters ───────────────────────────────────────────────────────────────
   if (view === "chapters" && selectedBook) {
     return (
       <div className="space-y-4">
@@ -573,6 +563,7 @@ export default function BibleTab() {
     );
   }
 
+  // ── Reading ────────────────────────────────────────────────────────────────
   if (view === "reading" && selectedBook) {
     return (
       <div className="space-y-4" ref={scrollRef}>
@@ -618,19 +609,19 @@ export default function BibleTab() {
           </div>
         </div>
 
-        {/* Botão sair da comparação */}
+        {/* Sair da comparação */}
         {isCompare && (
           <button
             onClick={() => handleVersionChange("nvi")}
             style={{
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
+              gap: "5px",
               fontSize: "11px",
               fontWeight: 700,
               color: T.accent,
               background: T.accentDim,
-              border: `1px solid ${T.accent}33`,
+              border: `1px solid ${T.accent}44`,
               borderRadius: "9999px",
               padding: "5px 12px",
               cursor: "pointer",
@@ -667,7 +658,7 @@ export default function BibleTab() {
               { label: VERSION_LABELS[compareLeft], data: verses },
               { label: VERSION_LABELS[compareRight], data: versesB },
             ].map(({ label, data }) => (
-              <div key={label} style={{ ...clipCard, padding: "0" }}>
+              <div key={label} style={{ ...clipCard, padding: 0 }}>
                 <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.border}`, background: T.accentDim }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, letterSpacing: "0.06em" }}>
                     {label}
