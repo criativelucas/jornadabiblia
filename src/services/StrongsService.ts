@@ -1,23 +1,25 @@
 // ─── Strong's Dictionary Service ──────────────────────────────────────────
 // Word mapping: STEP Bible API (stepbible.org) — free, no key
 // Definitions: bundled npm `strongs` package — offline, instant
-// Translations: Claude API — automático para português
+// Translations: Edge function with Lovable AI — automático para português
 
 // @ts-ignore — no types
 import strongsGreek from "strongs/greek/strongs-greek-dictionary.js";
 // @ts-ignore
 import strongsHebrew from "strongs/hebrew/strongs-hebrew-dictionary.js";
 
+import { supabase } from "@/integrations/supabase/client";
+
 // ─── Types ────────────────────────────────────────────────────────────────
 export interface StrongsEntry {
-  num: string; // "H430" or "G3056"
-  word: string; // gloss from interlinear
-  lemma: string; // original form (Hebrew/Greek)
-  xlit: string; // transliteration
-  pron: string; // pronunciation
-  def: string; // definição completa em português
-  kjv: string; // uso KJV em português
-  grammar?: string; // info gramatical (ex: "Substantivo masculino plural")
+  num: string;
+  word: string;
+  lemma: string;
+  xlit: string;
+  pron: string;
+  def: string;
+  kjv: string;
+  grammar?: string;
   lang: "hebrew" | "greek";
 }
 
@@ -25,120 +27,71 @@ export interface StrongsEntry {
 const verseCache: Record<string, StrongsEntry[]> = {};
 const translationCache: Record<string, { def: string; kjv: string }> = {};
 
+// Load persisted translation cache from sessionStorage
+try {
+  const stored = sessionStorage.getItem("strongs_pt_cache_v1");
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    Object.assign(translationCache, parsed);
+  }
+} catch {}
+
+function persistTranslationCache() {
+  try {
+    sessionStorage.setItem("strongs_pt_cache_v1", JSON.stringify(translationCache));
+  } catch {}
+}
+
 // ─── STEP Bible book abbreviation map ─────────────────────────────────────
 const STEP_BOOK: Record<string, string> = {
-  gn: "Gen",
-  ex: "Exod",
-  lv: "Lev",
-  nm: "Num",
-  dt: "Deut",
-  js: "Josh",
-  jz: "Judg",
-  rt: "Ruth",
-  "1sm": "1Sam",
-  "2sm": "2Sam",
-  "1rs": "1Kgs",
-  "2rs": "2Kgs",
-  "1cr": "1Chr",
-  "2cr": "2Chr",
-  ed: "Ezra",
-  ne: "Neh",
-  et: "Esth",
-  jó: "Job",
-  sl: "Ps",
-  pv: "Prov",
-  ec: "Eccl",
-  ct: "Song",
-  is: "Isa",
-  jr: "Jer",
-  lm: "Lam",
-  ez: "Ezek",
-  dn: "Dan",
-  os: "Hos",
-  jl: "Joel",
-  am: "Amos",
-  ob: "Obad",
-  jn: "Jonah",
-  mq: "Mic",
-  na: "Nah",
-  hc: "Hab",
-  sf: "Zeph",
-  ag: "Hag",
-  zc: "Zech",
-  ml: "Mal",
-  mt: "Matt",
-  mc: "Mark",
-  lc: "Luke",
-  jo: "John",
-  at: "Acts",
-  rm: "Rom",
-  "1co": "1Cor",
-  "2co": "2Cor",
-  gl: "Gal",
-  ef: "Eph",
-  fp: "Phil",
-  cl: "Col",
-  "1ts": "1Thess",
-  "2ts": "2Thess",
-  "1tm": "1Tim",
-  "2tm": "2Tim",
-  tt: "Titus",
-  fm: "Phlm",
-  hb: "Heb",
-  tg: "Jas",
-  "1pe": "1Pet",
-  "2pe": "2Pet",
-  "1jo": "1John",
-  "2jo": "2John",
-  "3jo": "3John",
-  jd: "Jude",
-  ap: "Rev",
+  gn: "Gen", ex: "Exod", lv: "Lev", nm: "Num", dt: "Deut",
+  js: "Josh", jz: "Judg", rt: "Ruth",
+  "1sm": "1Sam", "2sm": "2Sam", "1rs": "1Kgs", "2rs": "2Kgs",
+  "1cr": "1Chr", "2cr": "2Chr",
+  ed: "Ezra", ne: "Neh", et: "Esth", jó: "Job",
+  sl: "Ps", pv: "Prov", ec: "Eccl", ct: "Song",
+  is: "Isa", jr: "Jer", lm: "Lam", ez: "Ezek", dn: "Dan",
+  os: "Hos", jl: "Joel", am: "Amos", ob: "Obad",
+  jn: "Jonah", mq: "Mic", na: "Nah", hc: "Hab",
+  sf: "Zeph", ag: "Hag", zc: "Zech", ml: "Mal",
+  mt: "Matt", mc: "Mark", lc: "Luke", jo: "John",
+  at: "Acts", rm: "Rom",
+  "1co": "1Cor", "2co": "2Cor",
+  gl: "Gal", ef: "Eph", fp: "Phil", cl: "Col",
+  "1ts": "1Thess", "2ts": "2Thess",
+  "1tm": "1Tim", "2tm": "2Tim",
+  tt: "Titus", fm: "Phlm", hb: "Heb", tg: "Jas",
+  "1pe": "1Pet", "2pe": "2Pet",
+  "1jo": "1John", "2jo": "2John", "3jo": "3John",
+  jd: "Jude", ap: "Rev",
 };
 
-// ─── Tradução automática para português via Claude API ────────────────────
-async function translateToPT(num: string, def: string, kjv: string): Promise<{ def: string; kjv: string }> {
-  if (translationCache[num]) return translationCache[num];
-  if (!def && !kjv) return { def: "", kjv: "" };
+// ─── Tradução em lote via edge function ───────────────────────────────────
+async function translateBatch(
+  entries: { num: string; def: string; kjv: string }[]
+): Promise<Record<string, { def: string; kjv: string }>> {
+  // Filter out already cached
+  const toTranslate = entries.filter((e) => !translationCache[e.num]);
+  if (toTranslate.length === 0) return translationCache;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 600,
-        messages: [
-          {
-            role: "user",
-            content: `Você é especialista em teologia bíblica, hebraico e grego.
-Traduza os campos abaixo para português brasileiro de forma teológica e precisa.
-Mantenha a estrutura de numeração (1) 1a) 1b) etc.) intacta.
-Responda APENAS com JSON válido, sem markdown, sem texto extra.
-
-def: "${def}"
-kjv: "${kjv}"
-
-Formato: {"def":"...","kjv":"..."}`,
-          },
-        ],
-      }),
+    const { data, error } = await supabase.functions.invoke("translate-strongs", {
+      body: { entries: toTranslate },
     });
 
-    if (!response.ok) throw new Error(`Claude API HTTP ${response.status}`);
-    const data = await response.json();
-    const text: string = data?.content?.[0]?.text || "";
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
-
-    if (parsed?.def !== undefined) {
-      translationCache[num] = { def: parsed.def, kjv: parsed.kjv || kjv };
-      return translationCache[num];
+    if (!error && data?.translations && Array.isArray(data.translations)) {
+      for (const t of data.translations) {
+        if (t.num && t.def) {
+          translationCache[t.num] = { def: t.def, kjv: t.kjv || "" };
+        }
+      }
+      persistTranslationCache();
     }
-    throw new Error("Resposta inválida");
   } catch (err) {
-    console.warn("[StrongsService] Tradução falhou, usando inglês:", err);
-    return { def, kjv };
+    console.warn("[StrongsService] Translation batch failed:", err);
   }
+
+  return translationCache;
 }
 
 // ─── Lookup in bundled dictionary ─────────────────────────────────────────
@@ -163,7 +116,6 @@ function lookup(num: string): Omit<StrongsEntry, "word" | "grammar"> | null {
 function parseStepHtml(html: string): { word: string; num: string; grammar?: string }[] {
   const results: { word: string; num: string; grammar?: string }[] = [];
 
-  // Captura strong number, palavra e morph (gramática)
   const regex =
     /strong='([HG]\d+)\w*'(?:[^>]*morph='([^']*)')?[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
   let m: RegExpExecArray | null;
@@ -174,7 +126,6 @@ function parseStepHtml(html: string): { word: string; num: string; grammar?: str
     if (word && num) results.push({ word, num, grammar: morph || undefined });
   }
 
-  // Fallback sem morph
   if (results.length === 0) {
     const fallback = /strong='([HG]\d+)\w*'[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
     while ((m = fallback.exec(html)) !== null) {
@@ -198,42 +149,25 @@ function parseMorph(morph: string, lang: "hebrew" | "greek"): string {
 
   if (lang === "hebrew") {
     const map: Record<string, string> = {
-      HNm: "Substantivo masculino",
-      HNf: "Substantivo feminino",
-      HVq: "Verbo - Qal",
-      HVn: "Verbo - Niphal",
-      HVp: "Verbo - Piel",
-      HVh: "Verbo - Hiphil",
-      HVt: "Verbo - Hitpael",
-      HAa: "Adjetivo",
-      HRp: "Preposição",
-      HC: "Conjunção",
-      HTd: "Artigo definido",
-      HPp: "Pronome pessoal",
-      HPr: "Pronome relativo",
-      HNp: "Nome próprio",
+      HNm: "Substantivo masculino", HNf: "Substantivo feminino",
+      HVq: "Verbo - Qal", HVn: "Verbo - Niphal",
+      HVp: "Verbo - Piel", HVh: "Verbo - Hiphil",
+      HVt: "Verbo - Hitpael", HAa: "Adjetivo",
+      HRp: "Preposição", HC: "Conjunção",
+      HTd: "Artigo definido", HPp: "Pronome pessoal",
+      HPr: "Pronome relativo", HNp: "Nome próprio",
     };
     for (const [k, v] of Object.entries(map)) {
       if (morph.includes(k)) return v;
     }
-    return morph
-      .replace(/^H/, "")
-      .replace(/([A-Z])/g, " $1")
-      .trim();
+    return morph.replace(/^H/, "").replace(/([A-Z])/g, " $1").trim();
   }
 
-  // Grego
   const map: Record<string, string> = {
-    "N-": "Substantivo",
-    "V-": "Verbo",
-    "A-": "Adjetivo",
-    "P-": "Preposição",
-    "C-": "Conjunção",
-    "D-": "Advérbio",
-    "R-": "Pronome relativo",
-    "T-": "Artigo",
-    "I-": "Interjeição",
-    "X-": "Partícula",
+    "N-": "Substantivo", "V-": "Verbo", "A-": "Adjetivo",
+    "P-": "Preposição", "C-": "Conjunção", "D-": "Advérbio",
+    "R-": "Pronome relativo", "T-": "Artigo",
+    "I-": "Interjeição", "X-": "Partícula",
   };
   for (const [k, v] of Object.entries(map)) {
     if (morph.startsWith(k)) return v;
@@ -268,28 +202,33 @@ export async function getVerseStrongs(
 
     const pairs = parseStepHtml(html);
 
-    const entries: StrongsEntry[] = (
-      await Promise.all(
-        pairs.map(async (p) => {
-          const info = lookup(p.num);
-          if (!info) return null;
+    // First pass: build entries with English definitions
+    const rawEntries: (StrongsEntry | null)[] = pairs.map((p) => {
+      const info = lookup(p.num);
+      if (!info) return null;
+      const grammar = p.grammar ? parseMorph(p.grammar, info.lang) : undefined;
+      return { ...info, word: p.word, grammar } as StrongsEntry;
+    });
 
-          const translated = await translateToPT(p.num, info.def, info.kjv);
-          const grammar = p.grammar ? parseMorph(p.grammar, info.lang) : undefined;
+    const validEntries = rawEntries.filter((e): e is StrongsEntry => e !== null);
 
-          return {
-            ...info,
-            word: p.word,
-            def: translated.def || info.def,
-            kjv: translated.kjv || info.kjv,
-            grammar,
-          } as StrongsEntry;
-        }),
-      )
-    ).filter((e): e is StrongsEntry => e !== null);
+    // Translate all entries to PT-BR in batch
+    if (validEntries.length > 0) {
+      const batchInput = validEntries.map((e) => ({ num: e.num, def: e.def, kjv: e.kjv }));
+      await translateBatch(batchInput);
 
-    verseCache[key] = entries;
-    return entries;
+      // Apply translations
+      for (const entry of validEntries) {
+        const cached = translationCache[entry.num];
+        if (cached) {
+          entry.def = cached.def || entry.def;
+          entry.kjv = cached.kjv || entry.kjv;
+        }
+      }
+    }
+
+    verseCache[key] = validEntries;
+    return validEntries;
   } catch (err) {
     console.error("[StrongsService]", err);
     verseCache[key] = [];
