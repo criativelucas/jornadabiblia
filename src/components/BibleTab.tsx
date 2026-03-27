@@ -21,7 +21,8 @@ import StrongsPanel from "@/components/StrongsPanel";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 
-const ALL_VERSIONS: BibleVersion[] = ["nvi", "acf", "aa"];
+// ✅ MUDANÇA 1: versões corretas
+const ALL_VERSIONS: BibleVersion[] = ["nvi", "naa", "ntlh"];
 
 // ── Dropdown de versão ──────────────────────────────────────────────────────
 function VersionPicker({
@@ -84,7 +85,7 @@ function VersionPicker({
             overflow: "hidden",
             boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
             zIndex: 200,
-            minWidth: "130px",
+            minWidth: "150px",
           }}
         >
           {ALL_VERSIONS.map((v) => (
@@ -179,12 +180,17 @@ export default function BibleTab() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [chaptersReadForBook, setChaptersReadForBook] = useState(0);
 
-  // versão principal; "compare" = modo split — persiste em localStorage
+  // ✅ MUDANÇA 2: versão padrão nvi, e limpa cache antigo de versões removidas
   const [version, setVersionState] = useState<BibleVersion | "compare">(() => {
-    return (localStorage.getItem("bible_preferred_version") as BibleVersion) || "nvi";
+    const saved = localStorage.getItem("bible_preferred_version") as BibleVersion;
+    // Se o usuário tinha 'acf' ou 'aa' salvo, reseta para 'nvi'
+    if (saved && ["nvi", "naa", "ntlh"].includes(saved)) return saved;
+    return "nvi";
   });
+
+  // ✅ MUDANÇA 3: padrão do compare usa naa no lado direito
   const [compareLeft, setCompareLeft] = useState<BibleVersion>("nvi");
-  const [compareRight, setCompareRight] = useState<BibleVersion>("acf");
+  const [compareRight, setCompareRight] = useState<BibleVersion>("naa");
 
   const handleVersionChange = useCallback((v: BibleVersion | "compare") => {
     setVersionState(v);
@@ -204,7 +210,7 @@ export default function BibleTab() {
   const isCompare = version === "compare";
   const activeVersion: BibleVersion = isCompare ? compareLeft : (version as BibleVersion);
 
-  // ── Prefetch NVI on mount ──
+  // Prefetch NVI ao montar
   useEffect(() => {
     fetchTranslation("nvi");
   }, []);
@@ -236,7 +242,6 @@ export default function BibleTab() {
     setView("books");
   };
 
-  // ── Prefetch on hover ──
   const handleBookHover = useCallback(() => {
     if (!isCompare) {
       fetchTranslation(version as BibleVersion);
@@ -269,16 +274,20 @@ export default function BibleTab() {
     setSelectedVerse(null);
 
     if (isCompare) {
-      // Check cache first to avoid unnecessary loading
       const bothCached = isVersionCached(compareLeft) && isVersionCached(compareRight);
       if (!bothCached) setLoadingText(true);
 
       const [dataA, dataB] = await Promise.all([fetchTranslation(compareLeft), fetchTranslation(compareRight)]);
       setBibleData(dataA);
       setBibleDataB(dataB);
-      setVerses(findBookData(selectedBook, dataA)?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ?? []);
-      setVersesB(findBookData(selectedBook, dataB)?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ?? []);
-
+      setVerses(
+        findBookData(selectedBook, dataA)?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ??
+          [],
+      );
+      setVersesB(
+        findBookData(selectedBook, dataB)?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ??
+          [],
+      );
       setLoadingText(false);
     } else {
       const ver = version as BibleVersion;
@@ -289,21 +298,18 @@ export default function BibleTab() {
       setBibleData(data);
       const bookData = findBookData(selectedBook, data);
       setVerses(bookData?.chapters[ch - 1]?.map((text, i) => ({ verse: i + 1, text: text.trim() })) ?? []);
-
       setLoadingText(false);
     }
 
     scrollRef.current?.scrollTo(0, 0);
   };
 
-  // Quando versões de comparação mudam com capítulo aberto, recarrega
   useEffect(() => {
     if (isCompare && selectedBook && view === "reading") {
       handleSelectChapter(selectedChapter);
     }
   }, [compareLeft, compareRight]);
 
-  // When version changes while reading, reload chapter
   useEffect(() => {
     if (!isCompare && selectedBook && view === "reading") {
       handleSelectChapter(selectedChapter);
@@ -316,13 +322,12 @@ export default function BibleTab() {
       return;
     }
     setMarkedRead(true);
-    await supabase.from("achievements").upsert(
-      {
-        user_id: user.id,
-        achievement_key: `chapter_${selectedBook.id}_${selectedChapter}`,
-      },
-      { onConflict: "user_id,achievement_key" },
-    );
+    await supabase
+      .from("achievements")
+      .upsert(
+        { user_id: user.id, achievement_key: `chapter_${selectedBook.id}_${selectedChapter}` },
+        { onConflict: "user_id,achievement_key" },
+      );
     toast.success(`${selectedBook.name} ${selectedChapter} marcado como lido!`);
     const { count } = await supabase
       .from("achievements")
@@ -339,13 +344,12 @@ export default function BibleTab() {
         .eq("book_name", selectedBook.name)
         .limit(1);
       if (!existingQuiz || existingQuiz.length === 0) {
-        await supabase.from("achievements").upsert(
-          {
-            user_id: user.id,
-            achievement_key: `book_${selectedBook.id}`,
-          },
-          { onConflict: "user_id,achievement_key" },
-        );
+        await supabase
+          .from("achievements")
+          .upsert(
+            { user_id: user.id, achievement_key: `book_${selectedBook.id}` },
+            { onConflict: "user_id,achievement_key" },
+          );
         setTimeout(() => {
           setQuizBookName(selectedBook.name);
           setShowQuiz(true);
@@ -370,7 +374,6 @@ export default function BibleTab() {
     clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
   };
 
-  // Pills de versão para telas de seleção (testament/books/chapters)
   const versionPills = (
     <div className="flex gap-2 mb-4 flex-wrap">
       {ALL_VERSIONS.map((v) => (
@@ -535,7 +538,6 @@ export default function BibleTab() {
             <h2 className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
               {selectedBook.name}
             </h2>
-            {/* Badge de versão atual */}
             <span
               style={{
                 display: "inline-block",
@@ -549,7 +551,9 @@ export default function BibleTab() {
                 letterSpacing: "0.05em",
               }}
             >
-              {isCompare ? `${VERSION_LABELS[compareLeft]} vs ${VERSION_LABELS[compareRight]}` : VERSION_LABELS[activeVersion]}
+              {isCompare
+                ? `${VERSION_LABELS[compareLeft]} vs ${VERSION_LABELS[compareRight]}`
+                : VERSION_LABELS[activeVersion]}
             </span>
           </div>
         </div>
@@ -569,7 +573,6 @@ export default function BibleTab() {
     );
   }
 
-  // ── Reading view ────────────────────────────────────────────────────────────
   if (view === "reading" && selectedBook) {
     return (
       <div className="space-y-4" ref={scrollRef}>
@@ -583,9 +586,7 @@ export default function BibleTab() {
             <ArrowLeft size={16} />
             <span className="text-xs font-bold uppercase tracking-widest">Capítulos</span>
           </button>
-
           <div className="flex items-center gap-2">
-            {/* Seletor de versão clicável */}
             {isCompare ? (
               <CompareVersionPicker
                 leftVersion={compareLeft}
@@ -597,8 +598,6 @@ export default function BibleTab() {
             ) : (
               <VersionPicker value={version as BibleVersion} onChange={handleVersionChange} T={T} />
             )}
-
-            {/* Tamanho de fonte */}
             <button
               onClick={() => setFontSize((s) => Math.max(12, s - 2))}
               className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -635,7 +634,6 @@ export default function BibleTab() {
               borderRadius: "9999px",
               padding: "5px 12px",
               cursor: "pointer",
-              alignSelf: "flex-start",
             }}
           >
             <X size={11} /> Sair da comparação
@@ -664,26 +662,17 @@ export default function BibleTab() {
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: T.accent }} />
           </div>
         ) : isCompare ? (
-          /* ── Modo comparação: duas colunas ── */
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             {[
               { label: VERSION_LABELS[compareLeft], data: verses },
               { label: VERSION_LABELS[compareRight], data: versesB },
             ].map(({ label, data }) => (
               <div key={label} style={{ ...clipCard, padding: "0" }}>
-                {/* Header da coluna */}
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderBottom: `1px solid ${T.border}`,
-                    background: T.accentDim,
-                  }}
-                >
+                <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.border}`, background: T.accentDim }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, letterSpacing: "0.06em" }}>
                     {label}
                   </span>
                 </div>
-                {/* Versículos */}
                 <div style={{ padding: "12px", fontSize: Math.max(11, fontSize - 2), lineHeight: 1.7 }}>
                   {data.length === 0 ? (
                     <p style={{ color: T.textMuted, fontSize: "12px" }}>Não disponível</p>
@@ -701,8 +690,7 @@ export default function BibleTab() {
               </div>
             ))}
           </div>
-        ) : /* ── Modo normal ── */
-        verses.length === 0 ? (
+        ) : verses.length === 0 ? (
           <div className="py-12 text-center">
             <p style={{ color: T.textMuted }}>Texto não disponível nesta tradução.</p>
           </div>
@@ -737,7 +725,6 @@ export default function BibleTab() {
           </div>
         )}
 
-        {/* Navegação de capítulos */}
         <div className="flex gap-3">
           {selectedChapter > 1 && (
             <button
@@ -778,7 +765,6 @@ export default function BibleTab() {
           )}
         </button>
 
-        {/* Strong's modal — só no modo normal */}
         {!isCompare && selectedVerse && (
           <StrongsPanel
             verse={selectedVerse}
