@@ -1,7 +1,7 @@
 // ─── Strong's Dictionary Service ──────────────────────────────────────────
 // Word mapping: STEP Bible API (stepbible.org) — free, no key
 // Definitions: bundled npm `strongs` package — offline, instant
-// Translations: Edge function with Lovable AI — automático para português
+// Translations: Edge function bible-chat with type strongs_translation
 
 // @ts-ignore — no types
 import strongsGreek from "strongs/greek/strongs-greek-dictionary.js";
@@ -25,20 +25,17 @@ export interface StrongsEntry {
 
 // ─── Caches ───────────────────────────────────────────────────────────────
 const verseCache: Record<string, StrongsEntry[]> = {};
-const translationCache: Record<string, { def: string; kjv: string }> = {};
+const translationCache: Record<string, { word: string; def: string; kjv: string }> = {};
 
 // Load persisted translation cache from sessionStorage
 try {
-  const stored = sessionStorage.getItem("strongs_pt_cache_v1");
-  if (stored) {
-    const parsed = JSON.parse(stored);
-    Object.assign(translationCache, parsed);
-  }
+  const stored = sessionStorage.getItem("strongs_pt_cache_v2");
+  if (stored) Object.assign(translationCache, JSON.parse(stored));
 } catch {}
 
 function persistTranslationCache() {
   try {
-    sessionStorage.setItem("strongs_pt_cache_v1", JSON.stringify(translationCache));
+    sessionStorage.setItem("strongs_pt_cache_v2", JSON.stringify(translationCache));
   } catch {}
 }
 
@@ -66,32 +63,82 @@ const STEP_BOOK: Record<string, string> = {
   jd: "Jude", ap: "Rev",
 };
 
-// ─── Tradução em lote via edge function ───────────────────────────────────
-async function translateBatch(
-  entries: { num: string; def: string; kjv: string }[]
-): Promise<Record<string, { def: string; kjv: string }>> {
-  // Filter out already cached
-  const toTranslate = entries.filter((e) => !translationCache[e.num]);
-  if (toTranslate.length === 0) return translationCache;
+// ─── Tradução individual via bible-chat edge function ─────────────────────
+async function translateToPT(
+  num: string,
+  word: string,
+  def: string,
+  kjv: string
+): Promise<{ word: string; def: string; kjv: string }> {
+  if (translationCache[num]) return translationCache[num];
+  if (!def && !kjv) return { word, def: "", kjv: "" };
 
   try {
-    const { data, error } = await supabase.functions.invoke("translate-strongs", {
-      body: { entries: toTranslate },
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return { word, def, kjv };
+
+    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
+
+    const response = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
+        type: "strongs_translation",
+        messages: [{
+          role: "user",
+          content: `Número Strong: ${num}\nword: "${word}"\ndef: "${def}"\nkjv: "${kjv}"\n\nTraduza word, def e kjv para português brasileiro teológico.\nResponda APENAS com JSON: {"word":"...","def":"...","kjv":"..."}`
+        }],
+      }),
     });
 
-    if (!error && data?.translations && Array.isArray(data.translations)) {
-      for (const t of data.translations) {
-        if (t.num && t.def) {
-          translationCache[t.num] = { def: t.def, kjv: t.kjv || "" };
-        }
-      }
-      persistTranslationCache();
-    }
-  } catch (err) {
-    console.warn("[StrongsService] Translation batch failed:", err);
-  }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-  return translationCache;
+    // The edge function returns SSE stream, read full text
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (!line.startsWith("data: ")) continue;
+        const json = line.slice(6).trim();
+        if (json === "[DONE]") break;
+        try {
+          const parsed = JSON.parse(json);
+          const chunk = parsed.choices?.[0]?.delta?.content;
+          if (chunk) fullText += chunk;
+        } catch {}
+      }
+    }
+
+    const clean = fullText.replace(/```json|```/g, "").trim();
+    const result = JSON.parse(clean);
+
+    if (result?.def !== undefined) {
+      translationCache[num] = {
+        word: result.word || word,
+        def: result.def,
+        kjv: result.kjv || kjv,
+      };
+      persistTranslationCache();
+      return translationCache[num];
+    }
+    throw new Error("Invalid response");
+  } catch (err) {
+    console.warn("[StrongsService] Translation failed for", num, err);
+    return { word, def, kjv }; // fallback English
+  }
 }
 
 // ─── Lookup in bundled dictionary ─────────────────────────────────────────
@@ -202,7 +249,7 @@ export async function getVerseStrongs(
 
     const pairs = parseStepHtml(html);
 
-    // First pass: build entries with English definitions
+    // Build entries with English definitions first
     const rawEntries: (StrongsEntry | null)[] = pairs.map((p) => {
       const info = lookup(p.num);
       if (!info) return null;
@@ -212,18 +259,17 @@ export async function getVerseStrongs(
 
     const validEntries = rawEntries.filter((e): e is StrongsEntry => e !== null);
 
-    // Translate all entries to PT-BR in batch
+    // Translate all entries to PT-BR individually via bible-chat
     if (validEntries.length > 0) {
-      const batchInput = validEntries.map((e) => ({ num: e.num, def: e.def, kjv: e.kjv }));
-      await translateBatch(batchInput);
+      const translationResults = await Promise.all(
+        validEntries.map((e) => translateToPT(e.num, e.word, e.def, e.kjv))
+      );
 
-      // Apply translations
-      for (const entry of validEntries) {
-        const cached = translationCache[entry.num];
-        if (cached) {
-          entry.def = cached.def || entry.def;
-          entry.kjv = cached.kjv || entry.kjv;
-        }
+      for (let i = 0; i < validEntries.length; i++) {
+        const t = translationResults[i];
+        validEntries[i].word = t.word || validEntries[i].word;
+        validEntries[i].def = t.def || validEntries[i].def;
+        validEntries[i].kjv = t.kjv || validEntries[i].kjv;
       }
     }
 
