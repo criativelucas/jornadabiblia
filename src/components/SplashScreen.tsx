@@ -1,0 +1,163 @@
+import { useState, useEffect } from "react";
+import { BookOpen } from "lucide-react";
+import { fetchTranslation, type BibleVersion } from "@/hooks/useBibleData";
+
+const CURIOSIDADES = [
+  "A Bíblia foi escrita ao longo de aproximadamente 1.500 anos por mais de 40 autores diferentes.",
+  "O livro de Ester é um dos dois livros da Bíblia que não menciona o nome de Deus diretamente.",
+  "O versículo mais curto da Bíblia é João 11:35 — 'Jesus chorou.'",
+  "Salmos é o livro mais longo da Bíblia, com 150 capítulos.",
+  "A palavra 'Amém' aparece mais de 70 vezes no Novo Testamento.",
+  "Metusalém é o homem mais velho da Bíblia, tendo vivido 969 anos (Gênesis 5:27).",
+  "O nome 'Deus' aparece mais de 4.000 vezes na Bíblia.",
+  "A Bíblia foi o primeiro livro impresso por Gutenberg por volta de 1455.",
+  "O Salmo 119 é o capítulo mais longo da Bíblia, com 176 versículos.",
+  "Josué 10:13 descreve o sol parando no céu — um dos eventos mais estudados pelos cientistas.",
+  "O livro de Apocalipse foi escrito pelo apóstolo João na ilha de Patmos por volta do ano 95 d.C.",
+  "A Bíblia foi traduzida para mais de 3.000 idiomas e dialetos.",
+  "O Salmo 117 é o capítulo mais curto e também o capítulo central de toda a Bíblia.",
+  "Daniel é o único livro do Antigo Testamento escrito em dois idiomas: hebraico e aramaico.",
+];
+
+interface Props {
+  onReady: () => void;
+}
+
+export default function SplashScreen({ onReady }: Props) {
+  const [curiosidadeIdx, setCuriosidadeIdx] = useState(() =>
+    Math.floor(Math.random() * CURIOSIDADES.length)
+  );
+  const [fade, setFade] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [statusMsg, setStatusMsg] = useState("Preparando seu app...");
+  const [exiting, setExiting] = useState(false);
+
+  // Rotate curiosity every 4s with fade
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setCuriosidadeIdx((i) => (i + 1) % CURIOSIDADES.length);
+        setFade(true);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Load all 3 versions in parallel with real progress
+  useEffect(() => {
+    const startTime = Date.now();
+    const versions: BibleVersion[] = ["nvi", "naa", "ntlh"];
+    let loadedCount = 0;
+
+    setStatusMsg("Baixando traduções da Bíblia...");
+
+    const promises = versions.map((v) =>
+      fetchTranslation(v).then(() => {
+        loadedCount += 1;
+        const pct = Math.round((loadedCount / versions.length) * 100);
+        setProgress(pct);
+        if (loadedCount === 1) setStatusMsg("NVI carregada ✓  Baixando mais...");
+        if (loadedCount === 2) setStatusMsg("Quase lá... última versão...");
+        if (loadedCount === 3) setStatusMsg("Todas as versões prontas ✓");
+      })
+    );
+
+    Promise.all(promises).then(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 2000 - elapsed);
+      setTimeout(() => {
+        setExiting(true);
+        setTimeout(onReady, 600);
+      }, remaining);
+    });
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(165deg, #1a2e1a 0%, #0f1f0f 40%, #0a150a 100%)",
+        opacity: exiting ? 0 : 1,
+        transition: "opacity 0.6s ease",
+        padding: "24px",
+      }}
+    >
+      {/* Logo */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginBottom: "48px" }}>
+        <div
+          style={{
+            width: 80, height: 80, borderRadius: "50%",
+            background: "rgba(76, 175, 80, 0.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <BookOpen size={40} color="#66bb6a" />
+        </div>
+        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#e8f5e9", letterSpacing: "-0.5px", margin: 0 }}>
+          Jornada Bíblica
+        </h1>
+        <p style={{ fontSize: "13px", color: "#81c784", margin: 0, opacity: 0.8 }}>
+          Sua jornada começa aqui
+        </p>
+      </div>
+
+      {/* Curiosity card */}
+      <div
+        style={{
+          maxWidth: 380,
+          width: "100%",
+          background: "rgba(255,255,255,0.06)",
+          borderRadius: 16,
+          padding: "20px 24px",
+          marginBottom: 48,
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <p style={{ fontSize: "10px", fontWeight: 700, color: "#66bb6a", letterSpacing: "1px", marginBottom: 10, textTransform: "uppercase" }}>
+          💡 Curiosidade Bíblica
+        </p>
+        <p
+          style={{
+            fontSize: "14px",
+            lineHeight: 1.6,
+            color: "#c8e6c9",
+            margin: 0,
+            minHeight: 66,
+            opacity: fade ? 1 : 0,
+            transition: "opacity 0.4s ease",
+          }}
+        >
+          {CURIOSIDADES[curiosidadeIdx]}
+        </p>
+      </div>
+
+      {/* Status + progress bar */}
+      <div style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
+        <p style={{ fontSize: "11px", color: "#a5d6a7", marginBottom: 10, minHeight: 16 }}>
+          {statusMsg}
+        </p>
+        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+          <div
+            style={{
+              height: "100%",
+              width: `${progress}%`,
+              background: "linear-gradient(90deg, #43a047, #66bb6a)",
+              borderRadius: 2,
+              transition: "width 0.5s ease",
+            }}
+          />
+        </div>
+        <p style={{ fontSize: "11px", color: "#81c784", marginTop: 8, opacity: 0.7 }}>
+          {progress}%
+        </p>
+      </div>
+    </div>
+  );
+}
