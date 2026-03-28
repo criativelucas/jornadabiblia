@@ -28,10 +28,22 @@ function normalizeDamarals(raw: DamaralsBook[]): BibleBook[] {
   }));
 }
 
-const VERSION_URLS: Record<BibleVersion, string> = {
-  nvi: "https://raw.githubusercontent.com/thiagobodruk/biblia/master/json/nvi.json",
-  naa: "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NAA.json",
-  ntlh: "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NTLH.json",
+// ── URLs com fallback: se a primeira falhar, tenta a segunda ──────────────
+// Resolve o bug da comparação: NAA/NTLH via raw.githubusercontent às vezes
+// retorna 404 — jsDelivr CDN é mais estável como fallback.
+const VERSION_URLS: Record<BibleVersion, string[]> = {
+  nvi: [
+    "https://raw.githubusercontent.com/thiagobodruk/biblia/master/json/nvi.json",
+    "https://cdn.jsdelivr.net/gh/thiagobodruk/biblia@master/json/nvi.json",
+  ],
+  naa: [
+    "https://cdn.jsdelivr.net/gh/damarals/biblias@master/data/json/NAA.json",
+    "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NAA.json",
+  ],
+  ntlh: [
+    "https://cdn.jsdelivr.net/gh/damarals/biblias@master/data/json/NTLH.json",
+    "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NTLH.json",
+  ],
 };
 
 export const VERSION_LABELS: Record<BibleVersion, string> = {
@@ -46,12 +58,8 @@ export const VERSION_DESCRIPTIONS: Record<BibleVersion, string> = {
   ntlh: "Ling. Hoje",
 };
 
-// ─── Cache em memória (instantâneo) ───────────────────────────────────────
+// ── Cache duplo: memória + localStorage ───────────────────────────────────
 const memoryCache: Record<string, BibleBook[]> = {};
-
-// ─── Cache em localStorage (persiste entre sessões) ───────────────────────
-// Diferença crítica vs sessionStorage: não apaga ao fechar a aba.
-// Na segunda visita ao app, a Bíblia já está salva localmente → carrega em <50ms.
 const LS_PREFIX = "jb_bible_v3_";
 
 function lsGet(version: BibleVersion): BibleBook[] | null {
@@ -67,7 +75,6 @@ function lsSet(version: BibleVersion, data: BibleBook[]): void {
   try {
     localStorage.setItem(LS_PREFIX + version, JSON.stringify(data));
   } catch {
-    // Se localStorage estiver cheio, remove entradas antigas e tenta novamente
     try {
       Object.keys(localStorage)
         .filter((k) => k.startsWith("jb_bible_"))
@@ -77,36 +84,52 @@ function lsSet(version: BibleVersion, data: BibleBook[]): void {
   }
 }
 
-// ─── Promessas em voo — evita fetch duplicado se chamado duas vezes seguidas ──
+// ── Evita downloads paralelos duplicados ──────────────────────────────────
 const inFlight: Record<string, Promise<BibleBook[]>> = {};
+
+// ── Fetch com fallback automático de URL ──────────────────────────────────
+async function fetchWithFallback(urls: string[]): Promise<unknown> {
+  let lastError: unknown;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+      throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.warn("[useBibleData] URL falhou, tentando próxima:", url);
+      lastError = err;
+    }
+  }
+  throw lastError ?? new Error("Todas as URLs falharam");
+}
 
 export async function fetchTranslation(version: BibleVersion): Promise<BibleBook[]> {
   // 1. Memória — 0ms
   if (memoryCache[version]) return memoryCache[version];
 
-  // 2. localStorage — ~5-20ms (persiste entre sessões)
+  // 2. localStorage — ~10-20ms, persiste entre sessões
   const cached = lsGet(version);
   if (cached) {
     memoryCache[version] = cached;
     return cached;
   }
 
-  // 3. Evita downloads paralelos da mesma versão
+  // 3. Sem fetch duplicado simultâneo
   if (inFlight[version]) return inFlight[version];
 
-  // 4. Rede
+  // 4. Rede com fallback automático de URL
   inFlight[version] = (async () => {
-    const res = await fetch(VERSION_URLS[version]);
-    if (!res.ok) throw new Error(`Erro ao carregar ${version}: HTTP ${res.status}`);
-    const raw = await res.json();
+    try {
+      const raw = await fetchWithFallback(VERSION_URLS[version]);
+      const isDamarals = version === "naa" || version === "ntlh";
+      const data: BibleBook[] = isDamarals ? normalizeDamarals(raw as DamaralsBook[]) : (raw as BibleBook[]);
 
-    const isDamarals = version === "naa" || version === "ntlh";
-    const data: BibleBook[] = isDamarals ? normalizeDamarals(raw) : raw;
-
-    memoryCache[version] = data;
-    lsSet(version, data); // salva para próximas visitas
-    delete inFlight[version];
-    return data;
+      memoryCache[version] = data;
+      lsSet(version, data);
+      return data;
+    } finally {
+      delete inFlight[version];
+    }
   })();
 
   return inFlight[version];
@@ -121,7 +144,7 @@ export function isVersionCached(version: BibleVersion): boolean {
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────
 const NT_ABBREVS = new Set([
   "mt",
   "mc",
