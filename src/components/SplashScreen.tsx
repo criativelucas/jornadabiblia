@@ -32,7 +32,7 @@ export default function SplashScreen({ onReady }: Props) {
   const [statusMsg, setStatusMsg] = useState("Preparando seu app...");
   const [exiting, setExiting] = useState(false);
 
-  // Rotate curiosity every 4s with fade
+  // Rotate curiosity every 5s with fade
   useEffect(() => {
     const interval = setInterval(() => {
       setFade(false);
@@ -40,30 +40,37 @@ export default function SplashScreen({ onReady }: Props) {
         setCuriosidadeIdx((i) => (i + 1) % CURIOSIDADES.length);
         setFade(true);
       }, 400);
-    }, 4000);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Load all 3 versions in parallel with real progress
+  // Load all 3 versions in parallel — never blocks even if one fails
   useEffect(() => {
     const startTime = Date.now();
     const versions: BibleVersion[] = ["nvi", "naa", "ntlh"];
-    let loadedCount = 0;
+    let settledCount = 0;
 
     setStatusMsg("Baixando traduções da Bíblia...");
 
     const promises = versions.map((v) =>
-      fetchTranslation(v).then(() => {
-        loadedCount += 1;
-        const pct = Math.round((loadedCount / versions.length) * 100);
-        setProgress(pct);
-        if (loadedCount === 1) setStatusMsg("NVI carregada ✓  Baixando mais...");
-        if (loadedCount === 2) setStatusMsg("Quase lá... última versão...");
-        if (loadedCount === 3) setStatusMsg("Todas as versões prontas ✓");
-      })
+      fetchTranslation(v)
+        .then(() => {
+          settledCount += 1;
+          const pct = Math.round((settledCount / versions.length) * 100);
+          setProgress(pct);
+          if (settledCount === 1) setStatusMsg("1ª versão carregada ✓  Continuando...");
+          if (settledCount === 2) setStatusMsg("Quase lá... última versão...");
+          if (settledCount === 3) setStatusMsg("Tudo pronto ✓");
+        })
+        .catch(() => {
+          settledCount += 1;
+          const pct = Math.round((settledCount / versions.length) * 100);
+          setProgress(pct);
+          if (settledCount === versions.length) setStatusMsg("Pronto ✓");
+        })
     );
 
-    Promise.all(promises).then(() => {
+    Promise.allSettled(promises).then(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 2000 - elapsed);
       setTimeout(() => {
