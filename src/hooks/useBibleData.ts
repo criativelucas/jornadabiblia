@@ -30,8 +30,8 @@ function normalizeDamarals(raw: DamaralsBook[]): BibleBook[] {
 
 const VERSION_URLS: Record<BibleVersion, string> = {
   nvi: "https://raw.githubusercontent.com/thiagobodruk/biblia/master/json/nvi.json",
-  naa: "https://cdn.jsdelivr.net/gh/damarals/biblias@master/data/json/NAA.json",
-  ntlh: "https://cdn.jsdelivr.net/gh/damarals/biblias@master/data/json/NTLH.json",
+  naa: "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NAA.json",
+  ntlh: "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NTLH.json",
 };
 
 export const VERSION_LABELS: Record<BibleVersion, string> = {
