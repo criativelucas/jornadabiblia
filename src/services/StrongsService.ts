@@ -21,6 +21,7 @@ export interface StrongsEntry {
   kjv: string;
   grammar?: string;
   lang: "hebrew" | "greek";
+  order: number;
 }
 
 // ─── Caches ───────────────────────────────────────────────────────────────
@@ -63,6 +64,30 @@ const STEP_BOOK: Record<string, string> = {
   jd: "Jude", ap: "Rev",
 };
 
+// ─── Transliteração SBL simplificada do grego ─────────────────────────────
+export function transliterateGreek(text: string): string {
+  if (!text) return "";
+
+  const map: Record<string, string> = {
+    "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "ζ": "z", "η": "ē", "θ": "th",
+    "ι": "i", "κ": "k", "λ": "l", "μ": "m", "ν": "n", "ξ": "x", "ο": "o", "π": "p",
+    "ρ": "r", "σ": "s", "ς": "s", "τ": "t", "υ": "u", "φ": "ph", "χ": "ch", "ψ": "ps", "ω": "ō",
+    "Α": "A", "Β": "B", "Γ": "G", "Δ": "D", "Ε": "E", "Ζ": "Z", "Η": "Ē", "Θ": "Th",
+    "Ι": "I", "Κ": "K", "Λ": "L", "Μ": "M", "Ν": "N", "Ξ": "X", "Ο": "O", "Π": "P",
+    "Ρ": "R", "Σ": "S", "Τ": "T", "Υ": "U", "Φ": "Ph", "Χ": "Ch", "Ψ": "Ps", "Ω": "Ō",
+  };
+
+  const stripped = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u0345\u0483-\u0489]/g, "");
+
+  let result = "";
+  for (const char of stripped) {
+    result += map[char] ?? (char.match(/[\u0370-\u03FF\u1F00-\u1FFF]/) ? "" : char);
+  }
+  return result;
+}
+
 // ─── Tradução individual via bible-chat edge function ─────────────────────
 async function translateToPT(
   num: string,
@@ -97,7 +122,6 @@ async function translateToPT(
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    // The edge function returns SSE stream, read full text
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -142,35 +166,53 @@ async function translateToPT(
 }
 
 // ─── Lookup in bundled dictionary ─────────────────────────────────────────
-function lookup(num: string): Omit<StrongsEntry, "word" | "grammar"> | null {
+function lookup(
+  num: string,
+  word: string,
+  lang: "greek" | "hebrew",
+  order: number
+): StrongsEntry | null {
   const key = num.toUpperCase().replace(/[^HG0-9]/g, "");
-  const isHebrew = key.startsWith("H");
-  const dict = isHebrew ? strongsHebrew : strongsGreek;
+  const dict = lang === "hebrew" ? strongsHebrew : strongsGreek;
   const raw = (dict as Record<string, any>)[key];
   if (!raw) return null;
+
+  // Para grego: gerar xlit a partir do lemma
+  const xlit = lang === "hebrew"
+    ? (raw.xlit ?? "")
+    : transliterateGreek(raw.lemma ?? "");
+
   return {
     num: key,
+    word,
     lemma: raw.lemma || "",
-    xlit: raw.xlit || "",
-    pron: raw.pron || "",
+    xlit,
+    pron: raw.pron ?? "",
     def: (raw.strongs_def || "").trim().replace(/^[,\s]+/, ""),
     kjv: (raw.kjv_def || "").split(",").slice(0, 8).join(", ").trim(),
-    lang: isHebrew ? "hebrew" : "greek",
+    lang,
+    order,
   };
 }
 
 // ─── Parse STEP Bible HTML → word + Strong number + grammar ──────────────
-function parseStepHtml(html: string): { word: string; num: string; grammar?: string }[] {
-  const results: { word: string; num: string; grammar?: string }[] = [];
+function parseStepHtml(
+  html: string,
+  lang: "greek" | "hebrew"
+): { word: string; num: string; grammar?: string; order: number }[] {
+  const results: { word: string; num: string; grammar?: string; order: number }[] = [];
 
   const regex =
     /strong='([HG]\d+)\w*'(?:[^>]*morph='([^']*)')?[^>]*class='w\s+'[^>]*>[\s\S]*?class='text'>([^<]+)<\/span>/gi;
   let m: RegExpExecArray | null;
+  let order = 0;
   while ((m = regex.exec(html)) !== null) {
     const num = m[1].toUpperCase();
     const morph = m[2] || "";
     const word = m[3].replace(/\u00a0/g, "").trim();
-    if (word && num) results.push({ word, num, grammar: morph || undefined });
+    if (word && num) {
+      results.push({ word, num, grammar: morph || undefined, order: order++ });
+    }
   }
 
   if (results.length === 0) {
@@ -178,16 +220,14 @@ function parseStepHtml(html: string): { word: string; num: string; grammar?: str
     while ((m = fallback.exec(html)) !== null) {
       const word = m[2].replace(/\u00a0/g, "").trim();
       const num = m[1].toUpperCase();
-      if (word && num) results.push({ word, num });
+      if (word && num) results.push({ word, num, order: order++ });
     }
   }
 
-  const seen = new Set<string>();
-  return results.filter((r) => {
-    if (seen.has(r.num)) return false;
-    seen.add(r.num);
-    return true;
-  });
+  // Deduplicate only consecutive identical Strong's + word
+  return results.filter((r, i, arr) =>
+    i === 0 || !(arr[i - 1].num === r.num && arr[i - 1].word === r.word)
+  );
 }
 
 // ─── Traduz código morfológico para português legível ─────────────────────
@@ -240,6 +280,7 @@ export async function getVerseStrongs(
 
   const version = testament === "AT" ? "THOT" : "SBLG";
   const ref = `${stepBook}.${chapter}.${verseNum}`;
+  const lang: "greek" | "hebrew" = testament === "NT" ? "greek" : "hebrew";
 
   try {
     const res = await fetch(`https://www.stepbible.org/rest/search/masterSearch/reference=${ref}/${version}`);
@@ -247,17 +288,19 @@ export async function getVerseStrongs(
     const data = await res.json();
     const html: string = data?.value || "";
 
-    const pairs = parseStepHtml(html);
+    const pairs = parseStepHtml(html, lang);
 
-    // Build entries with English definitions first
+    // Build entries with order preserved
     const rawEntries: (StrongsEntry | null)[] = pairs.map((p) => {
-      const info = lookup(p.num);
-      if (!info) return null;
-      const grammar = p.grammar ? parseMorph(p.grammar, info.lang) : undefined;
-      return { ...info, word: p.word, grammar } as StrongsEntry;
+      const entry = lookup(p.num, p.word, lang, p.order);
+      if (!entry) return null;
+      const grammar = p.grammar ? parseMorph(p.grammar, lang) : undefined;
+      return { ...entry, grammar } as StrongsEntry;
     });
 
-    const validEntries = rawEntries.filter((e): e is StrongsEntry => e !== null);
+    const validEntries = rawEntries
+      .filter((e): e is StrongsEntry => e !== null)
+      .sort((a, b) => a.order - b.order);
 
     // Translate all entries to PT-BR individually via bible-chat
     if (validEntries.length > 0) {
@@ -283,6 +326,21 @@ export async function getVerseStrongs(
 }
 
 // ─── Manual lookup síncrono (mantido para compatibilidade) ────────────────
-export function lookupStrongs(num: string): Omit<StrongsEntry, "word"> | null {
-  return lookup(num) as Omit<StrongsEntry, "word"> | null;
+export function lookupStrongs(num: string): Omit<StrongsEntry, "word" | "order"> | null {
+  const key = num.toUpperCase().replace(/[^HG0-9]/g, "");
+  const isHebrew = key.startsWith("H");
+  const dict = isHebrew ? strongsHebrew : strongsGreek;
+  const raw = (dict as Record<string, any>)[key];
+  if (!raw) return null;
+  const lang: "greek" | "hebrew" = isHebrew ? "hebrew" : "greek";
+  const xlit = isHebrew ? (raw.xlit ?? "") : transliterateGreek(raw.lemma ?? "");
+  return {
+    num: key,
+    lemma: raw.lemma || "",
+    xlit,
+    pron: raw.pron || "",
+    def: (raw.strongs_def || "").trim().replace(/^[,\s]+/, ""),
+    kjv: (raw.kjv_def || "").split(",").slice(0, 8).join(", ").trim(),
+    lang,
+  };
 }
