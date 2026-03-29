@@ -100,6 +100,7 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
           >
             {entry.lemma || entry.word}
           </span>
+          {/* Transliteração — tanto hebraico quanto grego */}
           {entry.xlit && (
             <span
               style={{
@@ -113,6 +114,7 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
               {entry.xlit}
             </span>
           )}
+          {/* Pronúncia — só hebraico tem do pacote */}
           {entry.pron && <span style={{ fontSize: "9px", color: T.textDim, marginTop: "1px" }}>/{entry.pron}/</span>}
         </div>
 
