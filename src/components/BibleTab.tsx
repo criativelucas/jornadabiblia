@@ -259,21 +259,26 @@ export default function BibleTab() {
 
     const bookIdx = findBookIdx(selectedBook);
 
-    if (isCompare) {
-      const bothCached = isVersionCached(compareLeft) && isVersionCached(compareRight);
-      if (!bothCached) setLoadingText(true);
-      const [dataA, dataB] = await Promise.all([fetchTranslation(compareLeft), fetchTranslation(compareRight)]);
-      setBibleData(dataA);
-      setBibleDataB(dataB);
-      setVerses(dataA[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
-      setVersesB(dataB[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
-      setLoadingText(false);
-    } else {
-      const ver = version as BibleVersion;
-      if (!isVersionCached(ver)) setLoadingText(true);
-      const data = await fetchTranslation(ver);
-      setBibleData(data);
-      setVerses(data[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+    try {
+      if (isCompare) {
+        const bothCached = isVersionCached(compareLeft) && isVersionCached(compareRight);
+        if (!bothCached) setLoadingText(true);
+        const [dataA, dataB] = await Promise.all([fetchTranslation(compareLeft), fetchTranslation(compareRight)]);
+        setBibleData(dataA);
+        setBibleDataB(dataB);
+        setVerses(dataA[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+        setVersesB(dataB[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+      } else {
+        const ver = version as BibleVersion;
+        if (!isVersionCached(ver)) setLoadingText(true);
+        const data = await fetchTranslation(ver);
+        setBibleData(data);
+        setVerses(data[bookIdx]?.chapters[ch - 1]?.map((t, i) => ({ verse: i + 1, text: t.trim() })) ?? []);
+      }
+    } catch (err) {
+      console.error("[BibleTab] Erro ao carregar capítulo:", err);
+      toast.error("Erro ao carregar o texto. Tente novamente.");
+    } finally {
       setLoadingText(false);
     }
   };

@@ -6,43 +6,35 @@ export interface BibleBook {
 
 export type BibleVersion = "nvi" | "naa" | "ntlh";
 
-interface DamaralsVerse {
-  verse: number;
-  text: string;
-}
-interface DamaralsChapter {
-  chapter: number;
-  verses: DamaralsVerse[];
-}
-interface DamaralsBook {
-  book: string;
+// NAA/NTLH usam { name, abbrev, chapters: string[][] } — normalizar para BibleBook
+interface RawBibleBook {
   abbrev: string;
-  chapters: DamaralsChapter[];
+  book?: string;
+  name?: string;
+  chapters: string[][];
 }
 
-function normalizeDamarals(raw: DamaralsBook[]): BibleBook[] {
-  return raw.map((book) => ({
-    abbrev: book.abbrev,
-    book: book.book,
-    chapters: book.chapters.map((ch) => ch.verses.map((v) => v.text)),
+function normalizeRaw(raw: RawBibleBook[]): BibleBook[] {
+  return raw.map((b) => ({
+    abbrev: (b.abbrev || "").toLowerCase(),
+    book: b.book || b.name || "",
+    chapters: b.chapters,
   }));
 }
 
-// ── URLs com fallback: se a primeira falhar, tenta a segunda ──────────────
-// Resolve o bug da comparação: NAA/NTLH via raw.githubusercontent às vezes
-// retorna 404 — jsDelivr CDN é mais estável como fallback.
+// ── URLs com fallback ─────────────────────────────────────────────────────
 const VERSION_URLS: Record<BibleVersion, string[]> = {
   nvi: [
     "https://raw.githubusercontent.com/thiagobodruk/biblia/master/json/nvi.json",
     "https://cdn.jsdelivr.net/gh/thiagobodruk/biblia@master/json/nvi.json",
   ],
   naa: [
-    "https://cdn.jsdelivr.net/gh/damarals/biblias@master/data/json/NAA.json",
-    "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NAA.json",
+    "https://raw.githubusercontent.com/damarals/biblias/master/inst/json/NAA.json",
+    "https://cdn.jsdelivr.net/gh/damarals/biblias@master/inst/json/NAA.json",
   ],
   ntlh: [
-    "https://cdn.jsdelivr.net/gh/damarals/biblias@master/data/json/NTLH.json",
-    "https://raw.githubusercontent.com/damarals/biblias/master/data/json/NTLH.json",
+    "https://raw.githubusercontent.com/damarals/biblias/master/inst/json/NTLH.json",
+    "https://cdn.jsdelivr.net/gh/damarals/biblias@master/inst/json/NTLH.json",
   ],
 };
 
@@ -121,8 +113,7 @@ export async function fetchTranslation(version: BibleVersion): Promise<BibleBook
   inFlight[version] = (async () => {
     try {
       const raw = await fetchWithFallback(VERSION_URLS[version]);
-      const isDamarals = version === "naa" || version === "ntlh";
-      const data: BibleBook[] = isDamarals ? normalizeDamarals(raw as DamaralsBook[]) : (raw as BibleBook[]);
+      const data: BibleBook[] = normalizeRaw(raw as RawBibleBook[]);
 
       memoryCache[version] = data;
       lsSet(version, data);
