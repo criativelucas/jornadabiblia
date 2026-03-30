@@ -113,8 +113,7 @@ export async function fetchTranslation(version: BibleVersion): Promise<BibleBook
   inFlight[version] = (async () => {
     try {
       const raw = await fetchWithFallback(VERSION_URLS[version]);
-      const isDamarals = version === "naa" || version === "ntlh";
-      const data: BibleBook[] = isDamarals ? normalizeDamarals(raw as DamaralsBook[]) : (raw as BibleBook[]);
+      const data: BibleBook[] = normalizeRaw(raw as RawBibleBook[]);
 
       memoryCache[version] = data;
       lsSet(version, data);
