@@ -253,6 +253,15 @@ export default function BibleTab() {
     setView("reading");
     setMarkedRead(false);
     setSelectedVerse(null);
+    setActiveWord(null);
+    setChapterWords({});
+
+    // Preload interlinear data in background
+    const abbrev = findBookData(selectedBook, bibleData)?.abbrev ?? "";
+    if (abbrev) {
+      preloadChapterStrongs(abbrev, ch, selectedBook.testament)
+        .then(setChapterWords);
+    }
     scrollRef.current?.scrollTo(0, 0);
 
     const bookIdx = findBookIdx(selectedBook);
