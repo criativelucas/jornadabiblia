@@ -19,6 +19,36 @@ const CURIOSIDADES = [
   "Daniel é o único livro do Antigo Testamento escrito em dois idiomas: hebraico e aramaico.",
 ];
 
+// Read theme preference without ThemeContext (runs before provider)
+function getThemeColors() {
+  const isDark = (() => {
+    try { return localStorage.getItem("jb-theme") !== "light"; }
+    catch { return true; }
+  })();
+
+  return isDark
+    ? {
+        page: "#101400",
+        accent: "#d2ff00",
+        accentDim: "rgba(210,255,0,0.10)",
+        textPrimary: "#f0f0ea",
+        textMuted: "#8a8f7a",
+        card: "rgba(255,255,255,0.06)",
+        border: "rgba(255,255,255,0.08)",
+        gradientBg: "linear-gradient(165deg, #1a2200 0%, #101400 40%, #0a0e00 100%)",
+      }
+    : {
+        page: "#f5f5ee",
+        accent: "#5a9a00",
+        accentDim: "rgba(90,154,0,0.10)",
+        textPrimary: "#1a1c0d",
+        textMuted: "#6a7060",
+        card: "rgba(0,0,0,0.04)",
+        border: "rgba(0,0,0,0.08)",
+        gradientBg: "linear-gradient(165deg, #f0f0e8 0%, #f5f5ee 40%, #fafaf5 100%)",
+      };
+}
+
 interface Props {
   onReady: () => void;
 }
@@ -31,8 +61,8 @@ export default function SplashScreen({ onReady }: Props) {
   const [progress, setProgress] = useState(0);
   const [statusMsg, setStatusMsg] = useState("Preparando seu app...");
   const [exiting, setExiting] = useState(false);
+  const colors = getThemeColors();
 
-  // Rotate curiosity every 5s with fade
   useEffect(() => {
     const interval = setInterval(() => {
       setFade(false);
@@ -44,7 +74,6 @@ export default function SplashScreen({ onReady }: Props) {
     return () => clearInterval(interval);
   }, []);
 
-  // Load all 3 versions in parallel — never blocks even if one fails
   useEffect(() => {
     const startTime = Date.now();
     const versions: BibleVersion[] = ["nvi", "naa", "ntlh"];
@@ -90,7 +119,7 @@ export default function SplashScreen({ onReady }: Props) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(165deg, #1a2e1a 0%, #0f1f0f 40%, #0a150a 100%)",
+        background: colors.gradientBg,
         opacity: exiting ? 0 : 1,
         transition: "opacity 0.6s ease",
         padding: "24px",
@@ -101,16 +130,16 @@ export default function SplashScreen({ onReady }: Props) {
         <div
           style={{
             width: 80, height: 80, borderRadius: "50%",
-            background: "rgba(76, 175, 80, 0.15)",
+            background: colors.accentDim,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <BookOpen size={40} color="#66bb6a" />
+          <BookOpen size={40} color={colors.accent} />
         </div>
-        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#e8f5e9", letterSpacing: "-0.5px", margin: 0 }}>
+        <h1 style={{ fontSize: "28px", fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.5px", margin: 0 }}>
           Jornada Bíblica
         </h1>
-        <p style={{ fontSize: "13px", color: "#81c784", margin: 0, opacity: 0.8 }}>
+        <p style={{ fontSize: "13px", color: colors.accent, margin: 0, opacity: 0.8 }}>
           Sua jornada começa aqui
         </p>
       </div>
@@ -120,21 +149,21 @@ export default function SplashScreen({ onReady }: Props) {
         style={{
           maxWidth: 380,
           width: "100%",
-          background: "rgba(255,255,255,0.06)",
+          background: colors.card,
           borderRadius: 16,
           padding: "20px 24px",
           marginBottom: 48,
-          border: "1px solid rgba(255,255,255,0.08)",
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <p style={{ fontSize: "10px", fontWeight: 700, color: "#66bb6a", letterSpacing: "1px", marginBottom: 10, textTransform: "uppercase" }}>
+        <p style={{ fontSize: "10px", fontWeight: 700, color: colors.accent, letterSpacing: "1px", marginBottom: 10, textTransform: "uppercase" }}>
           💡 Curiosidade Bíblica
         </p>
         <p
           style={{
             fontSize: "14px",
             lineHeight: 1.6,
-            color: "#c8e6c9",
+            color: colors.textPrimary,
             margin: 0,
             minHeight: 66,
             opacity: fade ? 1 : 0,
@@ -147,21 +176,21 @@ export default function SplashScreen({ onReady }: Props) {
 
       {/* Status + progress bar */}
       <div style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
-        <p style={{ fontSize: "11px", color: "#a5d6a7", marginBottom: 10, minHeight: 16 }}>
+        <p style={{ fontSize: "11px", color: colors.textMuted, marginBottom: 10, minHeight: 16 }}>
           {statusMsg}
         </p>
-        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
+        <div style={{ height: 4, borderRadius: 2, background: colors.card, overflow: "hidden" }}>
           <div
             style={{
               height: "100%",
               width: `${progress}%`,
-              background: "linear-gradient(90deg, #43a047, #66bb6a)",
+              background: colors.accent,
               borderRadius: 2,
               transition: "width 0.5s ease",
             }}
           />
         </div>
-        <p style={{ fontSize: "11px", color: "#81c784", marginTop: 8, opacity: 0.7 }}>
+        <p style={{ fontSize: "11px", color: colors.textMuted, marginTop: 8, opacity: 0.7 }}>
           {progress}%
         </p>
       </div>

@@ -17,6 +17,7 @@ import BookPanorama from "@/components/BookPanorama";
 import QuizModal from "@/components/QuizModal";
 import StrongsPanel from "@/components/StrongsPanel";
 import BookSelectorModal from "@/components/BookSelectorModal";
+import { preloadChapterStrongs, type OrigWord } from "@/services/StrongsService";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 const ALL_VERSIONS: BibleVersion[] = ["nvi", "naa", "ntlh"];
@@ -174,6 +175,9 @@ export default function BibleTab() {
   const [quizBookName, setQuizBookName] = useState("");
   const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
   const [showBookSelector, setShowBookSelector] = useState(false);
+  const [strongsMode, setStrongsMode] = useState(false);
+  const [chapterWords, setChapterWords] = useState<Record<number, OrigWord[]>>({});
+  const [activeWord, setActiveWord] = useState<OrigWord | null>(null);
 
   // Swipe
   const touchStart = useRef<number>(0);
@@ -249,6 +253,15 @@ export default function BibleTab() {
     setView("reading");
     setMarkedRead(false);
     setSelectedVerse(null);
+    setActiveWord(null);
+    setChapterWords({});
+
+    // Preload interlinear data in background
+    const abbrev = findBookData(selectedBook, bibleData)?.abbrev ?? "";
+    if (abbrev) {
+      preloadChapterStrongs(abbrev, ch, selectedBook.testament)
+        .then(setChapterWords);
+    }
     scrollRef.current?.scrollTo(0, 0);
 
     const bookIdx = findBookIdx(selectedBook);
@@ -694,6 +707,25 @@ export default function BibleTab() {
               +
             </button>
           </div>
+
+          {/* Strong's toggle */}
+          <button
+            onClick={() => setStrongsMode((s) => !s)}
+            style={{
+              padding: "5px 12px",
+              borderRadius: "9999px",
+              background: strongsMode ? T.accent : T.card2,
+              color: strongsMode ? T.page : T.textMuted,
+              border: `1px solid ${strongsMode ? T.accent : T.border}`,
+              fontSize: "11px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              flexShrink: 0,
+            }}
+          >
+            Strong's
+          </button>
         </div>
 
         {/* Exit compare */}
@@ -720,9 +752,9 @@ export default function BibleTab() {
           </div>
         )}
 
-        {!isCompare && (
+        {!isCompare && strongsMode && (
           <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic", padding: "0.5rem 1.5rem 0", textAlign: "center" }}>
-            Toque em um versículo para abrir o Dicionário Strong
+            Toque em uma palavra original para ver a definição Strong
           </p>
         )}
 
@@ -782,47 +814,87 @@ export default function BibleTab() {
               </h1>
 
               {verses.map((v) => {
-                const isSelected = selectedVerse?.number === v.verse;
+                const words = chapterWords[v.verse] ?? [];
                 return (
-                  <span
-                    key={v.verse}
-                    onClick={() => {
-                      setSelectedVerse({ number: v.verse, text: v.text });
-                      if ("vibrate" in navigator) navigator.vibrate(10);
-                    }}
-                    style={{
-                      display: "inline",
-                      cursor: "pointer",
-                      borderRadius: "3px",
-                      background: isSelected ? T.accentDim : "transparent",
-                      padding: isSelected ? "1px 3px" : "0",
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    <sup
-                      style={{
-                        fontSize: "0.65em",
-                        fontWeight: 700,
-                        color: T.accent,
-                        marginRight: "3px",
-                        verticalAlign: "super",
-                        lineHeight: 0,
-                        userSelect: "none",
-                      }}
-                    >
-                      {v.verse}
-                    </sup>
-                    <span
-                      style={{
-                        fontSize: fontSize + "px",
-                        color: T.textPrimary,
-                        lineHeight: 1.9,
-                        fontFamily: '"Georgia", "Times New Roman", serif',
-                      }}
-                    >
-                      {v.text}{" "}
+                  <div key={v.verse}>
+                    <span style={{ display: "inline" }}>
+                      <sup
+                        style={{
+                          fontSize: "0.65em",
+                          fontWeight: 700,
+                          color: T.accent,
+                          marginRight: "3px",
+                          verticalAlign: "super",
+                          lineHeight: 0,
+                          userSelect: "none",
+                        }}
+                      >
+                        {v.verse}
+                      </sup>
+                      <span
+                        style={{
+                          fontSize: fontSize + "px",
+                          color: T.textPrimary,
+                          lineHeight: 1.9,
+                          fontFamily: '"Georgia", "Times New Roman", serif',
+                        }}
+                      >
+                        {v.text}{" "}
+                      </span>
                     </span>
-                  </span>
+
+                    {/* Interlinear chips */}
+                    {strongsMode && words.length > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "6px",
+                          padding: "8px 0 16px",
+                        }}
+                      >
+                        {words.map((w, wi) => (
+                          <button
+                            key={`${w.num}-${wi}`}
+                            onClick={() => setActiveWord(w)}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "2px",
+                              padding: "6px 10px",
+                              borderRadius: "0.625rem",
+                              background: activeWord?.num === w.num && activeWord?.word === w.word
+                                ? T.accentDim : T.card2,
+                              border: `1.5px solid ${activeWord?.num === w.num && activeWord?.word === w.word
+                                ? T.accent : T.border}`,
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                              minWidth: "44px",
+                            }}
+                          >
+                            <span style={{ fontSize: "8px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
+                              {w.num}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: w.lang === "hebrew" ? "16px" : "14px",
+                                fontWeight: 700,
+                                color: T.textPrimary,
+                                fontFamily: "serif",
+                                direction: w.lang === "hebrew" ? "rtl" : "ltr",
+                              }}
+                            >
+                              {w.word}
+                            </span>
+                            <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>
+                              {w.xlit}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -873,14 +945,11 @@ export default function BibleTab() {
           </button>
         </div>
 
-        {/* Strong's panel */}
-        {!isCompare && selectedVerse && (
+        {/* Strong's word detail modal */}
+        {activeWord && (
           <StrongsPanel
-            verse={selectedVerse}
-            bookId={currentAbbrev}
-            chapter={selectedChapter}
-            bookTestament={selectedBook.testament}
-            onClose={() => setSelectedVerse(null)}
+            word={activeWord}
+            onClose={() => setActiveWord(null)}
           />
         )}
 
