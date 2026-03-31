@@ -817,8 +817,8 @@ export default function BibleTab() {
                       </span>
                     </span>
 
-                    {/* Interlinear chips */}
-                    {strongsMode && words.length > 0 && (
+                    {/* Interlinear chips — always visible */}
+                    {words.length > 0 && (
                       <div
                         style={{
                           display: "flex",
