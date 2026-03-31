@@ -352,8 +352,7 @@ const Index = () => {
     } else {
       newCompleted.add(dayId);
       setCompletedDays(newCompleted);
-      if (typeof navigator !== "undefined") navigator.vibrate?.([30, 20, 60]);
-      playCheckSound();
+      playCheck();
       try {
         await supabase.from("completed_days").insert({
           user_id: user.id,
