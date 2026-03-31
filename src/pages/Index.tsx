@@ -389,7 +389,11 @@ const Index = () => {
           } as any).
           eq("user_id", user.id);
           if (!planStartDate) setPlanStartDate(today);
-          if (newMilestone) setPendingMilestone(newMilestone);
+          if (newMilestone) {
+            setPendingMilestone(newMilestone);
+            playTrophy();
+          }
+          if (newStreak > streak) playStreak();
         }
         checkBookCompletion(newCompleted);
       } catch {
