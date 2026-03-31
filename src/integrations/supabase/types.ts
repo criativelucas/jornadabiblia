@@ -257,6 +257,24 @@ export type Database = {
         }
         Relationships: []
       }
+      strongs_translations: {
+        Row: {
+          created_at: string | null
+          def_pt: string
+          strongs_num: string
+        }
+        Insert: {
+          created_at?: string | null
+          def_pt: string
+          strongs_num: string
+        }
+        Update: {
+          created_at?: string | null
+          def_pt?: string
+          strongs_num?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
