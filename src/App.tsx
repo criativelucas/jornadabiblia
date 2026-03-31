@@ -15,6 +15,28 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function OfflineBanner() {
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const goOff = () => setIsOffline(true);
+    const goOn = () => setIsOffline(false);
+    window.addEventListener('offline', goOff);
+    window.addEventListener('online', goOn);
+    return () => {
+      window.removeEventListener('offline', goOff);
+      window.removeEventListener('online', goOn);
+    };
+  }, []);
+
+  if (!isOffline) return null;
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 py-2 px-4 text-xs font-bold" style={{ background: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
+      <WifiOff size={14} />
+      Modo offline — usando textos em cache
+    </div>
+  );
+}
+
 const App = () => {
   const [splashDone, setSplashDone] = useState(false);
 
@@ -28,6 +50,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <OfflineBanner />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
