@@ -52,7 +52,11 @@ export default function QuizModal({ bookName, onClose }: Props) {
     if (phase !== "question") return;
     setSelected(idx);
     setPhase("feedback");
-  };
+    if (idx === questions[current].correct_index) {
+      playCorrect();
+    } else {
+      playWrong();
+    }
 
   const handleNext = async () => {
     const correct = selected === questions[current].correct_index;
