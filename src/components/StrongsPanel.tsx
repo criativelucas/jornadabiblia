@@ -14,7 +14,6 @@ interface Props {
 function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
   const [expanded, setExpanded] = useState(false);
 
-  // Formata a definição em tópicos se houver numeração tipo "1) ... 1a) ..."
   const formatDef = (def: string) => {
     if (!def) return null;
     const lines = def
@@ -54,82 +53,101 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
   return (
     <div
       style={{
-        borderRadius: "1rem",
+        borderRadius: "0.875rem",
         background: T.card2,
         border: `1px solid ${T.border}`,
         overflow: "hidden",
         marginBottom: "10px",
       }}
     >
-      {/* Cabeçalho sempre visível */}
       <div
         onClick={() => setExpanded((e) => !e)}
         style={{
           display: "flex",
           alignItems: "flex-start",
-          gap: "12px",
-          padding: "1rem",
+          gap: "0.875rem",
+          padding: "0.875rem",
           cursor: "pointer",
         }}
       >
-        {/* Número Strong + caractere original */}
+        {/* Bloco da palavra original */}
         <div
           style={{
+            flexShrink: 0,
+            width: "72px",
+            minHeight: "72px",
+            borderRadius: "0.75rem",
+            background: T.accentDim,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            minWidth: "60px",
-            flexShrink: 0,
-            padding: "6px 8px",
-            borderRadius: "0.625rem",
-            background: T.accentDim,
+            justifyContent: "center",
+            padding: "8px 4px",
+            gap: "3px",
           }}
         >
-          <span style={{ fontSize: "9px", fontWeight: 700, color: T.accent, letterSpacing: "0.05em" }}>
+          <span style={{ fontSize: "8px", fontWeight: 900, color: T.accent, letterSpacing: "0.04em" }}>
             {entry.num}
           </span>
           <span
             style={{
-              fontSize: entry.lang === "hebrew" ? "22px" : "17px",
+              fontSize: entry.lang === "hebrew" ? "20px" : "17px",
               fontWeight: 700,
               color: T.textPrimary,
-              lineHeight: 1.3,
+              lineHeight: 1.1,
               direction: entry.lang === "hebrew" ? "rtl" : "ltr",
-              marginTop: "2px",
+              fontFamily: "serif",
+              textAlign: "center",
             }}
           >
             {entry.lemma || entry.word}
           </span>
-          {/* Transliteração — tanto hebraico quanto grego */}
           {entry.xlit && (
             <span
               style={{
                 fontSize: "9px",
-                color: T.textMuted,
+                color: T.accent,
                 fontStyle: "italic",
-                marginTop: "2px",
                 textAlign: "center",
+                lineHeight: 1,
+                maxWidth: "68px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
               {entry.xlit}
             </span>
           )}
-          {/* Pronúncia — só hebraico tem do pacote */}
-          {entry.pron && <span style={{ fontSize: "9px", color: T.textDim, marginTop: "1px" }}>/{entry.pron}/</span>}
+          {entry.pron && (
+            <span style={{ fontSize: "8px", color: T.textDim, textAlign: "center" }}>/{entry.pron}/</span>
+          )}
         </div>
 
-        {/* Gloss + def resumida */}
+        {/* Conteúdo textual */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: "15px", fontWeight: 700, color: T.textPrimary }}>{entry.word}</span>
+          {/* Título = xlit (transliteração), não kjv_def */}
+          <p
+            style={{
+              fontWeight: 900,
+              fontSize: "15px",
+              color: T.textPrimary,
+              letterSpacing: "-0.02em",
+              marginBottom: "4px",
+            }}
+          >
+            {entry.xlit || entry.lemma || entry.word}
+          </p>
           {entry.grammar && (
-            <p style={{ fontSize: "11px", color: T.accent, marginTop: "3px", fontStyle: "italic" }}>{entry.grammar}</p>
+            <p style={{ fontSize: "11px", color: T.accent, fontStyle: "italic", marginBottom: "4px" }}>
+              {entry.grammar}
+            </p>
           )}
           <p
             style={{
               fontSize: "13px",
               color: T.textMuted,
               lineHeight: 1.6,
-              marginTop: "4px",
               overflow: "hidden",
               display: "-webkit-box",
               WebkitLineClamp: expanded ? 999 : 2,
@@ -152,11 +170,10 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
         />
       </div>
 
-      {/* Definição expandida completa */}
       {expanded && (
         <div
           style={{
-            padding: "0 1rem 1rem",
+            padding: "0 0.875rem 0.875rem",
             borderTop: `1px solid ${T.border}`,
             paddingTop: "0.75rem",
           }}
@@ -189,7 +206,9 @@ function StrongsWordCard({ entry, T }: { entry: StrongsEntry; T: any }) {
               >
                 Traduzido como (KJV)
               </p>
-              <p style={{ fontSize: "12px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.6 }}>{entry.kjv}</p>
+              <p style={{ fontSize: "12px", color: T.textMuted, fontStyle: "italic", lineHeight: 1.6 }}>
+                {entry.kjv}
+              </p>
             </div>
           )}
         </div>
@@ -213,7 +232,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
 
   return (
     <>
-      {/* Overlay */}
       <div
         onClick={onClose}
         style={{
@@ -224,7 +242,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
         }}
       />
 
-      {/* Slide-up panel */}
       <div
         style={{
           position: "fixed",
@@ -243,12 +260,10 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           animation: "slideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
-        {/* Drag handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
           <div style={{ width: "36px", height: "4px", borderRadius: "9999px", background: T.textDim, opacity: 0.5 }} />
         </div>
 
-        {/* Header */}
         <div
           style={{
             padding: "0.75rem 1.25rem 0.875rem",
@@ -273,7 +288,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             >
               Strong's Lexicon · Versículo {verse.number} · {bookTestament === "AT" ? "Hebraico" : "Grego"}
             </p>
-            {/* Versículo destacado */}
             <p
               style={{
                 fontSize: "15px",
@@ -304,7 +318,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
           </button>
         </div>
 
-        {/* Scrollable content */}
         <div
           style={{
             overflowY: "auto",
@@ -313,7 +326,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))",
           }}
         >
-          {/* Loading skeleton */}
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {[1, 2, 3, 4, 5].map((i) => (
@@ -331,7 +343,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             </div>
           )}
 
-          {/* No data */}
           {!loading && entries.length === 0 && (
             <div
               style={{
@@ -347,7 +358,6 @@ export default function StrongsPanel({ verse, bookId, chapter, bookTestament, on
             </div>
           )}
 
-          {/* Word cards */}
           {!loading &&
             entries.length > 0 &&
             entries.map((entry, i) => <StrongsWordCard key={`${entry.num}-${i}`} entry={entry} T={T} />)}

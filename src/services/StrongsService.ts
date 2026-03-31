@@ -195,6 +195,29 @@ function lookup(
   };
 }
 
+// ─── Merge consecutive duplicate Strong numbers ──────────────────────────
+function mergeDuplicates(
+  pairs: { word: string; num: string; grammar?: string; order: number }[]
+): { word: string; num: string; grammar?: string; order: number }[] {
+  const merged: typeof pairs = [];
+  for (let i = 0; i < pairs.length; i++) {
+    const current = pairs[i];
+    const next = pairs[i + 1];
+    if (next && next.num === current.num && next.order === current.order + 1) {
+      merged.push({
+        word: `${current.word} ${next.word}`,
+        num: current.num,
+        grammar: current.grammar || next.grammar,
+        order: current.order,
+      });
+      i++; // skip next
+    } else {
+      merged.push(current);
+    }
+  }
+  return merged;
+}
+
 // ─── Parse STEP Bible HTML → word + Strong number + grammar ──────────────
 function parseStepHtml(
   html: string,
