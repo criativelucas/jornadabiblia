@@ -24,6 +24,7 @@ const POINTS_PER_CORRECT = 25;
 export default function QuizModal({ bookName, onClose }: Props) {
   const { user } = useAuth();
   const { T } = useThemeContext();
+  const { playCorrect, playWrong, playTrophy } = useSoundFeedback();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
