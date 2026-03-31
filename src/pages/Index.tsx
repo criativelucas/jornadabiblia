@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, startTransition } from "react";
 import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X, ArrowRight, Trophy, Star, Medal, CheckCircle, TrendingUp } from "lucide-react";
 import { playCheckSound } from "@/utils/sounds";
+import { useSoundFeedback } from "@/hooks/useSoundFeedback";
+import { PageTransition } from "@/components/PageTransition";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
