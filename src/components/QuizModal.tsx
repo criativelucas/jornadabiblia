@@ -57,6 +57,7 @@ export default function QuizModal({ bookName, onClose }: Props) {
     } else {
       playWrong();
     }
+  };
 
   const handleNext = async () => {
     const correct = selected === questions[current].correct_index;
