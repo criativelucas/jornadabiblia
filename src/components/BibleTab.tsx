@@ -743,9 +743,9 @@ export default function BibleTab() {
           </div>
         )}
 
-        {!isCompare && (
+        {!isCompare && strongsMode && (
           <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic", padding: "0.5rem 1.5rem 0", textAlign: "center" }}>
-            Toque em um versículo para abrir o Dicionário Strong
+            Toque em uma palavra original para ver a definição Strong
           </p>
         )}
 
