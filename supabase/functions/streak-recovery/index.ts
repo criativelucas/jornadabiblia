@@ -12,6 +12,57 @@ serve(async (req) => {
   }
 
   try {
+    // Auth: require admin role or cron secret
+    const cronSecret = req.headers.get('x-cron-secret')
+    const expectedSecret = Deno.env.get('CRON_SECRET')
+
+    if (expectedSecret && cronSecret === expectedSecret) {
+      // Cron caller — allowed
+    } else {
+      // Check if caller is admin
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const anonClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      )
+
+      const token = authHeader.replace('Bearer ', '')
+      const { data: claims, error: claimsError } = await anonClient.auth.getClaims(token)
+      if (claimsError || !claims?.claims?.sub) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Check admin role
+      const serviceClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      )
+      const { data: roleData } = await serviceClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', claims.claims.sub)
+        .eq('role', 'admin')
+        .limit(1)
+
+      if (!roleData?.length) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -24,7 +75,6 @@ serve(async (req) => {
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
     const twoDaysAgoStr = twoDaysAgo.toISOString().split('T')[0]
 
-    // Get all profiles with streak > 0
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, display_name, streak')
@@ -33,7 +83,6 @@ serve(async (req) => {
     let notified = 0
 
     for (const profile of profiles ?? []) {
-      // Check if they read yesterday
       const { data: readYesterday } = await supabase
         .from('completed_days')
         .select('id')
@@ -41,7 +90,6 @@ serve(async (req) => {
         .eq('read_date', yesterdayStr)
         .limit(1)
 
-      // Check if they read the day before
       const { data: readBefore } = await supabase
         .from('completed_days')
         .select('id')
@@ -52,8 +100,6 @@ serve(async (req) => {
       const missedYesterday = !readYesterday?.length && readBefore?.length
       if (missedYesterday) {
         notified++
-        // The actual notification (push/email) would go here
-        // For now we just count users who missed
       }
     }
 
@@ -63,7 +109,7 @@ serve(async (req) => {
     )
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
