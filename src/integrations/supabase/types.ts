@@ -295,6 +295,27 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_questions_public: {
+        Row: {
+          book_name: string | null
+          id: string | null
+          options: Json | null
+          question: string | null
+        }
+        Insert: {
+          book_name?: string | null
+          id?: string | null
+          options?: Json | null
+          question?: string | null
+        }
+        Update: {
+          book_name?: string | null
+          id?: string | null
+          options?: Json | null
+          question?: string | null
+        }
+        Relationships: []
+      }
       weekly_ranking: {
         Row: {
           avatar_url: string | null
