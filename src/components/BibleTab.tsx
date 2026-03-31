@@ -217,21 +217,19 @@ export default function BibleTab() {
   useEffect(() => {
     if (isCompare) return;
     const v = version as BibleVersion;
-    if (isVersionCached(v)) {
-      fetchTranslation(v).then(setBibleData);
-    } else {
-      if (view === "reading") setLoadingText(true);
-      fetchTranslation(v).then((data) => {
-        setBibleData(data);
-        setLoadingText(false);
-        if (view === "reading" && selectedBook) {
-          const idx = bibleBooks.findIndex((b) => b.id === selectedBook.id);
-          const chData = idx >= 0 ? data[idx]?.chapters[selectedChapter - 1] : undefined;
-          if (chData) setVerses(chData.map((text, i) => ({ verse: i + 1, text: text.trim() })));
-        }
-      });
-    }
-  }, [version]);
+    const loadData = async () => {
+      if (!isVersionCached(v) && view === "reading") setLoadingText(true);
+      const data = await fetchTranslation(v);
+      setBibleData(data);
+      setLoadingText(false);
+      if (view === "reading" && selectedBook) {
+        const idx = bibleBooks.findIndex((b) => b.id === selectedBook.id);
+        const chData = idx >= 0 ? data[idx]?.chapters[selectedChapter - 1] : undefined;
+        if (chData) setVerses(chData.map((text, i) => ({ verse: i + 1, text: text.trim() })));
+      }
+    };
+    loadData();
+  }, [version, selectedBook, selectedChapter, view, isCompare]);
 
   useEffect(() => {
     if (!isCompare) return;
