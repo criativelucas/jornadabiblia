@@ -195,6 +195,29 @@ function lookup(
   };
 }
 
+// ─── Merge consecutive duplicate Strong numbers ──────────────────────────
+function mergeDuplicates(
+  pairs: { word: string; num: string; grammar?: string; order: number }[]
+): { word: string; num: string; grammar?: string; order: number }[] {
+  const merged: typeof pairs = [];
+  for (let i = 0; i < pairs.length; i++) {
+    const current = pairs[i];
+    const next = pairs[i + 1];
+    if (next && next.num === current.num && next.order === current.order + 1) {
+      merged.push({
+        word: `${current.word} ${next.word}`,
+        num: current.num,
+        grammar: current.grammar || next.grammar,
+        order: current.order,
+      });
+      i++; // skip next
+    } else {
+      merged.push(current);
+    }
+  }
+  return merged;
+}
+
 // ─── Parse STEP Bible HTML → word + Strong number + grammar ──────────────
 function parseStepHtml(
   html: string,
@@ -290,8 +313,11 @@ export async function getVerseStrongs(
 
     const pairs = parseStepHtml(html, lang);
 
+    // Merge consecutive duplicates (e.g. H6944 H6944 → "קֹדֶשׁ קָדָשִׁים")
+    const mergedPairs = mergeDuplicates(pairs);
+
     // Build entries with order preserved
-    const rawEntries: (StrongsEntry | null)[] = pairs.map((p) => {
+    const rawEntries: (StrongsEntry | null)[] = mergedPairs.map((p) => {
       const entry = lookup(p.num, p.word, lang, p.order);
       if (!entry) return null;
       const grammar = p.grammar ? parseMorph(p.grammar, lang) : undefined;

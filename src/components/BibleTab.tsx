@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, BookOpen, ChevronRight, Minus, Plus, Check, Loader2, ChevronDown, Columns2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, ChevronDown, Minus, Plus, Check, Loader2, Columns2, X } from "lucide-react";
 import { bibleBooks, AT_BOOKS, NT_BOOKS } from "@/data/bibleBooks";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import {
 import BookPanorama from "@/components/BookPanorama";
 import QuizModal from "@/components/QuizModal";
 import StrongsPanel from "@/components/StrongsPanel";
+import BookSelectorModal from "@/components/BookSelectorModal";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 const ALL_VERSIONS: BibleVersion[] = ["nvi", "naa", "ntlh"];
@@ -172,6 +173,10 @@ export default function BibleTab() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizBookName, setQuizBookName] = useState("");
   const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
+  const [showBookSelector, setShowBookSelector] = useState(false);
+
+  // Swipe
+  const touchStart = useRef<number>(0);
 
   const [version, setVersionState] = useState<BibleVersion | "compare">(() => {
     const saved = localStorage.getItem("jb_preferred_version") as BibleVersion;
@@ -181,9 +186,7 @@ export default function BibleTab() {
   const [compareRight, setCompareRight] = useState<BibleVersion>("naa");
   const isCompare = version === "compare";
 
-  // Dados da Bíblia — inicializa do cache instantaneamente se disponível
   const [bibleData, setBibleData] = useState<BibleDataBook[] | null>(() => {
-    // Se NVI já está no localStorage, carrega SÍNCRONO — tela não pisca
     const v = (localStorage.getItem("jb_preferred_version") as BibleVersion) || "nvi";
     if (!ALL_VERSIONS.includes(v)) return null;
     try {
@@ -200,32 +203,24 @@ export default function BibleTab() {
     if (v !== "compare") localStorage.setItem("jb_preferred_version", v);
   }, []);
 
-  // ── Prefetch NVI ao montar (background, sem bloquear UI) ──────────────────
+  // Prefetch
   useEffect(() => {
-    // Prefetch silencioso — sem mostrar loading
     if (!isVersionCached("nvi")) fetchTranslation("nvi").then(setBibleData);
-    // Prefetch das outras versões em background com delay para não competir
     const t1 = setTimeout(() => fetchTranslation("naa"), 2000);
     const t2 = setTimeout(() => fetchTranslation("ntlh"), 4000);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // ── Quando versão muda, carrega em background sem loading ────────────────
   useEffect(() => {
     if (isCompare) return;
     const v = version as BibleVersion;
     if (isVersionCached(v)) {
-      fetchTranslation(v).then(setBibleData); // cache → instantâneo
+      fetchTranslation(v).then(setBibleData);
     } else {
-      // Rede: mostra loading só se já está na tela de leitura
       if (view === "reading") setLoadingText(true);
       fetchTranslation(v).then((data) => {
         setBibleData(data);
         setLoadingText(false);
-        // Atualiza versículos se capítulo aberto
         if (view === "reading" && selectedBook) {
           const idx = bibleBooks.findIndex((b) => b.id === selectedBook.id);
           const chData = idx >= 0 ? data[idx]?.chapters[selectedChapter - 1] : undefined;
@@ -235,7 +230,6 @@ export default function BibleTab() {
     }
   }, [version]);
 
-  // ── Comparação ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isCompare) return;
     fetchTranslation(compareLeft).then(setBibleData);
@@ -283,7 +277,6 @@ export default function BibleTab() {
     }
   };
 
-  // Reload quando versões de comparação mudam
   useEffect(() => {
     if (isCompare && selectedBook && view === "reading") handleSelectChapter(selectedChapter);
   }, [compareLeft, compareRight]);
@@ -359,6 +352,43 @@ export default function BibleTab() {
     else if (view === "books") setView("testament");
   };
 
+  const goNextChapter = () => {
+    if (selectedBook && selectedChapter < selectedBook.chapters) {
+      handleSelectChapter(selectedChapter + 1);
+    }
+  };
+
+  const goPrevChapter = () => {
+    if (selectedChapter > 1) {
+      handleSelectChapter(selectedChapter - 1);
+    }
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = e.touches[0].clientX;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const diff = touchStart.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 80) {
+      if (diff > 0) goNextChapter();
+      else goPrevChapter();
+    }
+  };
+
+  // Book selector callback
+  const handleBookSelectorSelect = (abbrev: string, ch: number, bookName: string) => {
+    // Find matching bibleBook by searching for matching abbrev in bibleData
+    const allBooks = [...AT_BOOKS, ...NT_BOOKS];
+    const matchedBibleBook = allBooks.find((b) => {
+      const dataBook = findBookData(b, bibleData);
+      return dataBook && dataBook.abbrev === abbrev;
+    });
+    if (matchedBibleBook) {
+      setSelectedBook(matchedBibleBook);
+      handleSelectChapter(ch);
+    }
+  };
+
   const clipCard = {
     background: T.card,
     border: `1px solid ${T.border}`,
@@ -366,7 +396,6 @@ export default function BibleTab() {
     clipPath: "polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 0 100%)",
   };
 
-  // Pills — mostrados nas telas de navegação
   const versionPills = (
     <div className="flex gap-2 mb-4 flex-wrap">
       {ALL_VERSIONS.map((v) => (
@@ -408,11 +437,6 @@ export default function BibleTab() {
       />
     );
   }
-
-  // ── CRÍTICO: sem skeleton global ─────────────────────────────────────────
-  // O skeleton antigo bloqueava TODA a UI até o fetch completar.
-  // Agora a navegação (testamento → livros → capítulos) aparece imediatamente.
-  // O loading só aparece dentro da tela de leitura, onde realmente é necessário.
 
   const activeVersion: BibleVersion = isCompare ? compareLeft : (version as BibleVersion);
 
@@ -471,7 +495,6 @@ export default function BibleTab() {
               key={book.id}
               onClick={() => handleSelectBook(book)}
               onMouseEnter={() => {
-                // Pré-carrega ao hover — se já em cache não faz nada
                 if (!isCompare) fetchTranslation(version as BibleVersion);
                 else {
                   fetchTranslation(compareLeft);
@@ -568,163 +591,249 @@ export default function BibleTab() {
     );
   }
 
-  // ── Reading ────────────────────────────────────────────────────────────────
+  // ── Reading — YouVersion style ─────────────────────────────────────────────
   if (view === "reading" && selectedBook) {
+    const currentAbbrev = findBookData(selectedBook, bibleData)?.abbrev ?? "";
+
     return (
-      <div className="space-y-4" ref={scrollRef}>
-        {/* Topbar */}
-        <div className="flex items-center justify-between gap-2">
+      <div ref={scrollRef}>
+        {/* Sticky header */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            background: T.page,
+            borderBottom: `1px solid ${T.border}`,
+            display: "flex",
+            alignItems: "center",
+            padding: "0.625rem 1rem",
+            gap: "0.75rem",
+          }}
+        >
           <button
             onClick={goBack}
-            className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-            style={{ color: T.textMuted }}
+            style={{ color: T.textMuted, background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
           >
-            <ArrowLeft size={16} />
-            <span className="text-xs font-bold uppercase tracking-widest">Capítulos</span>
+            <ArrowLeft size={18} />
           </button>
-          <div className="flex items-center gap-2">
-            {isCompare ? (
-              <CompareVersionPicker
-                leftVersion={compareLeft}
-                rightVersion={compareRight}
-                onChangeLeft={setCompareLeft}
-                onChangeRight={setCompareRight}
-                T={T}
-              />
-            ) : (
-              <VersionPicker value={version as BibleVersion} onChange={handleVersionChange} T={T} />
-            )}
-            <button
-              onClick={() => setFontSize((s) => Math.max(12, s - 2))}
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: T.card2, color: T.textMuted }}
-            >
-              <Minus size={14} />
-            </button>
-            <span className="text-xs font-bold" style={{ color: T.textMuted }}>
-              A
-            </span>
-            <button
-              onClick={() => setFontSize((s) => Math.min(28, s + 2))}
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: T.card2, color: T.textMuted }}
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
 
-        {/* Sair da comparação */}
-        {isCompare && (
+          {/* Book + chapter selector */}
           <button
-            onClick={() => handleVersionChange("nvi")}
+            onClick={() => setShowBookSelector(true)}
             style={{
-              display: "inline-flex",
+              flex: 1,
+              display: "flex",
               alignItems: "center",
-              gap: "5px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: T.accent,
-              background: T.accentDim,
-              border: `1px solid ${T.accent}44`,
+              gap: "4px",
+              background: T.card2,
+              border: `1px solid ${T.border}`,
               borderRadius: "9999px",
-              padding: "5px 12px",
+              padding: "6px 14px",
               cursor: "pointer",
             }}
           >
-            <X size={11} /> Sair da comparação
+            <span style={{ fontWeight: 900, fontSize: "14px", color: T.textPrimary, letterSpacing: "-0.02em" }}>
+              {selectedBook.name} {selectedChapter}
+            </span>
+            <ChevronDown size={14} color={T.textMuted} />
           </button>
-        )}
 
-        {/* Título */}
-        <div className="flex items-center gap-3">
-          <BookOpen size={20} style={{ color: T.accent }} />
-          <div>
-            <Eyebrow accent>{selectedBook.name}</Eyebrow>
-            <h2 className="text-2xl font-black" style={{ color: T.textPrimary, letterSpacing: "-0.04em" }}>
-              Capítulo {selectedChapter}
-            </h2>
+          {/* Version selector */}
+          {isCompare ? (
+            <CompareVersionPicker
+              leftVersion={compareLeft}
+              rightVersion={compareRight}
+              onChangeLeft={setCompareLeft}
+              onChangeRight={setCompareRight}
+              T={T}
+            />
+          ) : (
+            <VersionPicker value={version as BibleVersion} onChange={handleVersionChange} T={T} />
+          )}
+
+          {/* Font size controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}>
+            <button
+              onClick={() => setFontSize((s) => Math.max(14, s - 1))}
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "9999px",
+                background: T.card2,
+                border: `1px solid ${T.border}`,
+                color: T.textMuted,
+                cursor: "pointer",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              −
+            </button>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: T.textMuted, width: "28px", textAlign: "center" }}>
+              {fontSize}
+            </span>
+            <button
+              onClick={() => setFontSize((s) => Math.min(28, s + 1))}
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "9999px",
+                background: T.card2,
+                border: `1px solid ${T.border}`,
+                color: T.textMuted,
+                cursor: "pointer",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              +
+            </button>
           </div>
         </div>
 
+        {/* Exit compare */}
+        {isCompare && (
+          <div style={{ padding: "0.5rem 1rem" }}>
+            <button
+              onClick={() => handleVersionChange("nvi")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: T.accent,
+                background: T.accentDim,
+                border: `1px solid ${T.accent}44`,
+                borderRadius: "9999px",
+                padding: "5px 12px",
+                cursor: "pointer",
+              }}
+            >
+              <X size={11} /> Sair da comparação
+            </button>
+          </div>
+        )}
+
         {!isCompare && (
-          <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic" }}>
+          <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic", padding: "0.5rem 1.5rem 0", textAlign: "center" }}>
             Toque em um versículo para abrir o Dicionário Strong
           </p>
         )}
 
-        {loadingText ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin" style={{ color: T.accent }} />
-          </div>
-        ) : isCompare ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-            {[
-              { label: VERSION_LABELS[compareLeft], data: verses },
-              { label: VERSION_LABELS[compareRight], data: versesB },
-            ].map(({ label, data }) => (
-              <div key={label} style={{ ...clipCard, padding: 0 }}>
-                <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.border}`, background: T.accentDim }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: T.accent, letterSpacing: "0.06em" }}>
+        {/* Content area with swipe */}
+        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          {loadingText ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin" style={{ color: T.accent }} />
+            </div>
+          ) : isCompare ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", background: T.border, maxWidth: "1200px", margin: "0 auto" }}>
+              {[
+                { label: VERSION_LABELS[compareLeft], data: verses },
+                { label: VERSION_LABELS[compareRight], data: versesB },
+              ].map(({ label, data }) => (
+                <div key={label} style={{ background: T.page, padding: "1.5rem" }}>
+                  <p style={{ textAlign: "center", fontSize: "11px", fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "1.5rem" }}>
                     {label}
-                  </span>
-                </div>
-                <div style={{ padding: "12px", fontSize: Math.max(11, fontSize - 2), lineHeight: 1.7 }}>
+                  </p>
                   {data.length === 0 ? (
                     <p style={{ color: T.textMuted, fontSize: "12px" }}>Não disponível</p>
                   ) : (
                     data.map((v) => (
-                      <span key={v.verse}>
-                        <sup style={{ color: T.accent, fontWeight: 900, fontSize: "0.6em", marginRight: "2px" }}>
+                      <span key={v.verse} style={{ display: "inline" }}>
+                        <sup style={{ fontSize: "0.65em", fontWeight: 700, color: T.accent, marginRight: "3px", verticalAlign: "super", lineHeight: 0, userSelect: "none" }}>
                           {v.verse}
                         </sup>
-                        <span style={{ color: T.textPrimary }}>{v.text} </span>
+                        <span style={{ fontSize: Math.max(13, fontSize - 2) + "px", color: T.textPrimary, lineHeight: 1.9, fontFamily: '"Georgia", "Times New Roman", serif' }}>
+                          {v.text}{" "}
+                        </span>
                       </span>
                     ))
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : verses.length === 0 ? (
-          <div className="py-12 text-center">
-            <p style={{ color: T.textMuted }}>Texto não disponível nesta tradução.</p>
-          </div>
-        ) : (
-          <div
-            className="p-5 leading-relaxed"
-            style={{
-              ...clipCard,
-              fontSize,
-              opacity: loadingText ? 0.4 : 1,
-              transition: "opacity 0.2s ease",
-            }}
-          >
-            {verses.map((v) => (
-              <span
-                key={v.verse}
-                onClick={() => setSelectedVerse({ number: v.verse, text: v.text })}
+              ))}
+            </div>
+          ) : verses.length === 0 ? (
+            <div className="py-12 text-center">
+              <p style={{ color: T.textMuted }}>Texto não disponível nesta tradução.</p>
+            </div>
+          ) : (
+            /* YouVersion-style centered reading */
+            <div style={{ maxWidth: "680px", margin: "0 auto", padding: "2rem 1.5rem 8rem" }}>
+              <h1
                 style={{
-                  cursor: "pointer",
-                  borderRadius: "4px",
-                  background: selectedVerse?.number === v.verse ? T.accentDim : undefined,
-                  padding: selectedVerse?.number === v.verse ? "2px 4px" : undefined,
-                  transition: "background 0.2s",
+                  textAlign: "center",
+                  fontSize: "1.125rem",
+                  fontWeight: 900,
+                  color: T.textPrimary,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  marginBottom: "2rem",
+                  opacity: 0.9,
                 }}
               >
-                <sup className="font-black mr-1" style={{ color: T.accent, fontSize: "0.65em" }}>
-                  {v.verse}
-                </sup>
-                <span style={{ color: T.textPrimary }}>{v.text} </span>
-              </span>
-            ))}
-          </div>
-        )}
+                {selectedBook.name} {selectedChapter}
+              </h1>
 
-        <div className="flex gap-3">
+              {verses.map((v) => {
+                const isSelected = selectedVerse?.number === v.verse;
+                return (
+                  <span
+                    key={v.verse}
+                    onClick={() => {
+                      setSelectedVerse({ number: v.verse, text: v.text });
+                      if ("vibrate" in navigator) navigator.vibrate(10);
+                    }}
+                    style={{
+                      display: "inline",
+                      cursor: "pointer",
+                      borderRadius: "3px",
+                      background: isSelected ? T.accentDim : "transparent",
+                      padding: isSelected ? "1px 3px" : "0",
+                      transition: "background 0.15s",
+                    }}
+                  >
+                    <sup
+                      style={{
+                        fontSize: "0.65em",
+                        fontWeight: 700,
+                        color: T.accent,
+                        marginRight: "3px",
+                        verticalAlign: "super",
+                        lineHeight: 0,
+                        userSelect: "none",
+                      }}
+                    >
+                      {v.verse}
+                    </sup>
+                    <span
+                      style={{
+                        fontSize: fontSize + "px",
+                        color: T.textPrimary,
+                        lineHeight: 1.9,
+                        fontFamily: '"Georgia", "Times New Roman", serif',
+                      }}
+                    >
+                      {v.text}{" "}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Chapter navigation */}
+        <div style={{ display: "flex", gap: "12px", padding: "0 1.5rem 1rem", maxWidth: "680px", margin: "0 auto" }}>
           {selectedChapter > 1 && (
             <button
-              onClick={() => handleSelectChapter(selectedChapter - 1)}
+              onClick={goPrevChapter}
               className="flex-1 py-3 rounded-full text-sm font-semibold transition-all"
               style={{ border: `1.5px solid ${T.border}`, color: T.textMuted }}
             >
@@ -733,7 +842,7 @@ export default function BibleTab() {
           )}
           {selectedChapter < selectedBook.chapters && (
             <button
-              onClick={() => handleSelectChapter(selectedChapter + 1)}
+              onClick={goNextChapter}
               className="flex-1 py-3 rounded-full text-sm font-semibold transition-all"
               style={{ border: `1.5px solid ${T.border}`, color: T.textMuted }}
             >
@@ -742,32 +851,46 @@ export default function BibleTab() {
           )}
         </div>
 
-        <button
-          onClick={handleMarkRead}
-          disabled={markedRead}
-          className="w-full py-4 rounded-full text-base font-black transition-all hover:opacity-90 disabled:opacity-50"
-          style={{
-            background: markedRead ? T.card2 : T.accent,
-            color: markedRead ? T.textMuted : T.page,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {markedRead ? (
-            <span className="flex items-center justify-center gap-2">
-              <Check size={18} /> Lido
-            </span>
-          ) : (
-            "Marcar como lido"
-          )}
-        </button>
+        {/* Mark as read */}
+        <div style={{ padding: "0 1.5rem 2rem", maxWidth: "680px", margin: "0 auto" }}>
+          <button
+            onClick={handleMarkRead}
+            disabled={markedRead}
+            className="w-full py-4 rounded-full text-base font-black transition-all hover:opacity-90 disabled:opacity-50"
+            style={{
+              background: markedRead ? T.card2 : T.accent,
+              color: markedRead ? T.textMuted : T.page,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {markedRead ? (
+              <span className="flex items-center justify-center gap-2">
+                <Check size={18} /> Lido
+              </span>
+            ) : (
+              "Marcar como lido"
+            )}
+          </button>
+        </div>
 
+        {/* Strong's panel */}
         {!isCompare && selectedVerse && (
           <StrongsPanel
             verse={selectedVerse}
-            bookId={findBookData(selectedBook, bibleData)?.abbrev ?? ""}
+            bookId={currentAbbrev}
             chapter={selectedChapter}
             bookTestament={selectedBook.testament}
             onClose={() => setSelectedVerse(null)}
+          />
+        )}
+
+        {/* Book selector modal */}
+        {showBookSelector && (
+          <BookSelectorModal
+            currentBookAbbrev={currentAbbrev}
+            currentChapter={selectedChapter}
+            onSelect={handleBookSelectorSelect}
+            onClose={() => setShowBookSelector(false)}
           />
         )}
       </div>
