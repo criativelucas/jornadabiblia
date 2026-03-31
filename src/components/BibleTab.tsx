@@ -936,14 +936,11 @@ export default function BibleTab() {
           </button>
         </div>
 
-        {/* Strong's panel */}
-        {!isCompare && selectedVerse && (
+        {/* Strong's word detail modal */}
+        {activeWord && (
           <StrongsPanel
-            verse={selectedVerse}
-            bookId={currentAbbrev}
-            chapter={selectedChapter}
-            bookTestament={selectedBook.testament}
-            onClose={() => setSelectedVerse(null)}
+            word={activeWord}
+            onClose={() => setActiveWord(null)}
           />
         )}
 
