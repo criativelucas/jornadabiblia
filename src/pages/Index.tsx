@@ -99,6 +99,22 @@ const Index = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { T } = useThemeContext();
+  const { playCheck, playStreak, playTrophy } = useSoundFeedback();
+
+  // Handle PWA shortcuts
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shortcut = params.get('shortcut');
+    if (shortcut === 'today') {
+      setActiveSection('bible');
+    }
+    if (shortcut === 'achievements') {
+      setActiveSection('achieve');
+    }
+    if (shortcut) {
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
   // View Transitions API for smooth section switches
   const navigateTo = (section: SectionId) => {
     if (!(document as any).startViewTransition) {
