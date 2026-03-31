@@ -290,8 +290,11 @@ export async function getVerseStrongs(
 
     const pairs = parseStepHtml(html, lang);
 
+    // Merge consecutive duplicates (e.g. H6944 H6944 → "קֹדֶשׁ קָדָשִׁים")
+    const mergedPairs = mergeDuplicates(pairs);
+
     // Build entries with order preserved
-    const rawEntries: (StrongsEntry | null)[] = pairs.map((p) => {
+    const rawEntries: (StrongsEntry | null)[] = mergedPairs.map((p) => {
       const entry = lookup(p.num, p.word, lang, p.order);
       if (!entry) return null;
       const grammar = p.grammar ? parseMorph(p.grammar, lang) : undefined;
