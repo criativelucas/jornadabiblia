@@ -194,6 +194,10 @@ export default function Profile() {
   const [reminderTime, setReminderTime] = useState("20:00");
   const [savingReminder, setSavingReminder] = useState(false);
 
+  const [soundOn, setSoundOn] = useState(
+    localStorage.getItem('soundEnabled') !== 'false'
+  );
+
   const today = getToday();
   const bibleProgress = totalChapters / TOTAL_BIBLE_CHAPTERS;
 
