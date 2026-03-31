@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CheckCircle2, XCircle, BookOpen, Zap, Trophy, Star } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
+import { useSoundFeedback } from "@/hooks/useSoundFeedback";
 
 interface Question {
   id: string;
