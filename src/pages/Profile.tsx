@@ -13,6 +13,8 @@ import {
   Check,
   Loader,
   LogOut,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useThemeContext, ThemeToggle } from "@/contexts/ThemeContext";
