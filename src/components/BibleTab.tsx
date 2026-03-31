@@ -698,6 +698,25 @@ export default function BibleTab() {
               +
             </button>
           </div>
+
+          {/* Strong's toggle */}
+          <button
+            onClick={() => setStrongsMode((s) => !s)}
+            style={{
+              padding: "5px 12px",
+              borderRadius: "9999px",
+              background: strongsMode ? T.accent : T.card2,
+              color: strongsMode ? T.page : T.textMuted,
+              border: `1px solid ${strongsMode ? T.accent : T.border}`,
+              fontSize: "11px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              flexShrink: 0,
+            }}
+          >
+            Strong's
+          </button>
         </div>
 
         {/* Exit compare */}
