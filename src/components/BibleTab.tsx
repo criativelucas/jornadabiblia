@@ -175,7 +175,6 @@ export default function BibleTab() {
   const [quizBookName, setQuizBookName] = useState("");
   const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
   const [showBookSelector, setShowBookSelector] = useState(false);
-  const [strongsMode, setStrongsMode] = useState(false);
   const [chapterWords, setChapterWords] = useState<Record<number, OrigWord[]>>({});
   const [activeWord, setActiveWord] = useState<OrigWord | null>(null);
 
@@ -218,21 +217,19 @@ export default function BibleTab() {
   useEffect(() => {
     if (isCompare) return;
     const v = version as BibleVersion;
-    if (isVersionCached(v)) {
-      fetchTranslation(v).then(setBibleData);
-    } else {
-      if (view === "reading") setLoadingText(true);
-      fetchTranslation(v).then((data) => {
-        setBibleData(data);
-        setLoadingText(false);
-        if (view === "reading" && selectedBook) {
-          const idx = bibleBooks.findIndex((b) => b.id === selectedBook.id);
-          const chData = idx >= 0 ? data[idx]?.chapters[selectedChapter - 1] : undefined;
-          if (chData) setVerses(chData.map((text, i) => ({ verse: i + 1, text: text.trim() })));
-        }
-      });
-    }
-  }, [version]);
+    const loadData = async () => {
+      if (!isVersionCached(v) && view === "reading") setLoadingText(true);
+      const data = await fetchTranslation(v);
+      setBibleData(data);
+      setLoadingText(false);
+      if (view === "reading" && selectedBook) {
+        const idx = bibleBooks.findIndex((b) => b.id === selectedBook.id);
+        const chData = idx >= 0 ? data[idx]?.chapters[selectedChapter - 1] : undefined;
+        if (chData) setVerses(chData.map((text, i) => ({ verse: i + 1, text: text.trim() })));
+      }
+    };
+    loadData();
+  }, [version, selectedBook, selectedChapter, view, isCompare]);
 
   useEffect(() => {
     if (!isCompare) return;
@@ -708,24 +705,6 @@ export default function BibleTab() {
             </button>
           </div>
 
-          {/* Strong's toggle */}
-          <button
-            onClick={() => setStrongsMode((s) => !s)}
-            style={{
-              padding: "5px 12px",
-              borderRadius: "9999px",
-              background: strongsMode ? T.accent : T.card2,
-              color: strongsMode ? T.page : T.textMuted,
-              border: `1px solid ${strongsMode ? T.accent : T.border}`,
-              fontSize: "11px",
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.2s",
-              flexShrink: 0,
-            }}
-          >
-            Strong's
-          </button>
         </div>
 
         {/* Exit compare */}
@@ -752,11 +731,6 @@ export default function BibleTab() {
           </div>
         )}
 
-        {!isCompare && strongsMode && (
-          <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic", padding: "0.5rem 1.5rem 0", textAlign: "center" }}>
-            Toque em uma palavra original para ver a definição Strong
-          </p>
-        )}
 
         {/* Content area with swipe */}
         <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -843,8 +817,8 @@ export default function BibleTab() {
                       </span>
                     </span>
 
-                    {/* Interlinear chips */}
-                    {strongsMode && words.length > 0 && (
+                    {/* Interlinear chips — always visible */}
+                    {words.length > 0 && (
                       <div
                         style={{
                           display: "flex",
