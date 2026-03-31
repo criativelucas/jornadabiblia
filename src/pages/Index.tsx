@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, startTransition } from "react";
 import { Check, Award, ChevronDown, Calendar, LogIn, CheckCheck, Zap, BookOpen, Flame, Plus, X, ArrowRight, Trophy, Star, Medal, CheckCircle, TrendingUp } from "lucide-react";
 import { playCheckSound } from "@/utils/sounds";
+import { useSoundFeedback } from "@/hooks/useSoundFeedback";
+import { PageTransition } from "@/components/PageTransition";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,6 +99,22 @@ const Index = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { T } = useThemeContext();
+  const { playCheck, playStreak, playTrophy } = useSoundFeedback();
+
+  // Handle PWA shortcuts
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shortcut = params.get('shortcut');
+    if (shortcut === 'today') {
+      setActiveSection('bible');
+    }
+    if (shortcut === 'achievements') {
+      setActiveSection('achieve');
+    }
+    if (shortcut) {
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
   // View Transitions API for smooth section switches
   const navigateTo = (section: SectionId) => {
     if (!(document as any).startViewTransition) {
@@ -334,8 +352,7 @@ const Index = () => {
     } else {
       newCompleted.add(dayId);
       setCompletedDays(newCompleted);
-      if (typeof navigator !== "undefined") navigator.vibrate?.([30, 20, 60]);
-      playCheckSound();
+      playCheck();
       try {
         await supabase.from("completed_days").insert({
           user_id: user.id,
@@ -372,7 +389,11 @@ const Index = () => {
           } as any).
           eq("user_id", user.id);
           if (!planStartDate) setPlanStartDate(today);
-          if (newMilestone) setPendingMilestone(newMilestone);
+          if (newMilestone) {
+            setPendingMilestone(newMilestone);
+            playTrophy();
+          }
+          if (newStreak > streak) playStreak();
         }
         checkBookCompletion(newCompleted);
       } catch {
@@ -609,7 +630,7 @@ const Index = () => {
           }
 
           {!mindMapBook &&
-          <div key={activeSection} className="section-enter">
+          <PageTransition transitionKey={activeSection}>
               {activeSection === "bible" && <BibleTab />}
               {activeSection === "discover" && <DiscoverTab />}
               {activeSection === "achieve" &&
@@ -1439,7 +1460,7 @@ const Index = () => {
               }
                 </>
             }
-            </div>
+            </PageTransition>
           }
         </div>
       </main>

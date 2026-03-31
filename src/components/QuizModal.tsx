@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CheckCircle2, XCircle, BookOpen, Zap, Trophy, Star } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
+import { useSoundFeedback } from "@/hooks/useSoundFeedback";
 
 interface Question {
   id: string;
@@ -23,6 +24,7 @@ const POINTS_PER_CORRECT = 25;
 export default function QuizModal({ bookName, onClose }: Props) {
   const { user } = useAuth();
   const { T } = useThemeContext();
+  const { playCorrect, playWrong, playTrophy } = useSoundFeedback();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -50,6 +52,11 @@ export default function QuizModal({ bookName, onClose }: Props) {
     if (phase !== "question") return;
     setSelected(idx);
     setPhase("feedback");
+    if (idx === questions[current].correct_index) {
+      playCorrect();
+    } else {
+      playWrong();
+    }
   };
 
   const handleNext = async () => {
