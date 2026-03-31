@@ -9,7 +9,6 @@ interface Question {
   id: string;
   question: string;
   options: string[];
-  correct_index: number;
 }
 
 interface Props {
@@ -28,14 +27,17 @@ export default function QuizModal({ bookName, onClose }: Props) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
+  const [correctIndex, setCorrectIndex] = useState<number | null>(null);
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const load = async () => {
+      // Fetch from public view (no correct_index exposed)
       const { data } = await (supabase as any)
-        .from("quiz_questions")
-        .select("*")
+        .from("quiz_questions_public")
+        .select("id, book_name, question, options")
         .eq("book_name", bookName)
         .limit(3);
       if (data && data.length > 0) {
@@ -48,24 +50,46 @@ export default function QuizModal({ bookName, onClose }: Props) {
     load();
   }, [bookName]);
 
-  const handleSelect = (idx: number) => {
-    if (phase !== "question") return;
+  const handleSelect = async (idx: number) => {
+    if (phase !== "question" || checking) return;
     setSelected(idx);
-    setPhase("feedback");
-    if (idx === questions[current].correct_index) {
-      playCorrect();
-    } else {
+    setChecking(true);
+
+    try {
+      // Validate answer server-side
+      const { data, error } = await supabase.functions.invoke("check-quiz-answer", {
+        body: { question_id: questions[current].id, selected_index: idx },
+      });
+
+      if (error || !data) {
+        // Fallback: show as wrong if server fails
+        setCorrectIndex(null);
+        playWrong();
+      } else {
+        setCorrectIndex(data.correct_index);
+        if (data.correct) {
+          playCorrect();
+        } else {
+          playWrong();
+        }
+      }
+    } catch {
+      setCorrectIndex(null);
       playWrong();
     }
+
+    setChecking(false);
+    setPhase("feedback");
   };
 
   const handleNext = async () => {
-    const correct = selected === questions[current].correct_index;
+    const correct = correctIndex !== null && selected === correctIndex;
     const newAnswers = [...answers, correct];
     if (current + 1 < questions.length) {
       setAnswers(newAnswers);
       setCurrent((c) => c + 1);
       setSelected(null);
+      setCorrectIndex(null);
       setPhase("question");
     } else {
       const correctCount = newAnswers.filter(Boolean).length;
@@ -140,7 +164,7 @@ export default function QuizModal({ bookName, onClose }: Props) {
 
             <div className="space-y-2">
               {questions[current].options.map((opt, i) => {
-                const isCorrect = i === questions[current].correct_index;
+                const isCorrect = correctIndex !== null && i === correctIndex;
                 const isSelected = i === selected;
                 const bg = phase === "feedback"
                   ? isCorrect ? "rgba(34,197,94,0.15)" : isSelected ? "rgba(239,68,68,0.15)" : T.card2
@@ -157,7 +181,7 @@ export default function QuizModal({ bookName, onClose }: Props) {
                     className="w-full text-left px-4 py-3 text-sm font-medium transition-all duration-300"
                     style={{ borderRadius: "0.875rem", background: bg, border: `1px solid ${borderColor}`, color: textColor, opacity: phase === "feedback" && !isCorrect && !isSelected ? 0.6 : 1 }}
                     onClick={() => handleSelect(i)}
-                    disabled={phase === "feedback"}
+                    disabled={phase === "feedback" || checking}
                   >
                     <span className="flex items-center gap-2">
                       {phase === "feedback" && isCorrect && <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "#22c55e" }} />}
@@ -168,6 +192,12 @@ export default function QuizModal({ bookName, onClose }: Props) {
                 );
               })}
             </div>
+
+            {checking && (
+              <div className="flex justify-center">
+                <div className="w-5 h-5 border-2 border-t-transparent animate-spin" style={{ borderColor: T.accent, borderTopColor: "transparent", borderRadius: "9999px" }} />
+              </div>
+            )}
 
             {phase === "feedback" && (
               <button
