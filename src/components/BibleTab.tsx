@@ -805,47 +805,87 @@ export default function BibleTab() {
               </h1>
 
               {verses.map((v) => {
-                const isSelected = selectedVerse?.number === v.verse;
+                const words = chapterWords[v.verse] ?? [];
                 return (
-                  <span
-                    key={v.verse}
-                    onClick={() => {
-                      setSelectedVerse({ number: v.verse, text: v.text });
-                      if ("vibrate" in navigator) navigator.vibrate(10);
-                    }}
-                    style={{
-                      display: "inline",
-                      cursor: "pointer",
-                      borderRadius: "3px",
-                      background: isSelected ? T.accentDim : "transparent",
-                      padding: isSelected ? "1px 3px" : "0",
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    <sup
-                      style={{
-                        fontSize: "0.65em",
-                        fontWeight: 700,
-                        color: T.accent,
-                        marginRight: "3px",
-                        verticalAlign: "super",
-                        lineHeight: 0,
-                        userSelect: "none",
-                      }}
-                    >
-                      {v.verse}
-                    </sup>
-                    <span
-                      style={{
-                        fontSize: fontSize + "px",
-                        color: T.textPrimary,
-                        lineHeight: 1.9,
-                        fontFamily: '"Georgia", "Times New Roman", serif',
-                      }}
-                    >
-                      {v.text}{" "}
+                  <div key={v.verse}>
+                    <span style={{ display: "inline" }}>
+                      <sup
+                        style={{
+                          fontSize: "0.65em",
+                          fontWeight: 700,
+                          color: T.accent,
+                          marginRight: "3px",
+                          verticalAlign: "super",
+                          lineHeight: 0,
+                          userSelect: "none",
+                        }}
+                      >
+                        {v.verse}
+                      </sup>
+                      <span
+                        style={{
+                          fontSize: fontSize + "px",
+                          color: T.textPrimary,
+                          lineHeight: 1.9,
+                          fontFamily: '"Georgia", "Times New Roman", serif',
+                        }}
+                      >
+                        {v.text}{" "}
+                      </span>
                     </span>
-                  </span>
+
+                    {/* Interlinear chips */}
+                    {strongsMode && words.length > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "6px",
+                          padding: "8px 0 16px",
+                        }}
+                      >
+                        {words.map((w, wi) => (
+                          <button
+                            key={`${w.num}-${wi}`}
+                            onClick={() => setActiveWord(w)}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "2px",
+                              padding: "6px 10px",
+                              borderRadius: "0.625rem",
+                              background: activeWord?.num === w.num && activeWord?.word === w.word
+                                ? T.accentDim : T.card2,
+                              border: `1.5px solid ${activeWord?.num === w.num && activeWord?.word === w.word
+                                ? T.accent : T.border}`,
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                              minWidth: "44px",
+                            }}
+                          >
+                            <span style={{ fontSize: "8px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
+                              {w.num}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: w.lang === "hebrew" ? "16px" : "14px",
+                                fontWeight: 700,
+                                color: T.textPrimary,
+                                fontFamily: "serif",
+                                direction: w.lang === "hebrew" ? "rtl" : "ltr",
+                              }}
+                            >
+                              {w.word}
+                            </span>
+                            <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>
+                              {w.xlit}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
