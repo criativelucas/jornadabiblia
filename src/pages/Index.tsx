@@ -1456,7 +1456,7 @@ const Index = () => {
               }
                 </>
             }
-            </div>
+            </PageTransition>
           }
         </div>
       </main>
