@@ -626,7 +626,7 @@ const Index = () => {
           }
 
           {!mindMapBook &&
-          <div key={activeSection} className="section-enter">
+          <PageTransition transitionKey={activeSection}>
               {activeSection === "bible" && <BibleTab />}
               {activeSection === "discover" && <DiscoverTab />}
               {activeSection === "achieve" &&
