@@ -731,11 +731,6 @@ export default function BibleTab() {
           </div>
         )}
 
-        {!isCompare && strongsMode && (
-          <p style={{ fontSize: "10px", color: T.textMuted, fontStyle: "italic", padding: "0.5rem 1.5rem 0", textAlign: "center" }}>
-            Toque em uma palavra original para ver a definição Strong
-          </p>
-        )}
 
         {/* Content area with swipe */}
         <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
