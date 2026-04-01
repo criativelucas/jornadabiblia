@@ -121,7 +121,7 @@ export async function fetchChapterStrongs(
 
   const promise = (async () => {
     try {
-      const url = `https://bolls.life/get-text/${translation}/${bookNumber}/${chapter}/`;
+      const url = `https://bolls.life/get-chapter/${translation}/${bookNumber}/${chapter}/`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
