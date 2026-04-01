@@ -787,7 +787,8 @@ export default function BibleTab() {
               </h1>
 
               {verses.map((v) => {
-                const words = chapterWords[v.verse] ?? [];
+                const words = chapterWords[v.verse - 1] ?? [];
+                const isHebrew = words[0]?.strongNumber?.startsWith("H");
                 return (
                   <div key={v.verse}>
                     <span style={{ display: "inline" }}>
@@ -816,7 +817,7 @@ export default function BibleTab() {
                       </span>
                     </span>
 
-                    {/* Interlinear chips — always visible */}
+                    {/* Interlinear chips */}
                     {words.length > 0 && (
                       <div
                         style={{
@@ -824,11 +825,12 @@ export default function BibleTab() {
                           flexWrap: "wrap",
                           gap: "6px",
                           padding: "8px 0 16px",
+                          direction: isHebrew ? "rtl" : "ltr",
                         }}
                       >
                         {words.map((w, wi) => (
                           <button
-                            key={`${w.num}-${wi}`}
+                            key={`${w.strongNumber}-${wi}`}
                             onClick={() => setActiveWord(w)}
                             style={{
                               display: "flex",
@@ -837,9 +839,9 @@ export default function BibleTab() {
                               gap: "2px",
                               padding: "6px 10px",
                               borderRadius: "0.625rem",
-                              background: activeWord?.num === w.num && activeWord?.word === w.word
+                              background: activeWord?.strongNumber === w.strongNumber && activeWord?.word === w.word
                                 ? T.accentDim : T.card2,
-                              border: `1.5px solid ${activeWord?.num === w.num && activeWord?.word === w.word
+                              border: `1.5px solid ${activeWord?.strongNumber === w.strongNumber && activeWord?.word === w.word
                                 ? T.accent : T.border}`,
                               cursor: "pointer",
                               transition: "all 0.15s",
@@ -847,22 +849,24 @@ export default function BibleTab() {
                             }}
                           >
                             <span style={{ fontSize: "8px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
-                              {w.num}
+                              {w.strongNumber}
                             </span>
                             <span
                               style={{
-                                fontSize: w.lang === "hebrew" ? "16px" : "14px",
+                                fontSize: isHebrew ? "16px" : "14px",
                                 fontWeight: 700,
                                 color: T.textPrimary,
                                 fontFamily: "serif",
-                                direction: w.lang === "hebrew" ? "rtl" : "ltr",
+                                direction: isHebrew ? "rtl" : "ltr",
                               }}
                             >
                               {w.word}
                             </span>
-                            <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>
-                              {w.xlit}
-                            </span>
+                            {w.transliteration && (
+                              <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>
+                                {w.transliteration}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
