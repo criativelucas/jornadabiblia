@@ -92,20 +92,15 @@ export default function StrongsPanel({ word, onClose }: Props) {
                 direction: isHebrew ? "rtl" : "ltr", fontFamily: "serif", textAlign: "center",
               }}
             >
-              {word.word}
+              {definition?.lexeme || word.word}
             </span>
-            {word.transliteration && (
-              <span style={{ fontSize: "10px", color: T.accent, fontStyle: "italic", textAlign: "center" }}>
-                {word.transliteration}
-              </span>
-            )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: "10px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>
               {isHebrew ? "Hebraico" : "Grego"} · {word.strongNumber}
             </p>
             <p style={{ fontSize: "20px", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.02em" }}>
-              {definition?.transliteration || word.transliteration || word.word}
+              {definition?.transliteration || word.word}
             </p>
             {definition?.pronunciation && (
               <p style={{ fontSize: "11px", color: T.textDim, marginTop: "4px" }}>
@@ -143,22 +138,6 @@ export default function StrongsPanel({ word, onClose }: Props) {
               <Section label="Definição Strong">
                 <p style={{ fontSize: "14px", color: T.textPrimary, lineHeight: 1.8, fontFamily: '"Georgia", "Times New Roman", serif' }}>
                   {definition.definition}
-                </p>
-              </Section>
-            )}
-
-            {definition.origin && (
-              <Section label="Origem">
-                <p style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.7 }}>
-                  {definition.origin}
-                </p>
-              </Section>
-            )}
-
-            {definition.kjvUsage && (
-              <Section label="Traduzido na KJV como">
-                <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.7, fontStyle: "italic" }}>
-                  {definition.kjvUsage}
                 </p>
               </Section>
             )}
