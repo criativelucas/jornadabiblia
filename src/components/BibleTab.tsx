@@ -254,9 +254,9 @@ export default function BibleTab() {
     setChapterWords([]);
 
     // Preload interlinear data in background
-    const bookIdx = findBookIdx(selectedBook);
-    if (bookIdx >= 0) {
-      fetchChapterStrongs(bookIdx + 1, ch).then(setChapterWords);
+    const bkIdx = findBookIdx(selectedBook);
+    if (bkIdx >= 0) {
+      fetchChapterStrongs(bkIdx + 1, ch).then(setChapterWords);
     }
     scrollRef.current?.scrollTo(0, 0);
 
