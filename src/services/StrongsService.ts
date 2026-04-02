@@ -155,12 +155,16 @@ export async function enrichChapterWords(words: StrongsWord[][]): Promise<Strong
     }
   }
 
-  // Fetch definitions in parallel (max ~20 concurrent)
+  // Fetch definitions with throttling to avoid 429s
   const nums = Array.from(uniqueNums);
-  const batchSize = 20;
+  const batchSize = 5;
   for (let i = 0; i < nums.length; i += batchSize) {
     const batch = nums.slice(i, i + batchSize);
     await Promise.all(batch.map(n => fetchStrongsDefinition(n)));
+    // Small delay between batches to avoid rate limiting
+    if (i + batchSize < nums.length) {
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
   // Enrich words with definition data
