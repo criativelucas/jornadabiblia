@@ -827,7 +827,8 @@ export default function BibleTab() {
                           flexWrap: "wrap",
                           gap: "6px",
                           padding: "8px 0 16px",
-                          direction: isHebrew ? "rtl" : "ltr",
+                          direction: "ltr",
+                          justifyContent: "flex-start",
                         }}
                       >
                         {words.map((w, wi) => (
