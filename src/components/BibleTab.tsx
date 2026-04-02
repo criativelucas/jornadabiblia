@@ -253,10 +253,12 @@ export default function BibleTab() {
     setActiveWord(null);
     setChapterWords([]);
 
-    // Preload interlinear data in background
+    // Preload interlinear data in background + enrich with lexemes
     const bkIdx = findBookIdx(selectedBook);
     if (bkIdx >= 0) {
-      fetchChapterStrongs(bkIdx + 1, ch).then(setChapterWords);
+      fetchChapterStrongs(bkIdx + 1, ch)
+        .then(words => enrichChapterWords(words))
+        .then(setChapterWords);
     }
     scrollRef.current?.scrollTo(0, 0);
 
