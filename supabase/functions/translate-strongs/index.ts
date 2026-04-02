@@ -19,7 +19,6 @@ serve(async (req) => {
       });
     }
 
-    // Build prompt with all entries to translate in batch
     const toTranslate = entries.map((e: any) => ({
       num: e.num,
       def: e.def || "",
@@ -37,22 +36,29 @@ ${JSON.stringify(toTranslate)}
 Formato de saída (array na mesma ordem):
 [{"num":"H7225","def":"tradução da definição","kjv":"tradução dos usos"}]`;
 
-    const response = await fetch("https://qsfwxrmqryffaudvnclw.supabase.co/functions/v1/ai-proxy", {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("LOVABLE_API_KEY not configured");
+      return new Response(JSON.stringify({ translations: [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 4000,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("AI proxy error:", errText);
+      console.error("AI gateway error:", response.status, errText);
       return new Response(JSON.stringify({ translations: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -61,7 +67,6 @@ Formato de saída (array na mesma ordem):
     const data = await response.json();
     const text = data?.choices?.[0]?.message?.content || "";
     
-    // Clean and parse
     const clean = text.replace(/```json|```/g, "").trim();
     let translations = [];
     try {

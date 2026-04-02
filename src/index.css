@@ -34,6 +34,20 @@
   animation: pageEnter 0.3s cubic-bezier(0.65, 0.05, 0, 1);
 }
 
+/* ─── Strong's popup animations ──────────────────────────── */
+@keyframes popIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.8; }
+}
+
 /* ─── Curiosidade fade ────────────────────────────────────── */
 @keyframes fade-in-down {
   from { opacity: 0; transform: translateY(-20px); }

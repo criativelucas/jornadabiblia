@@ -17,7 +17,7 @@ import BookPanorama from "@/components/BookPanorama";
 import QuizModal from "@/components/QuizModal";
 import StrongsPanel from "@/components/StrongsPanel";
 import BookSelectorModal from "@/components/BookSelectorModal";
-import { fetchChapterStrongs, type StrongsWord } from "@/services/StrongsService";
+import { fetchChapterStrongs, enrichChapterWords, type StrongsWord } from "@/services/StrongsService";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 const ALL_VERSIONS: BibleVersion[] = ["nvi", "naa", "ntlh"];
@@ -253,10 +253,12 @@ export default function BibleTab() {
     setActiveWord(null);
     setChapterWords([]);
 
-    // Preload interlinear data in background
+    // Preload interlinear data in background + enrich with lexemes
     const bkIdx = findBookIdx(selectedBook);
     if (bkIdx >= 0) {
-      fetchChapterStrongs(bkIdx + 1, ch).then(setChapterWords);
+      fetchChapterStrongs(bkIdx + 1, ch)
+        .then(words => enrichChapterWords(words))
+        .then(setChapterWords);
     }
     scrollRef.current?.scrollTo(0, 0);
 
@@ -853,14 +855,14 @@ export default function BibleTab() {
                             </span>
                             <span
                               style={{
-                                fontSize: isHebrew ? "16px" : "14px",
+                                fontSize: isHebrew ? "18px" : "15px",
                                 fontWeight: 700,
                                 color: T.textPrimary,
                                 fontFamily: "serif",
                                 direction: isHebrew ? "rtl" : "ltr",
                               }}
                             >
-                              {w.word}
+                              {w.originalWord || w.word}
                             </span>
                             {w.transliteration && (
                               <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>

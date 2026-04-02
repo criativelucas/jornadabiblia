@@ -5,7 +5,7 @@
 
 export interface StrongsWord {
   word: string;           // displayed word (English for OT via KJV, Greek for NT via TISCH)
-  originalWord: string;   // original Hebrew/Greek from definition (filled async)
+  originalWord: string;   // original Hebrew/Greek from definition (filled async via enrichment)
   strongNumber: string;   // e.g. "H7225" or "G3056"
   transliteration: string;
   order: number;
@@ -28,12 +28,9 @@ const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 
 /**
  * Parse KJV/TISCH verse HTML: word<S>number</S>
- * OT (KJV): English words, numbers are Hebrew (prefix H)
- * NT (TISCH): Greek words, numbers are Greek (prefix G)
  */
 function parseVerse(html: string, isNT: boolean): StrongsWord[] {
   const words: StrongsWord[] = [];
-  // Match: text before <S> tag, then number inside <S>
   const regex = /([^<]*?)<S>(\d+)<\/S>/g;
   let match: RegExpExecArray | null;
   let order = 0;
@@ -48,7 +45,7 @@ function parseVerse(html: string, isNT: boolean): StrongsWord[] {
 
     words.push({
       word: rawWord || '•',
-      originalWord: '', // will be filled from definition
+      originalWord: '',
       strongNumber,
       transliteration: '',
       order: order++,
@@ -60,8 +57,6 @@ function parseVerse(html: string, isNT: boolean): StrongsWord[] {
 
 /**
  * Fetch all Strong's words for a chapter.
- * OT (bookNumber 1-39): uses KJV (English + Strong's H numbers)
- * NT (bookNumber 40-66): uses TISCH (Greek + Strong's G numbers)
  */
 export async function fetchChapterStrongs(
   bookNumber: number,
@@ -100,7 +95,7 @@ export async function fetchChapterStrongs(
 }
 
 /**
- * Fetch Strong's definition. Returns lexeme (original word), transliteration, etc.
+ * Fetch Strong's definition.
  */
 export async function fetchStrongsDefinition(
   strongNumber: string
@@ -121,7 +116,6 @@ export async function fetchStrongsDefinition(
       }
 
       const d = data[0];
-      // Strip HTML from definition
       const stripHtml = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
       const definition: StrongsDefinition = {
@@ -146,4 +140,41 @@ export async function fetchStrongsDefinition(
 
   inFlightDef.set(strongNumber, promise);
   return promise;
+}
+
+/**
+ * Batch-enrich chapter words with lexeme/transliteration from definitions.
+ * After this, each word's `originalWord` and `transliteration` fields are populated.
+ */
+export async function enrichChapterWords(words: StrongsWord[][]): Promise<StrongsWord[][]> {
+  // Collect unique strong numbers
+  const uniqueNums = new Set<string>();
+  for (const verse of words) {
+    for (const w of verse) {
+      uniqueNums.add(w.strongNumber);
+    }
+  }
+
+  // Fetch definitions in parallel (max ~20 concurrent)
+  const nums = Array.from(uniqueNums);
+  const batchSize = 20;
+  for (let i = 0; i < nums.length; i += batchSize) {
+    const batch = nums.slice(i, i + batchSize);
+    await Promise.all(batch.map(n => fetchStrongsDefinition(n)));
+  }
+
+  // Enrich words with definition data
+  return words.map(verse =>
+    verse.map(w => {
+      const def = definitionCache.get(w.strongNumber);
+      if (def) {
+        return {
+          ...w,
+          originalWord: def.lexeme || w.word,
+          transliteration: def.transliteration || w.transliteration,
+        };
+      }
+      return w;
+    })
+  );
 }

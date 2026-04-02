@@ -2,10 +2,65 @@ import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 import { fetchStrongsDefinition, type StrongsWord, type StrongsDefinition } from "@/services/StrongsService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   word: StrongsWord;
   onClose: () => void;
+}
+
+// In-memory cache for PT translations
+const ptCache = new Map<string, string>();
+
+async function getDefinitionPT(
+  strongNumber: string,
+  defEN: string,
+  shortDef: string
+): Promise<string> {
+  if (ptCache.has(strongNumber)) return ptCache.get(strongNumber)!;
+
+  // Check Supabase cache
+  try {
+    const { data } = await supabase
+      .from('strongs_translations')
+      .select('def_pt')
+      .eq('strongs_num', strongNumber)
+      .maybeSingle();
+
+    if (data?.def_pt) {
+      ptCache.set(strongNumber, data.def_pt);
+      return data.def_pt;
+    }
+  } catch {}
+
+  // Translate via edge function
+  try {
+    const { data, error } = await supabase.functions.invoke('translate-strongs', {
+      body: {
+        entries: [{
+          num: strongNumber,
+          def: defEN || shortDef,
+          kjv: '',
+        }],
+      },
+    });
+
+    if (!error && data?.translations?.[0]?.def) {
+      const translated = data.translations[0].def;
+      ptCache.set(strongNumber, translated);
+
+      // Cache in Supabase for all users
+      await supabase
+        .from('strongs_translations')
+        .upsert({ strongs_num: strongNumber, def_pt: translated }, { onConflict: 'strongs_num' })
+        .then(() => {});
+
+      return translated;
+    }
+  } catch {}
+
+  // Fallback to English
+  return shortDef || defEN;
 }
 
 export default function StrongsPanel({ word, onClose }: Props) {
@@ -13,17 +68,26 @@ export default function StrongsPanel({ word, onClose }: Props) {
   const [definition, setDefinition] = useState<StrongsDefinition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [defPT, setDefPT] = useState("");
+  const [loadingPT, setLoadingPT] = useState(false);
   const isHebrew = word.strongNumber.startsWith("H");
 
   useEffect(() => {
     setDefinition(null);
     setError(false);
     setLoading(true);
+    setDefPT("");
 
     fetchStrongsDefinition(word.strongNumber)
       .then(def => {
         setDefinition(def);
-        if (!def) setError(true);
+        if (!def) { setError(true); return; }
+
+        // Fetch PT translation
+        setLoadingPT(true);
+        getDefinitionPT(word.strongNumber, def.definition, def.shortDefinition)
+          .then(pt => setDefPT(pt))
+          .finally(() => setLoadingPT(false));
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -38,6 +102,8 @@ export default function StrongsPanel({ word, onClose }: Props) {
     </div>
   );
 
+  const displayWord = definition?.lexeme || word.originalWord || word.word;
+
   return (
     <>
       <div
@@ -49,15 +115,15 @@ export default function StrongsPanel({ word, onClose }: Props) {
       />
       <div
         style={{
-          position: "fixed", bottom: "50%", left: "50%",
-          transform: "translate(-50%, 50%)", zIndex: 101,
+          position: "fixed", top: "50%", left: "50%",
+          transform: "translate(-50%, -50%)", zIndex: 101,
           width: "calc(100% - 2rem)", maxWidth: "420px",
           background: T.card, borderRadius: "1.5rem",
           border: `1px solid ${T.border}`,
           boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
           padding: "1.5rem",
           maxHeight: "80vh", overflowY: "auto",
-          animation: "slideUp 0.25s cubic-bezier(0.16,1,0.3,1)",
+          animation: "popIn 0.25s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
         {/* Close */}
@@ -73,7 +139,7 @@ export default function StrongsPanel({ word, onClose }: Props) {
           <X size={14} color={T.textMuted} />
         </button>
 
-        {/* Header with word */}
+        {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", marginBottom: "1.25rem" }}>
           <div
             style={{
@@ -92,7 +158,7 @@ export default function StrongsPanel({ word, onClose }: Props) {
                 direction: isHebrew ? "rtl" : "ltr", fontFamily: "serif", textAlign: "center",
               }}
             >
-              {definition?.lexeme || word.word}
+              {displayWord}
             </span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -100,7 +166,7 @@ export default function StrongsPanel({ word, onClose }: Props) {
               {isHebrew ? "Hebraico" : "Grego"} · {word.strongNumber}
             </p>
             <p style={{ fontSize: "20px", fontWeight: 900, color: T.textPrimary, letterSpacing: "-0.02em" }}>
-              {definition?.transliteration || word.word}
+              {definition?.transliteration || word.transliteration || displayWord}
             </p>
             {definition?.pronunciation && (
               <p style={{ fontSize: "11px", color: T.textDim, marginTop: "4px" }}>
@@ -126,17 +192,24 @@ export default function StrongsPanel({ word, onClose }: Props) {
 
         {definition && !loading && (
           <>
-            {definition.shortDefinition && (
-              <Section label="Definição resumida">
+            {/* PT Definition - primary */}
+            <Section label="Definição">
+              {loadingPT ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ height: "14px", borderRadius: "4px", background: T.card2, animation: "pulse 1.5s infinite" }} />
+                  <div style={{ height: "14px", borderRadius: "4px", background: T.card2, animation: "pulse 1.5s infinite", width: "75%" }} />
+                </div>
+              ) : (
                 <p style={{ fontSize: "15px", fontWeight: 700, color: T.textPrimary, lineHeight: 1.6 }}>
-                  {definition.shortDefinition}
+                  {defPT}
                 </p>
-              </Section>
-            )}
+              )}
+            </Section>
 
+            {/* Original English definition as secondary */}
             {definition.definition && (
-              <Section label="Definição Strong">
-                <p style={{ fontSize: "14px", color: T.textPrimary, lineHeight: 1.8, fontFamily: '"Georgia", "Times New Roman", serif' }}>
+              <Section label="Definição Strong (EN)">
+                <p style={{ fontSize: "13px", color: T.textMuted, lineHeight: 1.7, fontFamily: '"Georgia", "Times New Roman", serif' }}>
                   {definition.definition}
                 </p>
               </Section>
