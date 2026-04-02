@@ -17,7 +17,7 @@ import BookPanorama from "@/components/BookPanorama";
 import QuizModal from "@/components/QuizModal";
 import StrongsPanel from "@/components/StrongsPanel";
 import BookSelectorModal from "@/components/BookSelectorModal";
-import { fetchChapterStrongs, type StrongsWord } from "@/services/StrongsService";
+import { fetchChapterStrongs, enrichChapterWords, type StrongsWord } from "@/services/StrongsService";
 
 type View = "testament" | "books" | "panorama" | "chapters" | "reading";
 const ALL_VERSIONS: BibleVersion[] = ["nvi", "naa", "ntlh"];
