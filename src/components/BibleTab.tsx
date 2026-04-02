@@ -855,14 +855,14 @@ export default function BibleTab() {
                             </span>
                             <span
                               style={{
-                                fontSize: isHebrew ? "16px" : "14px",
+                                fontSize: isHebrew ? "18px" : "15px",
                                 fontWeight: 700,
                                 color: T.textPrimary,
                                 fontFamily: "serif",
                                 direction: isHebrew ? "rtl" : "ltr",
                               }}
                             >
-                              {w.word}
+                              {w.originalWord || w.word}
                             </span>
                             {w.transliteration && (
                               <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>
