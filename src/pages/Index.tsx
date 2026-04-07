@@ -34,6 +34,7 @@ import StreakTree from "@/components/StreakTree";
 import NextAchievement from "@/components/NextAchievement";
 import BibleTab from "@/components/BibleTab";
 import DiscoverTab from "@/components/DiscoverTab";
+import StrongsLexicon from "@/components/StrongsLexicon";
 
 import AppSidebar, { type SectionId } from "@/components/AppSidebar";
 import type { Milestone } from "@/data/streakMilestones";
@@ -633,6 +634,7 @@ const Index = () => {
           {!mindMapBook &&
           <PageTransition transitionKey={activeSection}>
               {activeSection === "bible" && <BibleTab />}
+              {activeSection === "lexicon" && <StrongsLexicon />}
               {activeSection === "discover" && <DiscoverTab />}
               {activeSection === "achieve" &&
             <AchievementsTab
