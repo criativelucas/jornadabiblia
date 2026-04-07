@@ -173,7 +173,6 @@ export default function BibleTab() {
   const [quizBookName, setQuizBookName] = useState("");
   const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
   const [showBookSelector, setShowBookSelector] = useState(false);
-  const [showBookSelector, setShowBookSelector] = useState(false);
 
   // Swipe
   const touchStart = useRef<number>(0);
@@ -913,13 +912,8 @@ export default function BibleTab() {
           </button>
         </div>
 
-        {/* Strong's word detail modal */}
-        {activeWord && (
-          <StrongsPanel
-            word={activeWord}
-            onClose={() => setActiveWord(null)}
-          />
-        )}
+
+
 
         {/* Book selector modal */}
         {showBookSelector && (
