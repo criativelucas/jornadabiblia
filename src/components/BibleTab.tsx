@@ -173,8 +173,7 @@ export default function BibleTab() {
   const [quizBookName, setQuizBookName] = useState("");
   const [selectedVerse, setSelectedVerse] = useState<{ number: number; text: string } | null>(null);
   const [showBookSelector, setShowBookSelector] = useState(false);
-  const [chapterWords, setChapterWords] = useState<StrongsWord[][]>([]);
-  const [activeWord, setActiveWord] = useState<StrongsWord | null>(null);
+  const [showBookSelector, setShowBookSelector] = useState(false);
 
   // Swipe
   const touchStart = useRef<number>(0);
