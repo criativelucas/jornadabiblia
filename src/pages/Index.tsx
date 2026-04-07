@@ -547,6 +547,7 @@ const Index = () => {
   const sectionTitle: Record<SectionId, string> = {
     home: "Início",
     bible: "Bíblia",
+    lexicon: "Léxico",
     plans: "Planos",
     achieve: "Conquistas",
     discover: "Descobertas",
