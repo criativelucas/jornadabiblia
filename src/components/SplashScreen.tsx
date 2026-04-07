@@ -19,39 +19,7 @@ const CURIOSIDADES = [
   "Daniel é o único livro do Antigo Testamento escrito em dois idiomas: hebraico e aramaico.",
 ];
 
-// Read theme preference without ThemeContext (runs before provider)
-function getThemeColors() {
-  const isDark = (() => {
-    try { return localStorage.getItem("jb-theme") !== "light"; }
-    catch { return true; }
-  })();
-
-  return isDark
-    ? {
-        page: "#101400",
-        accent: "#d2ff00",
-        accentDim: "rgba(210,255,0,0.10)",
-        textPrimary: "#f0f0ea",
-        textMuted: "#8a8f7a",
-        card: "rgba(255,255,255,0.06)",
-        border: "rgba(255,255,255,0.08)",
-        gradientBg: "linear-gradient(165deg, #1a2200 0%, #101400 40%, #0a0e00 100%)",
-      }
-    : {
-        page: "#f5f5ee",
-        accent: "#5a9a00",
-        accentDim: "rgba(90,154,0,0.10)",
-        textPrimary: "#1a1c0d",
-        textMuted: "#6a7060",
-        card: "rgba(0,0,0,0.04)",
-        border: "rgba(0,0,0,0.08)",
-        gradientBg: "linear-gradient(165deg, #f0f0e8 0%, #f5f5ee 40%, #fafaf5 100%)",
-      };
-}
-
-interface Props {
-  onReady: () => void;
-}
+interface Props { onReady: () => void; }
 
 export default function SplashScreen({ onReady }: Props) {
   const [curiosidadeIdx, setCuriosidadeIdx] = useState(() =>
@@ -61,13 +29,12 @@ export default function SplashScreen({ onReady }: Props) {
   const [progress, setProgress] = useState(0);
   const [statusMsg, setStatusMsg] = useState("Preparando seu app...");
   const [exiting, setExiting] = useState(false);
-  const colors = getThemeColors();
 
   useEffect(() => {
     const interval = setInterval(() => {
       setFade(false);
       setTimeout(() => {
-        setCuriosidadeIdx((i) => (i + 1) % CURIOSIDADES.length);
+        setCuriosidadeIdx(i => (i + 1) % CURIOSIDADES.length);
         setFade(true);
       }, 400);
     }, 5000);
@@ -85,16 +52,14 @@ export default function SplashScreen({ onReady }: Props) {
       fetchTranslation(v)
         .then(() => {
           settledCount += 1;
-          const pct = Math.round((settledCount / versions.length) * 100);
-          setProgress(pct);
+          setProgress(Math.round((settledCount / versions.length) * 100));
           if (settledCount === 1) setStatusMsg("1ª versão carregada ✓  Continuando...");
-          if (settledCount === 2) setStatusMsg("Quase lá... última versão...");
+          if (settledCount === 2) setStatusMsg("Quase lá...");
           if (settledCount === 3) setStatusMsg("Tudo pronto ✓");
         })
         .catch(() => {
           settledCount += 1;
-          const pct = Math.round((settledCount / versions.length) * 100);
-          setProgress(pct);
+          setProgress(Math.round((settledCount / versions.length) * 100));
           if (settledCount === versions.length) setStatusMsg("Pronto ✓");
         })
     );
@@ -119,51 +84,66 @@ export default function SplashScreen({ onReady }: Props) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: colors.gradientBg,
+        background: "linear-gradient(165deg, #1a2200 0%, #0d1500 40%, #080c00 100%)",
         opacity: exiting ? 0 : 1,
         transition: "opacity 0.6s ease",
         padding: "24px",
       }}
     >
       {/* Logo */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginBottom: "48px" }}>
-        <div
-          style={{
-            width: 80, height: 80, borderRadius: "50%",
-            background: colors.accentDim,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <BookOpen size={40} color={colors.accent} />
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "48px" }}>
+        <BookOpen size={56} color="#c8f000" strokeWidth={1.5} />
+        <div style={{ textAlign: "center", marginTop: "8px" }}>
+          <p style={{
+            fontSize: "16px",
+            fontWeight: 400,
+            color: "#b0b0a0",
+            letterSpacing: "0.35em",
+            textTransform: "uppercase",
+            margin: 0,
+          }}>
+            JORNADA
+          </p>
+          <p style={{
+            fontSize: "32px",
+            fontWeight: 800,
+            fontStyle: "italic",
+            color: "#ffffff",
+            letterSpacing: "0.02em",
+            margin: "2px 0 0",
+          }}>
+            BÍBLICA
+          </p>
+          <div style={{
+            width: "80px",
+            height: "2px",
+            background: "#c8f000",
+            margin: "8px auto 0",
+            borderRadius: "1px",
+          }} />
         </div>
-        <h1 style={{ fontSize: "28px", fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.5px", margin: 0 }}>
-          Jornada Bíblica
-        </h1>
-        <p style={{ fontSize: "13px", color: colors.accent, margin: 0, opacity: 0.8 }}>
-          Sua jornada começa aqui
-        </p>
       </div>
 
-      {/* Curiosity card */}
+      {/* Card de curiosidade */}
       <div
         style={{
           maxWidth: 380,
           width: "100%",
-          background: colors.card,
+          background: "rgba(255,255,255,0.05)",
           borderRadius: 16,
           padding: "20px 24px",
           marginBottom: 48,
-          border: `1px solid ${colors.border}`,
+          border: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <p style={{ fontSize: "10px", fontWeight: 700, color: colors.accent, letterSpacing: "1px", marginBottom: 10, textTransform: "uppercase" }}>
+        <p style={{ fontSize: "10px", fontWeight: 700, color: "#c8f000", letterSpacing: "1px", marginBottom: 10, textTransform: "uppercase" }}>
           💡 Curiosidade Bíblica
         </p>
         <p
           style={{
             fontSize: "14px",
             lineHeight: 1.6,
-            color: colors.textPrimary,
+            color: "#f0f0ea",
             margin: 0,
             minHeight: 66,
             opacity: fade ? 1 : 0,
@@ -174,23 +154,23 @@ export default function SplashScreen({ onReady }: Props) {
         </p>
       </div>
 
-      {/* Status + progress bar */}
+      {/* Barra de progresso */}
       <div style={{ maxWidth: 320, width: "100%", textAlign: "center" }}>
-        <p style={{ fontSize: "11px", color: colors.textMuted, marginBottom: 10, minHeight: 16 }}>
+        <p style={{ fontSize: "11px", color: "#8a8f7a", marginBottom: 10, minHeight: 16 }}>
           {statusMsg}
         </p>
-        <div style={{ height: 4, borderRadius: 2, background: colors.card, overflow: "hidden" }}>
+        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
           <div
             style={{
               height: "100%",
               width: `${progress}%`,
-              background: colors.accent,
+              background: "#c8f000",
               borderRadius: 2,
               transition: "width 0.5s ease",
             }}
           />
         </div>
-        <p style={{ fontSize: "11px", color: colors.textMuted, marginTop: 8, opacity: 0.7 }}>
+        <p style={{ fontSize: "11px", color: "#8a8f7a", marginTop: 8, opacity: 0.7 }}>
           {progress}%
         </p>
       </div>

@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Home, Calendar, BookOpen, Trophy, User, Sparkles, Sun, Moon } from "lucide-react";
+import { Home, Calendar, BookOpen, Trophy, User, Sparkles, BookMarked, Sun, Moon } from "lucide-react";
 import { useThemeContext } from "@/contexts/ThemeContext";
 
-export type SectionId = "home" | "bible" | "plans" | "achieve" | "discover" | "profile";
+export type SectionId = "home" | "bible" | "lexicon" | "plans" | "achieve" | "discover" | "profile";
 
 interface NavItem {
   id: SectionId;
@@ -13,6 +13,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Início", Icon: Home },
   { id: "bible", label: "Bíblia", Icon: BookOpen },
+  { id: "lexicon", label: "Léxico", Icon: BookMarked },
   { id: "plans", label: "Planos", Icon: Calendar },
   { id: "achieve", label: "Conquistas", Icon: Trophy },
   { id: "discover", label: "Descobertas", Icon: Sparkles },
