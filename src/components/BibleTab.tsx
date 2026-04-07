@@ -775,95 +775,33 @@ export default function BibleTab() {
                 {selectedBook.name} {selectedChapter}
               </h1>
 
-              {verses.map((v) => {
-                const words = chapterWords[v.verse - 1] ?? [];
-                const isHebrew = words[0]?.strongNumber?.startsWith("H");
-                return (
-                  <div key={v.verse}>
-                    <span style={{ display: "inline" }}>
-                      <sup
-                        style={{
-                          fontSize: "0.65em",
-                          fontWeight: 700,
-                          color: T.accent,
-                          marginRight: "3px",
-                          verticalAlign: "super",
-                          lineHeight: 0,
-                          userSelect: "none",
-                        }}
-                      >
-                        {v.verse}
-                      </sup>
-                      <span
-                        style={{
-                          fontSize: fontSize + "px",
-                          color: T.textPrimary,
-                          lineHeight: 1.9,
-                          fontFamily: '"Georgia", "Times New Roman", serif',
-                        }}
-                      >
-                        {v.text}{" "}
-                      </span>
-                    </span>
-
-                    {/* Interlinear chips */}
-                    {words.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "6px",
-                          padding: "8px 0 16px",
-                          direction: "ltr",
-                          justifyContent: "flex-start",
-                        }}
-                      >
-                        {words.map((w, wi) => (
-                          <button
-                            key={`${w.strongNumber}-${wi}`}
-                            onClick={() => setActiveWord(w)}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: "2px",
-                              padding: "6px 10px",
-                              borderRadius: "0.625rem",
-                              background: activeWord?.strongNumber === w.strongNumber && activeWord?.word === w.word
-                                ? T.accentDim : T.card2,
-                              border: `1.5px solid ${activeWord?.strongNumber === w.strongNumber && activeWord?.word === w.word
-                                ? T.accent : T.border}`,
-                              cursor: "pointer",
-                              transition: "all 0.15s",
-                              minWidth: "44px",
-                            }}
-                          >
-                            <span style={{ fontSize: "8px", fontWeight: 700, color: T.accent, letterSpacing: "0.04em" }}>
-                              {w.strongNumber}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: isHebrew ? "18px" : "15px",
-                                fontWeight: 700,
-                                color: T.textPrimary,
-                                fontFamily: "serif",
-                                direction: isHebrew ? "rtl" : "ltr",
-                              }}
-                            >
-                              {w.originalWord || w.word}
-                            </span>
-                            {w.transliteration && (
-                              <span style={{ fontSize: "9px", color: T.textMuted, fontStyle: "italic" }}>
-                                {w.transliteration}
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {verses.map((v) => (
+                <span key={v.verse} style={{ display: "inline" }}>
+                  <sup
+                    style={{
+                      fontSize: "0.65em",
+                      fontWeight: 700,
+                      color: T.accent,
+                      marginRight: "3px",
+                      verticalAlign: "super",
+                      lineHeight: 0,
+                      userSelect: "none",
+                    }}
+                  >
+                    {v.verse}
+                  </sup>
+                  <span
+                    style={{
+                      fontSize: fontSize + "px",
+                      color: T.textPrimary,
+                      lineHeight: 1.9,
+                      fontFamily: '"Georgia", "Times New Roman", serif',
+                    }}
+                  >
+                    {v.text}{" "}
+                  </span>
+                </span>
+              ))}
             </div>
           )}
         </div>
