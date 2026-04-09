@@ -20,117 +20,85 @@ import {
 type LexView = "testament" | "books" | "chapters" | "verses" | "detail";
 
 // Translation cache
-const ptCache: Record<string, { word: string; def: string; kjv: string }> = {};
+const ptCache: Record<string, { def: string; kjv: string }> = {};
 
-async function translateToPT(
-  num: string,
-  word: string,
-  def: string,
-  kjv: string
-): Promise<{ word: string; def: string; kjv: string }> {
-  if (ptCache[num]) return ptCache[num];
-  if (!def && !kjv) return { word, def: "", kjv: "" };
-
-  // Check sessionStorage
-  try {
-    const cached = sessionStorage.getItem(`strongs_pt_${num}`);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      ptCache[num] = parsed;
-      return parsed;
+// Restore sessionStorage cache on load
+try {
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    if (key?.startsWith("strongs_pt_")) {
+      const num = key.replace("strongs_pt_", "");
+      const val = JSON.parse(sessionStorage.getItem(key)!);
+      if (val?.def) ptCache[num] = val;
     }
-  } catch {}
+  }
+} catch {}
 
-  // Check Supabase cache
+/**
+ * Batch translate multiple Strong's entries via the translate-strongs edge function.
+ * Uses no auth — public function.
+ */
+async function batchTranslatePT(
+  entries: { num: string; def: string; kjv: string }[]
+): Promise<Record<string, { def: string; kjv: string }>> {
+  // Filter out already cached
+  const needed = entries.filter(e => !ptCache[e.num] && (e.def || e.kjv));
+  if (needed.length === 0) return ptCache;
+
+  // Check Supabase cache first
+  const uncached: typeof needed = [];
   try {
+    const nums = needed.map(e => e.num);
     const { data } = await supabase
       .from("strongs_translations")
-      .select("def_pt")
-      .eq("strongs_num", num)
-      .maybeSingle();
-    if (data?.def_pt) {
-      const result = { word, def: data.def_pt, kjv };
-      ptCache[num] = result;
-      sessionStorage.setItem(`strongs_pt_${num}`, JSON.stringify(result));
-      return result;
-    }
-  } catch {}
-
-  // Translate via edge function
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return { word, def, kjv };
-
-    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`;
-
-    const response = await fetch(CHAT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        type: "strongs_translation",
-        messages: [{
-          role: "user",
-          content: `Número Strong: ${num}\nword: "${word}"\ndef: "${def}"\nkjv: "${kjv}"\n\nTraduza TODOS os três campos para português brasileiro teológico.\nResponda APENAS com JSON: {"word":"...","def":"...","kjv":"..."}`
-        }],
-      }),
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let fullText = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 1);
-        if (!line.startsWith("data: ")) continue;
-        const json = line.slice(6).trim();
-        if (json === "[DONE]") break;
-        try {
-          const parsed = JSON.parse(json);
-          const chunk = parsed.choices?.[0]?.delta?.content;
-          if (chunk) fullText += chunk;
-        } catch {}
+      .select("strongs_num, def_pt")
+      .in("strongs_num", nums);
+    if (data) {
+      for (const row of data) {
+        ptCache[row.strongs_num] = { def: row.def_pt, kjv: "" };
+        try { sessionStorage.setItem(`strongs_pt_${row.strongs_num}`, JSON.stringify(ptCache[row.strongs_num])); } catch {}
       }
     }
-
-    const clean = fullText.replace(/```json|```/g, "").trim();
-    const result = JSON.parse(clean);
-
-    if (result?.def !== undefined) {
-      const final = { word: result.word || word, def: result.def, kjv: result.kjv || kjv };
-      ptCache[num] = final;
-      sessionStorage.setItem(`strongs_pt_${num}`, JSON.stringify(final));
-
-      // Save to Supabase for global cache
-      supabase.from("strongs_translations").upsert({
-        strongs_num: num,
-        def_pt: result.def,
-      }).then(() => {});
-
-      return final;
+    for (const e of needed) {
+      if (!ptCache[e.num]) uncached.push(e);
     }
-    throw new Error("Invalid response");
-  } catch (err) {
-    console.warn("[StrongsLexicon] Translation failed:", err);
-    return { word, def, kjv };
+  } catch {
+    uncached.push(...needed.filter(e => !ptCache[e.num]));
   }
+
+  if (uncached.length === 0) return ptCache;
+
+  // Translate via edge function (batch, no auth)
+  try {
+    const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-strongs`;
+    const res = await fetch(FUNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ entries: uncached }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { translations } = await res.json();
+    if (Array.isArray(translations)) {
+      for (const t of translations) {
+        if (t?.num && t?.def) {
+          ptCache[t.num] = { def: t.def, kjv: t.kjv || "" };
+          try { sessionStorage.setItem(`strongs_pt_${t.num}`, JSON.stringify(ptCache[t.num])); } catch {}
+          // Save to Supabase global cache
+          supabase.from("strongs_translations").upsert({ strongs_num: t.num, def_pt: t.def }).then(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[StrongsLexicon] Batch translation failed:", err);
+  }
+
+  return ptCache;
 }
 
 interface WordDetail {
   strongWord: StrongsWord;
   definition: StrongsDefinition | null;
-  translated: { word: string; def: string; kjv: string } | null;
+  translated: { def: string; kjv: string } | null;
 }
 
 export default function StrongsLexicon() {
@@ -176,21 +144,24 @@ export default function StrongsLexicon() {
       const enriched = await enrichChapterWords(allWords);
       const verseWords = enriched[verseNum - 1] ?? [];
 
-      // Fetch definitions and translate
-      const details: WordDetail[] = [];
-      for (const w of verseWords) {
-        const def = await fetchStrongsDefinition(w.strongNumber);
-        let translated: { word: string; def: string; kjv: string } | null = null;
-        if (def) {
-          translated = await translateToPT(
-            w.strongNumber,
-            w.originalWord || w.word,
-            def.definition || "",
-            def.shortDefinition || ""
-          );
-        }
-        details.push({ strongWord: w, definition: def, translated });
-      }
+      // Fetch all definitions in parallel
+      const defs = await Promise.all(
+        verseWords.map(w => fetchStrongsDefinition(w.strongNumber))
+      );
+
+      // Batch translate all at once
+      const toTranslate = verseWords
+        .map((w, i) => defs[i] ? { num: w.strongNumber, def: defs[i]!.definition || "", kjv: defs[i]!.shortDefinition || "" } : null)
+        .filter((e): e is { num: string; def: string; kjv: string } => e !== null);
+      
+      await batchTranslatePT(toTranslate);
+
+      // Build details
+      const details: WordDetail[] = verseWords.map((w, i) => ({
+        strongWord: w,
+        definition: defs[i],
+        translated: ptCache[w.strongNumber] || null,
+      }));
       setWordDetails(details);
     } catch (err) {
       console.error("[StrongsLexicon] Error:", err);
@@ -432,7 +403,7 @@ export default function StrongsLexicon() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {wordDetails.map((wd, i) => {
               const { strongWord: w, definition: def, translated } = wd;
-              const displayWord = translated?.word || w.originalWord || w.word;
+              const displayWord = w.originalWord || w.word;
               const originalChar = w.originalWord || def?.lexeme || w.word;
               const xlit = def?.transliteration || w.transliteration || "";
               const pron = def?.pronunciation || "";
