@@ -98,7 +98,7 @@ async function batchTranslatePT(
 interface WordDetail {
   strongWord: StrongsWord;
   definition: StrongsDefinition | null;
-  translated: { word: string; def: string; kjv: string } | null;
+  translated: { def: string; kjv: string } | null;
 }
 
 export default function StrongsLexicon() {
@@ -144,21 +144,24 @@ export default function StrongsLexicon() {
       const enriched = await enrichChapterWords(allWords);
       const verseWords = enriched[verseNum - 1] ?? [];
 
-      // Fetch definitions and translate
-      const details: WordDetail[] = [];
-      for (const w of verseWords) {
-        const def = await fetchStrongsDefinition(w.strongNumber);
-        let translated: { word: string; def: string; kjv: string } | null = null;
-        if (def) {
-          translated = await translateToPT(
-            w.strongNumber,
-            w.originalWord || w.word,
-            def.definition || "",
-            def.shortDefinition || ""
-          );
-        }
-        details.push({ strongWord: w, definition: def, translated });
-      }
+      // Fetch all definitions in parallel
+      const defs = await Promise.all(
+        verseWords.map(w => fetchStrongsDefinition(w.strongNumber))
+      );
+
+      // Batch translate all at once
+      const toTranslate = verseWords
+        .map((w, i) => defs[i] ? { num: w.strongNumber, def: defs[i]!.definition || "", kjv: defs[i]!.shortDefinition || "" } : null)
+        .filter((e): e is { num: string; def: string; kjv: string } => e !== null);
+      
+      await batchTranslatePT(toTranslate);
+
+      // Build details
+      const details: WordDetail[] = verseWords.map((w, i) => ({
+        strongWord: w,
+        definition: defs[i],
+        translated: ptCache[w.strongNumber] || null,
+      }));
       setWordDetails(details);
     } catch (err) {
       console.error("[StrongsLexicon] Error:", err);
