@@ -403,7 +403,7 @@ export default function StrongsLexicon() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {wordDetails.map((wd, i) => {
               const { strongWord: w, definition: def, translated } = wd;
-              const displayWord = translated?.word || w.originalWord || w.word;
+              const displayWord = w.originalWord || w.word;
               const originalChar = w.originalWord || def?.lexeme || w.word;
               const xlit = def?.transliteration || w.transliteration || "";
               const pron = def?.pronunciation || "";
