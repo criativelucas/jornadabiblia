@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { BookOpen } from "lucide-react";
 import { fetchTranslation, type BibleVersion } from "@/hooks/useBibleData";
+import { fetchChapterStrongs, enrichChapterWords } from "@/services/StrongsService";
 
 const CURIOSIDADES = [
   "A Bíblia foi escrita ao longo de aproximadamente 1.500 anos por mais de 40 autores diferentes.",
@@ -44,27 +45,37 @@ export default function SplashScreen({ onReady }: Props) {
   useEffect(() => {
     const startTime = Date.now();
     const versions: BibleVersion[] = ["nvi", "naa", "ntlh"];
+    const totalSteps = versions.length + 1; // +1 for Strong's preload
     let settledCount = 0;
+
+    const advance = (msg: string) => {
+      settledCount += 1;
+      setProgress(Math.round((settledCount / totalSteps) * 100));
+      setStatusMsg(msg);
+    };
 
     setStatusMsg("Baixando traduções da Bíblia...");
 
-    const promises = versions.map((v) =>
+    const biblePromises = versions.map((v) =>
       fetchTranslation(v)
-        .then(() => {
-          settledCount += 1;
-          setProgress(Math.round((settledCount / versions.length) * 100));
-          if (settledCount === 1) setStatusMsg("1ª versão carregada ✓  Continuando...");
-          if (settledCount === 2) setStatusMsg("Quase lá...");
-          if (settledCount === 3) setStatusMsg("Tudo pronto ✓");
-        })
-        .catch(() => {
-          settledCount += 1;
-          setProgress(Math.round((settledCount / versions.length) * 100));
-          if (settledCount === versions.length) setStatusMsg("Pronto ✓");
-        })
+        .then(() => advance(`${settledCount + 1}ª versão carregada ✓`))
+        .catch(() => advance("Continuando..."))
     );
 
-    Promise.allSettled(promises).then(() => {
+    // Preload Strong's data for Genesis 1 (most common first access)
+    const strongsPreload = (async () => {
+      try {
+        const chWords = await fetchChapterStrongs(1, 1); // Genesis 1
+        await enrichChapterWords(chWords);
+        advance("Léxico pré-carregado ✓");
+      } catch {
+        advance("Continuando...");
+      }
+    })();
+
+    Promise.allSettled([...biblePromises, strongsPreload]).then(() => {
+      setStatusMsg("Tudo pronto ✓");
+      setProgress(100);
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 2000 - elapsed);
       setTimeout(() => {
