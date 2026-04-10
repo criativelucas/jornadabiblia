@@ -386,8 +386,8 @@ export default function StrongsLexicon() {
           {verseText}
         </p>
 
-        <p style={{ fontSize: "11px", fontWeight: 700, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "1rem" }}>
-          Léxico de Strong
+        <p style={{ fontSize: "13px", fontWeight: 700, color: T.textPrimary, marginBottom: "1rem", borderBottom: `2px solid ${T.border}`, paddingBottom: 6 }}>
+          Strong's Lexicon
         </p>
 
         {loadingWords ? (
@@ -400,64 +400,48 @@ export default function StrongsLexicon() {
             Nenhuma palavra com Strong's encontrada para este versículo.
           </p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {wordDetails.map((wd, i) => {
               const { strongWord: w, definition: def, translated } = wd;
-              const displayWord = w.originalWord || w.word;
+              const displayWord = translated?.def ? (w.word || w.originalWord) : (w.word || w.originalWord);
               const originalChar = w.originalWord || def?.lexeme || w.word;
               const xlit = def?.transliteration || w.transliteration || "";
-              const pron = def?.pronunciation || "";
+              const morphology = def?.morphology || "";
               const defText = translated?.def || def?.definition || "";
-              const kjvText = translated?.kjv || def?.shortDefinition || "";
+              const strongNum = w.strongNumber.replace(/[HG]/, "");
+              const langLabel = isHebrew ? "Hebrew" : "Greek";
 
               return (
-                <div
-                  key={`${w.strongNumber}-${i}`}
-                  style={{
-                    padding: "16px",
-                    background: T.card,
-                    border: `1px solid ${T.border}`,
-                    borderRadius: "1rem",
-                  }}
-                >
-                  {/* Word in Portuguese */}
-                  <p style={{ fontSize: "17px", fontWeight: 800, color: T.textPrimary, marginBottom: 8 }}>
+                <div key={`${w.strongNumber}-${i}`}>
+                  {/* Word (bold) */}
+                  <p style={{ fontSize: "15px", fontWeight: 800, color: T.textPrimary, marginBottom: 2 }}>
                     {displayWord}
                   </p>
 
-                  {/* Original + transliteration */}
-                  <p style={{ fontSize: "14px", marginBottom: 4 }}>
-                    <span style={{ color: T.accent, fontWeight: 700, fontFamily: "serif", fontSize: isHebrew ? "20px" : "16px", direction: isHebrew ? "rtl" : "ltr" }}>
-                      {originalChar}
-                    </span>
+                  {/* Original + transliteration in accent color */}
+                  <p style={{ fontSize: isHebrew ? "18px" : "15px", color: T.accent, marginBottom: 2, direction: isHebrew ? "rtl" : "ltr", textAlign: "left" }}>
+                    {originalChar}
                     {xlit && (
-                      <span style={{ color: T.textMuted, fontStyle: "italic", marginLeft: 8, fontSize: "13px" }}>
-                        ({xlit})
+                      <span style={{ fontSize: "14px", direction: "ltr", display: "inline" }}>
+                        {" "}({xlit})
                       </span>
                     )}
                   </p>
 
-                  {/* Pronunciation */}
-                  {pron && (
-                    <p style={{ fontSize: "12px", color: T.textMuted, marginBottom: 6 }}>
-                      /{pron}/
+                  {/* Morphology in orange */}
+                  {morphology && (
+                    <p style={{ fontSize: "13px", color: "#e88a30", fontWeight: 500, marginBottom: 2 }}>
+                      {morphology}
                     </p>
                   )}
 
                   {/* Strong number + definition */}
-                  <p style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.7, marginTop: 8 }}>
+                  <p style={{ fontSize: "13px", color: T.textPrimary, lineHeight: 1.7 }}>
                     <span style={{ color: T.accent, fontWeight: 700 }}>
-                      Strong {isHebrew ? "Hebraico" : "Grego"} {w.strongNumber.replace(/[HG]/, "")}:
+                      Strong's {langLabel} {strongNum}:
                     </span>{" "}
                     {defText || "Definição não disponível."}
                   </p>
-
-                  {/* KJV usage */}
-                  {kjvText && (
-                    <p style={{ fontSize: "12px", color: T.textMuted, marginTop: 6, fontStyle: "italic" }}>
-                      Usos: {kjvText}
-                    </p>
-                  )}
                 </div>
               );
             })}
