@@ -18,6 +18,7 @@ export interface StrongsDefinition {
   pronunciation: string;
   definition: string;
   shortDefinition: string;
+  morphology: string;
 }
 
 // Caches
@@ -125,6 +126,7 @@ export async function fetchStrongsDefinition(
         pronunciation: d.pronunciation ?? d.pron ?? '',
         definition: stripHtml(d.definition ?? ''),
         shortDefinition: d.short_definition ?? '',
+        morphology: d.morphology ?? d.part_of_speech ?? '',
       };
 
       definitionCache.set(strongNumber, definition);
