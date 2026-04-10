@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { BookOpen } from "lucide-react";
 import { fetchTranslation, type BibleVersion } from "@/hooks/useBibleData";
-import { fetchChapterStrongs, enrichChapterWords } from "@/services/StrongsService";
+import { warmLexiconChapter } from "@/components/StrongsLexicon";
 
 const CURIOSIDADES = [
   "A Bíblia foi escrita ao longo de aproximadamente 1.500 anos por mais de 40 autores diferentes.",
@@ -19,6 +19,15 @@ const CURIOSIDADES = [
   "O Salmo 117 é o capítulo mais curto e também o capítulo central de toda a Bíblia.",
   "Daniel é o único livro do Antigo Testamento escrito em dois idiomas: hebraico e aramaico.",
 ];
+
+const LEXICON_PRIORITY_CHAPTERS = [
+  [1, 1],
+  [19, 1],
+  [40, 1],
+  [43, 1],
+] as const;
+
+const LEXICON_BACKGROUND_QUEUE = Array.from({ length: 66 }, (_, index) => [index + 1, 1] as const);
 
 interface Props { onReady: () => void; }
 
@@ -62,12 +71,23 @@ export default function SplashScreen({ onReady }: Props) {
         .catch(() => advance("Continuando..."))
     );
 
-    // Preload Strong's data for Genesis 1 (most common first access)
+    // Preload Strong's data for both testaments and keep warming all books in background
     const strongsPreload = (async () => {
       try {
-        const chWords = await fetchChapterStrongs(1, 1); // Genesis 1
-        await enrichChapterWords(chWords);
-        advance("Léxico pré-carregado ✓");
+        await Promise.allSettled(
+          LEXICON_PRIORITY_CHAPTERS.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
+        );
+        advance("Léxico AT + NT pré-carregado ✓");
+
+        void (async () => {
+          const batchSize = 4;
+          for (let index = 0; index < LEXICON_BACKGROUND_QUEUE.length; index += batchSize) {
+            const batch = LEXICON_BACKGROUND_QUEUE.slice(index, index + batchSize);
+            await Promise.allSettled(
+              batch.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
+            );
+          }
+        })();
       } catch {
         advance("Continuando...");
       }

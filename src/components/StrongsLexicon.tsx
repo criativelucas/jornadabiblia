@@ -128,7 +128,7 @@ async function translateSingleViaBibleChat(entry: {
  * Uses no auth — public function.
  */
 async function batchTranslatePT(
-  entries: { num: string; word?: string; def: string; kjv: string }[]
+  entries: { num: string; word: string; def: string; kjv: string }[]
 ): Promise<Record<string, { def: string; kjv: string }>> {
   // Filter out already cached
   const needed = entries.filter(e => (!ptCache[e.num] || !isPortugueseText(ptCache[e.num]?.def)) && (e.def || e.kjv));
@@ -187,7 +187,7 @@ async function batchTranslatePT(
       missing.map(async (entry) => {
         const fallback = await translateSingleViaBibleChat({
           num: entry.num,
-          word: entry.word || "",
+          word: entry.word,
           def: entry.def,
           kjv: entry.kjv,
         });
@@ -280,8 +280,8 @@ export default function StrongsLexicon() {
       return () => window.cancelIdleCallback(id);
     }
 
-    const timeout = window.setTimeout(runWarmup, 300);
-    return () => window.clearTimeout(timeout);
+    const timeout = globalThis.setTimeout(runWarmup, 300);
+    return () => globalThis.clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -334,7 +334,7 @@ export default function StrongsLexicon() {
       // Batch translate all at once
       const toTranslate = verseWords
         .map((w, i) => defs[i] ? { num: w.strongNumber, word: w.word, def: defs[i]!.definition || "", kjv: defs[i]!.shortDefinition || "" } : null)
-        .filter((e): e is { num: string; word?: string; def: string; kjv: string } => e !== null);
+        .filter(Boolean) as { num: string; word: string; def: string; kjv: string }[];
       
       await batchTranslatePT(toTranslate);
 
