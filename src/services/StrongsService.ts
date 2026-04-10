@@ -18,6 +18,7 @@ export interface StrongsDefinition {
   pronunciation: string;
   definition: string;
   shortDefinition: string;
+  morphology: string;
 }
 
 // Caches
