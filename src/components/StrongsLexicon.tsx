@@ -585,8 +585,21 @@ export default function StrongsLexicon() {
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {wordDetails.map((wd, i) => {
               const { strongWord: w, definition: def, translated } = wd;
-              const displayWord = translated?.def ? (w.word || w.originalWord) : (w.word || w.originalWord);
-              const originalChar = w.originalWord || def?.lexeme || w.word;
+              // For OT (KJV): w.word is the English gloss, originalWord/lexeme is Hebrew
+              // For NT (TISCH): w.word is the Greek text itself, so use shortDefinition as gloss
+              let displayWord: string;
+              let originalChar: string;
+
+              if (isHebrew) {
+                // OT: word from KJV = English gloss
+                displayWord = w.word || def?.shortDefinition || w.originalWord || "";
+                originalChar = w.originalWord || def?.lexeme || "";
+              } else {
+                // NT: word from TISCH = Greek text, use shortDefinition as gloss
+                displayWord = def?.shortDefinition || w.originalWord || w.word || "";
+                originalChar = w.word || def?.lexeme || w.originalWord || "";
+              }
+
               const xlit = def?.transliteration || w.transliteration || "";
               const morphology = def?.morphology || "";
               const defText = translated?.def || def?.definition || "";
