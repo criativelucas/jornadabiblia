@@ -21,6 +21,25 @@ type LexView = "testament" | "books" | "chapters" | "verses" | "detail";
 
 // Translation cache
 const ptCache: Record<string, { def: string; kjv: string }> = {};
+const warmedChapters = new Map<string, Promise<void>>();
+
+const PORTUGUESE_MARKERS = /(\b(o|a|os|as|de|do|da|dos|das|e|em|no|na|nos|nas|que|por|para|com|sem|céus|terra|princípio|palavra|deus)\b|[ãáàâéêíóôõúç])/i;
+const ENGLISH_MARKERS = /\b(the|and|god|earth|heaven|created|beginning|word|light|was|with|upon|from|without|let|said)\b/i;
+
+function isPortugueseText(text?: string | null) {
+  if (!text) return false;
+  const normalized = text.trim();
+  if (!normalized) return false;
+  return PORTUGUESE_MARKERS.test(normalized) || !ENGLISH_MARKERS.test(normalized);
+}
+
+function savePtCache(num: string, value: { def: string; kjv: string }) {
+  if (!value.def || !isPortugueseText(value.def)) return;
+  ptCache[num] = value;
+  try {
+    sessionStorage.setItem(`strongs_pt_${num}`, JSON.stringify(value));
+  } catch {}
+}
 
 // Restore sessionStorage cache on load
 try {
@@ -29,20 +48,90 @@ try {
     if (key?.startsWith("strongs_pt_")) {
       const num = key.replace("strongs_pt_", "");
       const val = JSON.parse(sessionStorage.getItem(key)!);
-      if (val?.def) ptCache[num] = val;
+      if (val?.def && isPortugueseText(val.def)) {
+        ptCache[num] = val;
+      } else {
+        sessionStorage.removeItem(key);
+      }
     }
   }
 } catch {}
+
+async function translateSingleViaBibleChat(entry: {
+  num: string;
+  word: string;
+  def: string;
+  kjv: string;
+}): Promise<{ def: string; kjv: string } | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bible-chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        type: "strongs_translation",
+        messages: [{
+          role: "user",
+          content: `Número Strong: ${entry.num}\nword: "${entry.word}"\ndef: "${entry.def}"\nkjv: "${entry.kjv}"\n\nTraduza TODOS os campos para português brasileiro teológico e preciso. Responda APENAS com JSON: {"word":"...","def":"...","kjv":"..."}`,
+        }],
+      }),
+    });
+
+    if (!response.ok || !response.body) return null;
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let idx = buffer.indexOf("\n");
+      while (idx !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (line.startsWith("data: ")) {
+          const json = line.slice(6).trim();
+          if (json === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(json);
+            const chunk = parsed.choices?.[0]?.delta?.content;
+            if (chunk) fullText += chunk;
+          } catch {}
+        }
+        idx = buffer.indexOf("\n");
+      }
+    }
+
+    const clean = fullText.replace(/```json|```/g, "").trim();
+    const result = JSON.parse(clean);
+    if (result?.def && isPortugueseText(result.def)) {
+      return { def: result.def, kjv: result.kjv || entry.kjv || "" };
+    }
+  } catch (err) {
+    console.warn("[StrongsLexicon] Fallback translation failed:", err);
+  }
+
+  return null;
+}
 
 /**
  * Batch translate multiple Strong's entries via the translate-strongs edge function.
  * Uses no auth — public function.
  */
 async function batchTranslatePT(
-  entries: { num: string; def: string; kjv: string }[]
+  entries: { num: string; word: string; def: string; kjv: string }[]
 ): Promise<Record<string, { def: string; kjv: string }>> {
   // Filter out already cached
-  const needed = entries.filter(e => !ptCache[e.num] && (e.def || e.kjv));
+  const needed = entries.filter(e => (!ptCache[e.num] || !isPortugueseText(ptCache[e.num]?.def)) && (e.def || e.kjv));
   if (needed.length === 0) return ptCache;
 
   // Check Supabase cache first
@@ -55,15 +144,16 @@ async function batchTranslatePT(
       .in("strongs_num", nums);
     if (data) {
       for (const row of data) {
-        ptCache[row.strongs_num] = { def: row.def_pt, kjv: "" };
-        try { sessionStorage.setItem(`strongs_pt_${row.strongs_num}`, JSON.stringify(ptCache[row.strongs_num])); } catch {}
+        if (isPortugueseText(row.def_pt)) {
+          savePtCache(row.strongs_num, { def: row.def_pt, kjv: "" });
+        }
       }
     }
     for (const e of needed) {
-      if (!ptCache[e.num]) uncached.push(e);
+      if (!ptCache[e.num] || !isPortugueseText(ptCache[e.num]?.def)) uncached.push(e);
     }
   } catch {
-    uncached.push(...needed.filter(e => !ptCache[e.num]));
+    uncached.push(...needed.filter(e => !ptCache[e.num] || !isPortugueseText(ptCache[e.num]?.def)));
   }
 
   if (uncached.length === 0) return ptCache;
@@ -80,9 +170,8 @@ async function batchTranslatePT(
     const { translations } = await res.json();
     if (Array.isArray(translations)) {
       for (const t of translations) {
-        if (t?.num && t?.def) {
-          ptCache[t.num] = { def: t.def, kjv: t.kjv || "" };
-          try { sessionStorage.setItem(`strongs_pt_${t.num}`, JSON.stringify(ptCache[t.num])); } catch {}
+        if (t?.num && t?.def && isPortugueseText(t.def)) {
+          savePtCache(t.num, { def: t.def, kjv: t.kjv || "" });
           // Save to Supabase global cache
           supabase.from("strongs_translations").upsert({ strongs_num: t.num, def_pt: t.def }).then(() => {});
         }
@@ -92,7 +181,62 @@ async function batchTranslatePT(
     console.warn("[StrongsLexicon] Batch translation failed:", err);
   }
 
+  const missing = uncached.filter(entry => !ptCache[entry.num] || !isPortugueseText(ptCache[entry.num]?.def));
+  if (missing.length > 0) {
+    await Promise.all(
+      missing.map(async (entry) => {
+        const fallback = await translateSingleViaBibleChat({
+          num: entry.num,
+          word: entry.word,
+          def: entry.def,
+          kjv: entry.kjv,
+        });
+
+        if (fallback) {
+          savePtCache(entry.num, fallback);
+          supabase.from("strongs_translations").upsert({ strongs_num: entry.num, def_pt: fallback.def }).then(() => {});
+        }
+      })
+    );
+  }
+
   return ptCache;
+}
+
+export async function warmLexiconChapter(bookNumber: number, chapter: number) {
+  const cacheKey = `${bookNumber}-${chapter}`;
+  if (warmedChapters.has(cacheKey)) return warmedChapters.get(cacheKey)!;
+
+  const promise = (async () => {
+    const chapterWords = await fetchChapterStrongs(bookNumber, chapter);
+    const enriched = await enrichChapterWords(chapterWords);
+    const uniqueWords = Array.from(
+      new Map(enriched.flat().map((word) => [word.strongNumber, word])).values()
+    );
+
+    const definitions = await Promise.all(
+      uniqueWords.map(async (word) => ({
+        word,
+        definition: await fetchStrongsDefinition(word.strongNumber),
+      }))
+    );
+
+    await batchTranslatePT(
+      definitions
+        .filter(({ definition }) => Boolean(definition))
+        .map(({ word, definition }) => ({
+          num: word.strongNumber,
+          word: word.word,
+          def: definition?.definition || "",
+          kjv: definition?.shortDefinition || "",
+        }))
+    );
+  })().catch((err) => {
+    console.warn(`[StrongsLexicon] Warmup failed for ${cacheKey}:`, err);
+  });
+
+  warmedChapters.set(cacheKey, promise);
+  return promise;
 }
 
 interface WordDetail {
@@ -115,8 +259,46 @@ export default function StrongsLexicon() {
   const [loading, setLoading] = useState(false);
   const [wordDetails, setWordDetails] = useState<WordDetail[]>([]);
   const [loadingWords, setLoadingWords] = useState(false);
+  const hasStartedWarmup = useRef(false);
 
   const booksToShow = testament === "AT" ? AT_BOOKS : NT_BOOKS;
+
+  useEffect(() => {
+    if (hasStartedWarmup.current) return;
+    hasStartedWarmup.current = true;
+
+    const runWarmup = () => {
+      void Promise.allSettled([
+        warmLexiconChapter(1, 1),
+        warmLexiconChapter(40, 1),
+        warmLexiconChapter(43, 1),
+      ]);
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(runWarmup, { timeout: 1200 });
+      return () => window.cancelIdleCallback(id);
+    }
+
+    const timeout = globalThis.setTimeout(runWarmup, 300);
+    return () => globalThis.clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedBook) return;
+
+    const bookNumber = bibleBooks.findIndex((book) => book.id === selectedBook.id) + 1;
+    if (bookNumber <= 0) return;
+
+    const chaptersToWarm = [selectedChapter, selectedChapter + 1, selectedChapter - 1]
+      .filter((chapter, index, arr) => chapter >= 1 && chapter <= selectedBook.chapters && arr.indexOf(chapter) === index);
+
+    const timeout = window.setTimeout(() => {
+      void Promise.allSettled(chaptersToWarm.map((chapter) => warmLexiconChapter(bookNumber, chapter)));
+    }, 80);
+
+    return () => window.clearTimeout(timeout);
+  }, [selectedBook, selectedChapter]);
 
   // Load chapter text
   const loadChapterText = async (book: (typeof bibleBooks)[0], ch: number) => {
@@ -151,8 +333,8 @@ export default function StrongsLexicon() {
 
       // Batch translate all at once
       const toTranslate = verseWords
-        .map((w, i) => defs[i] ? { num: w.strongNumber, def: defs[i]!.definition || "", kjv: defs[i]!.shortDefinition || "" } : null)
-        .filter((e): e is { num: string; def: string; kjv: string } => e !== null);
+        .map((w, i) => defs[i] ? { num: w.strongNumber, word: w.word, def: defs[i]!.definition || "", kjv: defs[i]!.shortDefinition || "" } : null)
+        .filter(Boolean) as { num: string; word: string; def: string; kjv: string }[];
       
       await batchTranslatePT(toTranslate);
 
