@@ -27,7 +27,7 @@ const definitionCache = new Map<string, StrongsDefinition | null>();
 const inFlightChapter = new Map<string, Promise<StrongsWord[][]>>();
 const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 
-const CHAPTER_STORAGE_PREFIX = "strongs_chapter_";
+const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v2_";
 const DEFINITION_STORAGE_PREFIX = "strongs_definition_";
 
 function readSessionCache<T>(key: string): T | null {
@@ -82,18 +82,15 @@ function mergeNtVerseWords(greekWords: StrongsWord[], kjvWords: StrongsWord[]): 
   if (greekWords.length === 0) return [];
   if (kjvWords.length === 0) return greekWords;
 
-  let kjvIndex = 0;
-
   return greekWords.map((greekWord, order) => {
-    while (kjvIndex < kjvWords.length && kjvWords[kjvIndex].strongNumber !== greekWord.strongNumber) {
-      kjvIndex += 1;
-    }
-
-    const matchedWord = kjvIndex < kjvWords.length ? kjvWords[kjvIndex++] : undefined;
+    const sequentialWord = kjvWords[order];
+    const matchedWord = kjvWords.find((candidate, candidateIndex) =>
+      candidateIndex >= order && candidate.strongNumber === greekWord.strongNumber
+    );
 
     return {
       ...greekWord,
-      word: matchedWord?.word || greekWord.word,
+      word: sequentialWord?.word || matchedWord?.word || greekWord.word,
       order,
     };
   });
