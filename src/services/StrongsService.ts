@@ -52,7 +52,7 @@ function writeSessionCache(key: string, value: unknown) {
 /**
  * Parse KJV/TISCH verse HTML: word<S>number</S>
  */
-function parseVerse(html: string, isNT: boolean): StrongsWord[] {
+function parseVerse(html: string, isNT: boolean, strongPrefix?: "H" | "G"): StrongsWord[] {
   const words: StrongsWord[] = [];
   const regex = /([^<]*?)<S>(\d+)<\/S>/g;
   let match: RegExpExecArray | null;
@@ -63,7 +63,7 @@ function parseVerse(html: string, isNT: boolean): StrongsWord[] {
     const num = match[2];
     if (!rawWord && !num) continue;
 
-    const prefix = isNT ? 'G' : 'H';
+    const prefix = strongPrefix ?? (isNT ? 'G' : 'H');
     const strongNumber = `${prefix}${num}`;
 
     words.push({
@@ -139,9 +139,9 @@ export async function fetchChapterStrongs(
             kjvVerses.sort((a, b) => a.verse - b.verse);
 
             return greekVerses.map((verse) => {
-              const greekWords = parseVerse(verse.text, true);
+              const greekWords = parseVerse(verse.text, true, 'G');
               const kjvVerse = kjvVerses.find((item) => item.verse === verse.verse);
-              const kjvWords = kjvVerse ? parseVerse(kjvVerse.text, false) : [];
+              const kjvWords = kjvVerse ? parseVerse(kjvVerse.text, false, 'G') : [];
               return mergeNtVerseWords(greekWords, kjvWords);
             });
           })()
