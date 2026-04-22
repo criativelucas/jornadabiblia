@@ -109,7 +109,10 @@ function extractCleanDefinition(html: string, isGreek: boolean): string {
  */
 function cleanLexeme(s: string): string {
   if (!s) return '';
-  // Normalize and remove stray combining marks at unexpected positions
+  // Some Greek entries (e.g. G3588 article ὁ/ἡ/τό) come concatenated as
+  // "ὁἡτό". If the lexeme has 3+ chars but no spaces and starts with a
+  // standalone form, prefer the API's `lexeme` field which is usually
+  // already a single canonical form. Otherwise return as-is.
   return s.normalize('NFC').trim();
 }
 
@@ -117,10 +120,13 @@ function parseStrongsEntry(strongNumber: string, d: any): StrongsDefinition {
   const isGreek = strongNumber.startsWith('G');
   const rawHtml: string = d?.definition ?? '';
 
-  // Prefer lexeme extracted from the HTML (cleaner for Greek).
-  // Fall back to the API field if extraction fails.
-  const lexemeFromHtml = extractLexemeFromHtml(rawHtml, isGreek);
-  const lexeme = cleanLexeme(lexemeFromHtml || d?.lexeme || '');
+  // For Greek, the API's `lexeme` field is usually the cleanest canonical
+  // form (e.g. "ὁ" for the article). The HTML <el> tag often contains
+  // multiple inflected forms concatenated together ("ὁἡτό"). Prefer API field.
+  // For Hebrew, prefer the API field which already contains vowel pointing.
+  const apiLexeme = (d?.lexeme ?? '').trim();
+  const htmlLexeme = extractLexemeFromHtml(rawHtml, isGreek);
+  const lexeme = cleanLexeme(apiLexeme || htmlLexeme);
 
   const cleanDef = extractCleanDefinition(rawHtml, isGreek);
 
