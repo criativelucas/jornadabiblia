@@ -236,6 +236,7 @@ export async function fetchStrongsDefinition(
 
       definitionCache.set(strongNumber, definition);
       writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, definition);
+      void offlineSetDefinition(strongNumber, definition);
       return definition;
     } catch (err) {
       console.error('[StrongsService] definition fetch error:', err);
