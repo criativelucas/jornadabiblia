@@ -63,6 +63,7 @@ function savePtCache(num: string, value: { def: string; kjv: string }) {
   try {
     sessionStorage.setItem(`strongs_pt_${num}`, JSON.stringify(value));
   } catch {}
+  void offlineSetTranslation(num, value);
 }
 
 // Restore sessionStorage cache on load
@@ -80,6 +81,16 @@ try {
     }
   }
 } catch {}
+
+// Hydrate translations from IndexedDB (offline persistence)
+void offlineGetAllTranslations().then((stored) => {
+  for (const [num, val] of Object.entries(stored)) {
+    if (val?.def && isPortugueseText(val.def) && !ptCache[num]) {
+      ptCache[num] = val;
+    }
+  }
+});
+
 
 async function translateSingleViaBibleChat(entry: {
   num: string;
