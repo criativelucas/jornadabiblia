@@ -34,8 +34,8 @@ const definitionCache = new Map<string, StrongsDefinition | null>();
 const inFlightChapter = new Map<string, Promise<StrongsWord[][]>>();
 const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 
-const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v2_";
-const DEFINITION_STORAGE_PREFIX = "strongs_definition_";
+const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v3_";
+const DEFINITION_STORAGE_PREFIX = "strongs_definition_v3_";
 
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -85,21 +85,48 @@ function parseVerse(html: string, isNT: boolean, strongPrefix?: "H" | "G"): Stro
   return words;
 }
 
+/**
+ * Align KJV English words to Greek words by Strong's number (NOT position).
+ * Greek and English have different word orders, so positional mapping
+ * produces wrong results (e.g. "and" mapped to λόγος).
+ *
+ * Strategy: for each Greek word, find the closest unused KJV word with
+ * the SAME strong number. If none exists, leave the Greek word as the
+ * display word (do NOT invent a mapping).
+ */
 function mergeNtVerseWords(greekWords: StrongsWord[], kjvWords: StrongsWord[]): StrongsWord[] {
   if (greekWords.length === 0) return [];
-  if (kjvWords.length === 0) return greekWords;
+  if (kjvWords.length === 0) {
+    return greekWords.map((w, order) => ({ ...w, order }));
+  }
+
+  const used = new Set<number>();
 
   return greekWords.map((greekWord, order) => {
-    const sequentialWord = kjvWords[order];
-    const matchedWord = kjvWords.find((candidate, candidateIndex) =>
-      candidateIndex >= order && candidate.strongNumber === greekWord.strongNumber
-    );
+    // Find the closest unused KJV word with same Strong number
+    let bestIdx = -1;
+    let bestDistance = Infinity;
+    kjvWords.forEach((candidate, idx) => {
+      if (used.has(idx)) return;
+      if (candidate.strongNumber !== greekWord.strongNumber) return;
+      const distance = Math.abs(idx - order);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIdx = idx;
+      }
+    });
 
-    return {
-      ...greekWord,
-      word: sequentialWord?.word || matchedWord?.word || greekWord.word,
-      order,
-    };
+    if (bestIdx >= 0) {
+      used.add(bestIdx);
+      return {
+        ...greekWord,
+        word: kjvWords[bestIdx].word || greekWord.word,
+        order,
+      };
+    }
+
+    // No KJV match — keep Greek word as display
+    return { ...greekWord, order };
   });
 }
 
@@ -222,17 +249,7 @@ export async function fetchStrongsDefinition(
       }
 
       const d = data[0];
-      const stripHtml = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-
-      const definition: StrongsDefinition = {
-        strongNumber,
-        lexeme: d.lexeme ?? '',
-        transliteration: d.transliteration ?? d.xlit ?? '',
-        pronunciation: d.pronunciation ?? d.pron ?? '',
-        definition: stripHtml(d.definition ?? ''),
-        shortDefinition: d.short_definition ?? '',
-        morphology: d.morphology ?? d.part_of_speech ?? '',
-      };
+      const definition = parseStrongsEntry(strongNumber, d);
 
       definitionCache.set(strongNumber, definition);
       writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, definition);
