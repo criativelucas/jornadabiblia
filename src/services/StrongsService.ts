@@ -123,6 +123,14 @@ export async function fetchChapterStrongs(
     return persistedChapter;
   }
 
+  // Try IndexedDB (persistent offline storage across sessions)
+  const offlineChapter = await offlineGetChapter<StrongsWord[][]>(cacheKey);
+  if (offlineChapter && offlineChapter.length > 0) {
+    chapterCache.set(cacheKey, offlineChapter);
+    writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, offlineChapter);
+    return offlineChapter;
+  }
+
   const promise = (async () => {
     try {
       const result = isNT
