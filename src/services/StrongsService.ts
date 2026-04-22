@@ -3,6 +3,13 @@
  * Definitions from bolls.life/dictionary-definition/BDBT/
  */
 
+import {
+  offlineGetChapter,
+  offlineSetChapter,
+  offlineGetDefinition,
+  offlineSetDefinition,
+} from "@/services/lexiconOfflineStore";
+
 export interface StrongsWord {
   word: string;           // displayed word (English for OT via KJV, Greek for NT via TISCH)
   originalWord: string;   // original Hebrew/Greek from definition (filled async via enrichment)
@@ -116,6 +123,14 @@ export async function fetchChapterStrongs(
     return persistedChapter;
   }
 
+  // Try IndexedDB (persistent offline storage across sessions)
+  const offlineChapter = await offlineGetChapter<StrongsWord[][]>(cacheKey);
+  if (offlineChapter && offlineChapter.length > 0) {
+    chapterCache.set(cacheKey, offlineChapter);
+    writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, offlineChapter);
+    return offlineChapter;
+  }
+
   const promise = (async () => {
     try {
       const result = isNT
@@ -155,6 +170,9 @@ export async function fetchChapterStrongs(
 
       chapterCache.set(cacheKey, result);
       writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, result);
+      if (result.length > 0) {
+        void offlineSetChapter(cacheKey, result);
+      }
       return result;
     } catch (err) {
       console.error('[StrongsService] chapter fetch error:', err);
@@ -181,6 +199,14 @@ export async function fetchStrongsDefinition(
   if (persistedDefinition) {
     definitionCache.set(strongNumber, persistedDefinition);
     return persistedDefinition;
+  }
+
+  // Try IndexedDB (persistent offline storage)
+  const offlineDef = await offlineGetDefinition<StrongsDefinition>(strongNumber);
+  if (offlineDef) {
+    definitionCache.set(strongNumber, offlineDef);
+    writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, offlineDef);
+    return offlineDef;
   }
 
   const promise = (async () => {
@@ -210,6 +236,7 @@ export async function fetchStrongsDefinition(
 
       definitionCache.set(strongNumber, definition);
       writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, definition);
+      void offlineSetDefinition(strongNumber, definition);
       return definition;
     } catch (err) {
       console.error('[StrongsService] definition fetch error:', err);
