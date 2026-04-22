@@ -3,6 +3,13 @@
  * Definitions from bolls.life/dictionary-definition/BDBT/
  */
 
+import {
+  offlineGetChapter,
+  offlineSetChapter,
+  offlineGetDefinition,
+  offlineSetDefinition,
+} from "@/services/lexiconOfflineStore";
+
 export interface StrongsWord {
   word: string;           // displayed word (English for OT via KJV, Greek for NT via TISCH)
   originalWord: string;   // original Hebrew/Greek from definition (filled async via enrichment)
