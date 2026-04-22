@@ -34,8 +34,112 @@ const definitionCache = new Map<string, StrongsDefinition | null>();
 const inFlightChapter = new Map<string, Promise<StrongsWord[][]>>();
 const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 
-const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v2_";
-const DEFINITION_STORAGE_PREFIX = "strongs_definition_";
+const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v3_";
+const DEFINITION_STORAGE_PREFIX = "strongs_definition_v3_";
+
+/**
+ * Strip HTML tags and collapse whitespace.
+ */
+function stripHtml(s: string): string {
+  return (s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Decode common HTML entities.
+ */
+function decodeEntities(s: string): string {
+  return (s || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+/**
+ * Extract the original-language word from the definition HTML.
+ * Greek lexemes live inside <el>...</el>, Hebrew inside <he>...</he>.
+ * Strips Unicode combining marks that come through as garbled chars
+ * when the field is naively concatenated (e.g. "ὁἠτό" instead of "ὁ").
+ */
+function extractLexemeFromHtml(html: string, isGreek: boolean): string {
+  if (!html) return '';
+  const tag = isGreek ? 'el' : 'he';
+  const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i').exec(html);
+  if (!match) return '';
+  return decodeEntities(match[1]).replace(/<[^>]*>/g, '').trim();
+}
+
+/**
+ * Extract the *clean* definition text (without "Original / Transliteration /
+ * Phonetic / Definition:" preamble that bolls.life embeds in the HTML).
+ *
+ * Greek (Thayer-style):  text after "Definition:" up to "Origin:" / "Strongs:"
+ * Hebrew (BDB-style):    text inside the BDB Definition <ol>...</ol>
+ */
+function extractCleanDefinition(html: string, isGreek: boolean): string {
+  if (!html) return '';
+
+  if (isGreek) {
+    // Take everything after "Definition:" and stop before metadata blocks.
+    const afterDef = html.split(/Definition:\s*<\/p>|Definition:\s*<\/b>|Definition:/i)[1] ?? html;
+    const beforeMeta = afterDef.split(/(?:- )?(?:Origin|TDNT entry|Part\(s\) of speech|Strongs):/i)[0] ?? afterDef;
+    return stripHtml(beforeMeta);
+  }
+
+  // Hebrew: BDB Definition is wrapped in <ol>
+  const olMatch = /<ol[\s\S]*?<\/ol>/i.exec(html);
+  if (olMatch) {
+    // Convert <li> into numbered bullets for readability
+    const olHtml = olMatch[0]
+      .replace(/<\/li>\s*<li>/gi, '; ')
+      .replace(/<li>/gi, '')
+      .replace(/<\/li>/gi, '');
+    return stripHtml(olHtml);
+  }
+
+  const afterDef = html.split(/BDB Definition[^:]*:\s*<\/?[^>]*>?/i)[1] ?? html;
+  const beforeMeta = afterDef.split(/(?:Origin|TWOT entry|Part\(s\) of speech):/i)[0] ?? afterDef;
+  return stripHtml(beforeMeta);
+}
+
+/**
+ * Strip Unicode combining marks that often come through corrupted from
+ * the API and make the original word look garbled.
+ */
+function cleanLexeme(s: string): string {
+  if (!s) return '';
+  // Some Greek entries (e.g. G3588 article ὁ/ἡ/τό) come concatenated as
+  // "ὁἡτό". If the lexeme has 3+ chars but no spaces and starts with a
+  // standalone form, prefer the API's `lexeme` field which is usually
+  // already a single canonical form. Otherwise return as-is.
+  return s.normalize('NFC').trim();
+}
+
+function parseStrongsEntry(strongNumber: string, d: any): StrongsDefinition {
+  const isGreek = strongNumber.startsWith('G');
+  const rawHtml: string = d?.definition ?? '';
+
+  // For Greek, the API's `lexeme` field is usually the cleanest canonical
+  // form (e.g. "ὁ" for the article). The HTML <el> tag often contains
+  // multiple inflected forms concatenated together ("ὁἡτό"). Prefer API field.
+  // For Hebrew, prefer the API field which already contains vowel pointing.
+  const apiLexeme = (d?.lexeme ?? '').trim();
+  const htmlLexeme = extractLexemeFromHtml(rawHtml, isGreek);
+  const lexeme = cleanLexeme(apiLexeme || htmlLexeme);
+
+  const cleanDef = extractCleanDefinition(rawHtml, isGreek);
+
+  return {
+    strongNumber,
+    lexeme,
+    transliteration: (d?.transliteration ?? d?.xlit ?? '').trim(),
+    pronunciation: (d?.pronunciation ?? d?.pron ?? '').trim(),
+    definition: cleanDef,
+    shortDefinition: (d?.short_definition ?? '').trim(),
+    morphology: (d?.morphology ?? d?.part_of_speech ?? '').trim(),
+  };
+}
 
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -85,21 +189,48 @@ function parseVerse(html: string, isNT: boolean, strongPrefix?: "H" | "G"): Stro
   return words;
 }
 
+/**
+ * Align KJV English words to Greek words by Strong's number (NOT position).
+ * Greek and English have different word orders, so positional mapping
+ * produces wrong results (e.g. "and" mapped to λόγος).
+ *
+ * Strategy: for each Greek word, find the closest unused KJV word with
+ * the SAME strong number. If none exists, leave the Greek word as the
+ * display word (do NOT invent a mapping).
+ */
 function mergeNtVerseWords(greekWords: StrongsWord[], kjvWords: StrongsWord[]): StrongsWord[] {
   if (greekWords.length === 0) return [];
-  if (kjvWords.length === 0) return greekWords;
+  if (kjvWords.length === 0) {
+    return greekWords.map((w, order) => ({ ...w, order }));
+  }
+
+  const used = new Set<number>();
 
   return greekWords.map((greekWord, order) => {
-    const sequentialWord = kjvWords[order];
-    const matchedWord = kjvWords.find((candidate, candidateIndex) =>
-      candidateIndex >= order && candidate.strongNumber === greekWord.strongNumber
-    );
+    // Find the closest unused KJV word with same Strong number
+    let bestIdx = -1;
+    let bestDistance = Infinity;
+    kjvWords.forEach((candidate, idx) => {
+      if (used.has(idx)) return;
+      if (candidate.strongNumber !== greekWord.strongNumber) return;
+      const distance = Math.abs(idx - order);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIdx = idx;
+      }
+    });
 
-    return {
-      ...greekWord,
-      word: sequentialWord?.word || matchedWord?.word || greekWord.word,
-      order,
-    };
+    if (bestIdx >= 0) {
+      used.add(bestIdx);
+      return {
+        ...greekWord,
+        word: kjvWords[bestIdx].word || greekWord.word,
+        order,
+      };
+    }
+
+    // No KJV match — keep Greek word as display
+    return { ...greekWord, order };
   });
 }
 
@@ -222,17 +353,7 @@ export async function fetchStrongsDefinition(
       }
 
       const d = data[0];
-      const stripHtml = (s: string) => (s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-
-      const definition: StrongsDefinition = {
-        strongNumber,
-        lexeme: d.lexeme ?? '',
-        transliteration: d.transliteration ?? d.xlit ?? '',
-        pronunciation: d.pronunciation ?? d.pron ?? '',
-        definition: stripHtml(d.definition ?? ''),
-        shortDefinition: d.short_definition ?? '',
-        morphology: d.morphology ?? d.part_of_speech ?? '',
-      };
+      const definition = parseStrongsEntry(strongNumber, d);
 
       definitionCache.set(strongNumber, definition);
       writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, definition);
