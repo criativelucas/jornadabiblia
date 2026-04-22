@@ -27,6 +27,28 @@ const definitionCache = new Map<string, StrongsDefinition | null>();
 const inFlightChapter = new Map<string, Promise<StrongsWord[][]>>();
 const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 
+const CHAPTER_STORAGE_PREFIX = "strongs_chapter_";
+const DEFINITION_STORAGE_PREFIX = "strongs_definition_";
+
+function readSessionCache<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionCache(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore quota errors to avoid breaking the lexicon flow.
+  }
+}
+
 /**
  * Parse KJV/TISCH verse HTML: word<S>number</S>
  */
@@ -70,6 +92,12 @@ export async function fetchChapterStrongs(
   if (chapterCache.has(cacheKey)) return chapterCache.get(cacheKey)!;
   if (inFlightChapter.has(cacheKey)) return inFlightChapter.get(cacheKey)!;
 
+  const persistedChapter = readSessionCache<StrongsWord[][]>(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`);
+  if (persistedChapter) {
+    chapterCache.set(cacheKey, persistedChapter);
+    return persistedChapter;
+  }
+
   const promise = (async () => {
     try {
       const url = `https://bolls.life/get-chapter/${translation}/${bookNumber}/${chapter}/`;
@@ -82,6 +110,7 @@ export async function fetchChapterStrongs(
       verses.sort((a, b) => a.verse - b.verse);
       const result = verses.map(v => parseVerse(v.text, isNT));
       chapterCache.set(cacheKey, result);
+      writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, result);
       return result;
     } catch (err) {
       console.error('[StrongsService] chapter fetch error:', err);
@@ -103,6 +132,12 @@ export async function fetchStrongsDefinition(
 ): Promise<StrongsDefinition | null> {
   if (definitionCache.has(strongNumber)) return definitionCache.get(strongNumber)!;
   if (inFlightDef.has(strongNumber)) return inFlightDef.get(strongNumber)!;
+
+  const persistedDefinition = readSessionCache<StrongsDefinition | null>(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`);
+  if (persistedDefinition) {
+    definitionCache.set(strongNumber, persistedDefinition);
+    return persistedDefinition;
+  }
 
   const promise = (async () => {
     try {
@@ -130,6 +165,7 @@ export async function fetchStrongsDefinition(
       };
 
       definitionCache.set(strongNumber, definition);
+      writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, definition);
       return definition;
     } catch (err) {
       console.error('[StrongsService] definition fetch error:', err);
