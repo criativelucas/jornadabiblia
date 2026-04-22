@@ -37,6 +37,104 @@ const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v3_";
 const DEFINITION_STORAGE_PREFIX = "strongs_definition_v3_";
 
+/**
+ * Strip HTML tags and collapse whitespace.
+ */
+function stripHtml(s: string): string {
+  return (s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Decode common HTML entities.
+ */
+function decodeEntities(s: string): string {
+  return (s || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+/**
+ * Extract the original-language word from the definition HTML.
+ * Greek lexemes live inside <el>...</el>, Hebrew inside <he>...</he>.
+ * Strips Unicode combining marks that come through as garbled chars
+ * when the field is naively concatenated (e.g. "ὁἠτό" instead of "ὁ").
+ */
+function extractLexemeFromHtml(html: string, isGreek: boolean): string {
+  if (!html) return '';
+  const tag = isGreek ? 'el' : 'he';
+  const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i').exec(html);
+  if (!match) return '';
+  return decodeEntities(match[1]).replace(/<[^>]*>/g, '').trim();
+}
+
+/**
+ * Extract the *clean* definition text (without "Original / Transliteration /
+ * Phonetic / Definition:" preamble that bolls.life embeds in the HTML).
+ *
+ * Greek (Thayer-style):  text after "Definition:" up to "Origin:" / "Strongs:"
+ * Hebrew (BDB-style):    text inside the BDB Definition <ol>...</ol>
+ */
+function extractCleanDefinition(html: string, isGreek: boolean): string {
+  if (!html) return '';
+
+  if (isGreek) {
+    // Take everything after "Definition:" and stop before metadata blocks.
+    const afterDef = html.split(/Definition:\s*<\/p>|Definition:\s*<\/b>|Definition:/i)[1] ?? html;
+    const beforeMeta = afterDef.split(/(?:- )?(?:Origin|TDNT entry|Part\(s\) of speech|Strongs):/i)[0] ?? afterDef;
+    return stripHtml(beforeMeta);
+  }
+
+  // Hebrew: BDB Definition is wrapped in <ol>
+  const olMatch = /<ol[\s\S]*?<\/ol>/i.exec(html);
+  if (olMatch) {
+    // Convert <li> into numbered bullets for readability
+    const olHtml = olMatch[0]
+      .replace(/<\/li>\s*<li>/gi, '; ')
+      .replace(/<li>/gi, '')
+      .replace(/<\/li>/gi, '');
+    return stripHtml(olHtml);
+  }
+
+  const afterDef = html.split(/BDB Definition[^:]*:\s*<\/?[^>]*>?/i)[1] ?? html;
+  const beforeMeta = afterDef.split(/(?:Origin|TWOT entry|Part\(s\) of speech):/i)[0] ?? afterDef;
+  return stripHtml(beforeMeta);
+}
+
+/**
+ * Strip Unicode combining marks that often come through corrupted from
+ * the API and make the original word look garbled.
+ */
+function cleanLexeme(s: string): string {
+  if (!s) return '';
+  // Normalize and remove stray combining marks at unexpected positions
+  return s.normalize('NFC').trim();
+}
+
+function parseStrongsEntry(strongNumber: string, d: any): StrongsDefinition {
+  const isGreek = strongNumber.startsWith('G');
+  const rawHtml: string = d?.definition ?? '';
+
+  // Prefer lexeme extracted from the HTML (cleaner for Greek).
+  // Fall back to the API field if extraction fails.
+  const lexemeFromHtml = extractLexemeFromHtml(rawHtml, isGreek);
+  const lexeme = cleanLexeme(lexemeFromHtml || d?.lexeme || '');
+
+  const cleanDef = extractCleanDefinition(rawHtml, isGreek);
+
+  return {
+    strongNumber,
+    lexeme,
+    transliteration: (d?.transliteration ?? d?.xlit ?? '').trim(),
+    pronunciation: (d?.pronunciation ?? d?.pron ?? '').trim(),
+    definition: cleanDef,
+    shortDefinition: (d?.short_definition ?? '').trim(),
+    morphology: (d?.morphology ?? d?.part_of_speech ?? '').trim(),
+  };
+}
+
 function readSessionCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
   try {
