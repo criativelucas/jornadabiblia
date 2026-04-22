@@ -27,21 +27,43 @@ const definitionCache = new Map<string, StrongsDefinition | null>();
 const inFlightChapter = new Map<string, Promise<StrongsWord[][]>>();
 const inFlightDef = new Map<string, Promise<StrongsDefinition | null>>();
 
+const CHAPTER_STORAGE_PREFIX = "strongs_chapter_v2_";
+const DEFINITION_STORAGE_PREFIX = "strongs_definition_";
+
+function readSessionCache<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionCache(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore quota errors to avoid breaking the lexicon flow.
+  }
+}
+
 /**
  * Parse KJV/TISCH verse HTML: word<S>number</S>
  */
-function parseVerse(html: string, isNT: boolean): StrongsWord[] {
+function parseVerse(html: string, isNT: boolean, strongPrefix?: "H" | "G"): StrongsWord[] {
   const words: StrongsWord[] = [];
   const regex = /([^<]*?)<S>(\d+)<\/S>/g;
   let match: RegExpExecArray | null;
   let order = 0;
 
   while ((match = regex.exec(html)) !== null) {
-    const rawWord = match[1].replace(/[.,;:!?"'()\[\]{}]/g, '').trim();
+    const rawWord = match[1].replace(/[.,;:!?"'(){}]/g, '').trim();
     const num = match[2];
     if (!rawWord && !num) continue;
 
-    const prefix = isNT ? 'G' : 'H';
+    const prefix = strongPrefix ?? (isNT ? 'G' : 'H');
     const strongNumber = `${prefix}${num}`;
 
     words.push({
@@ -54,6 +76,24 @@ function parseVerse(html: string, isNT: boolean): StrongsWord[] {
   }
 
   return words;
+}
+
+function mergeNtVerseWords(greekWords: StrongsWord[], kjvWords: StrongsWord[]): StrongsWord[] {
+  if (greekWords.length === 0) return [];
+  if (kjvWords.length === 0) return greekWords;
+
+  return greekWords.map((greekWord, order) => {
+    const sequentialWord = kjvWords[order];
+    const matchedWord = kjvWords.find((candidate, candidateIndex) =>
+      candidateIndex >= order && candidate.strongNumber === greekWord.strongNumber
+    );
+
+    return {
+      ...greekWord,
+      word: sequentialWord?.word || matchedWord?.word || greekWord.word,
+      order,
+    };
+  });
 }
 
 /**
@@ -70,18 +110,51 @@ export async function fetchChapterStrongs(
   if (chapterCache.has(cacheKey)) return chapterCache.get(cacheKey)!;
   if (inFlightChapter.has(cacheKey)) return inFlightChapter.get(cacheKey)!;
 
+  const persistedChapter = readSessionCache<StrongsWord[][]>(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`);
+  if (persistedChapter) {
+    chapterCache.set(cacheKey, persistedChapter);
+    return persistedChapter;
+  }
+
   const promise = (async () => {
     try {
-      const url = `https://bolls.life/get-chapter/${translation}/${bookNumber}/${chapter}/`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = isNT
+        ? await (async () => {
+            const [greekRes, kjvRes] = await Promise.all([
+              fetch(`https://bolls.life/get-chapter/TISCH/${bookNumber}/${chapter}/`),
+              fetch(`https://bolls.life/get-chapter/KJV/${bookNumber}/${chapter}/`),
+            ]);
 
-      const verses: { verse: number; text: string }[] = await res.json();
-      if (!verses || verses.length === 0) return [];
+            if (!greekRes.ok) throw new Error(`HTTP ${greekRes.status}`);
+            if (!kjvRes.ok) throw new Error(`HTTP ${kjvRes.status}`);
 
-      verses.sort((a, b) => a.verse - b.verse);
-      const result = verses.map(v => parseVerse(v.text, isNT));
+            const greekVerses: { verse: number; text: string }[] = await greekRes.json();
+            const kjvVerses: { verse: number; text: string }[] = await kjvRes.json();
+            if (!greekVerses || greekVerses.length === 0) return [];
+
+            greekVerses.sort((a, b) => a.verse - b.verse);
+            kjvVerses.sort((a, b) => a.verse - b.verse);
+
+            return greekVerses.map((verse) => {
+              const greekWords = parseVerse(verse.text, true, 'G');
+              const kjvVerse = kjvVerses.find((item) => item.verse === verse.verse);
+              const kjvWords = kjvVerse ? parseVerse(kjvVerse.text, false, 'G') : [];
+              return mergeNtVerseWords(greekWords, kjvWords);
+            });
+          })()
+        : await (async () => {
+            const res = await fetch(`https://bolls.life/get-chapter/${translation}/${bookNumber}/${chapter}/`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const verses: { verse: number; text: string }[] = await res.json();
+            if (!verses || verses.length === 0) return [];
+
+            verses.sort((a, b) => a.verse - b.verse);
+            return verses.map(v => parseVerse(v.text, false));
+          })();
+
       chapterCache.set(cacheKey, result);
+      writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, result);
       return result;
     } catch (err) {
       console.error('[StrongsService] chapter fetch error:', err);
@@ -103,6 +176,12 @@ export async function fetchStrongsDefinition(
 ): Promise<StrongsDefinition | null> {
   if (definitionCache.has(strongNumber)) return definitionCache.get(strongNumber)!;
   if (inFlightDef.has(strongNumber)) return inFlightDef.get(strongNumber)!;
+
+  const persistedDefinition = readSessionCache<StrongsDefinition | null>(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`);
+  if (persistedDefinition) {
+    definitionCache.set(strongNumber, persistedDefinition);
+    return persistedDefinition;
+  }
 
   const promise = (async () => {
     try {
@@ -130,6 +209,7 @@ export async function fetchStrongsDefinition(
       };
 
       definitionCache.set(strongNumber, definition);
+      writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, definition);
       return definition;
     } catch (err) {
       console.error('[StrongsService] definition fetch error:', err);

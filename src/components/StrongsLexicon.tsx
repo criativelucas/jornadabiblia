@@ -23,6 +23,14 @@ type LexView = "testament" | "books" | "chapters" | "verses" | "detail";
 const ptCache: Record<string, { def: string; kjv: string }> = {};
 const warmedChapters = new Map<string, Promise<void>>();
 
+export const LEXICON_STARTUP_CHAPTERS = bibleBooks.flatMap((book, index) =>
+  Array.from({ length: Math.min(book.chapters, 2) }, (_, chapterIndex) => [index + 1, chapterIndex + 1] as const)
+);
+
+export const LEXICON_BACKGROUND_CHAPTERS = bibleBooks.flatMap((book, index) =>
+  Array.from({ length: Math.max(0, book.chapters - 2) }, (_, chapterIndex) => [index + 1, chapterIndex + 3] as const)
+);
+
 const PORTUGUESE_MARKERS = /(\b(o|a|os|as|de|do|da|dos|das|e|em|no|na|nos|nas|que|por|para|com|sem|céus|terra|princípio|palavra|deus)\b|[ãáàâéêíóôõúç])/i;
 const ENGLISH_MARKERS = /\b(the|and|god|earth|heaven|created|beginning|word|light|was|with|upon|from|without|let|said)\b/i;
 
@@ -31,6 +39,17 @@ function isPortugueseText(text?: string | null) {
   const normalized = text.trim();
   if (!normalized) return false;
   return PORTUGUESE_MARKERS.test(normalized) || !ENGLISH_MARKERS.test(normalized);
+}
+
+function extractPrimaryGloss(text?: string | null) {
+  if (!text) return "";
+  const normalized = text
+    .replace(/\s+/g, " ")
+    .split(/[;,/]/)[0]
+    ?.trim();
+
+  if (!normalized) return "";
+  return normalized.split(" ").slice(0, 4).join(" ");
 }
 
 function savePtCache(num: string, value: { def: string; kjv: string }) {
@@ -585,18 +604,14 @@ export default function StrongsLexicon() {
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {wordDetails.map((wd, i) => {
               const { strongWord: w, definition: def, translated } = wd;
-              // For OT (KJV): w.word is the English gloss, originalWord/lexeme is Hebrew
-              // For NT (TISCH): w.word is the Greek text itself, so use shortDefinition as gloss
               let displayWord: string;
               let originalChar: string;
 
               if (isHebrew) {
-                // OT: word from KJV = English gloss
-                displayWord = w.word || def?.shortDefinition || w.originalWord || "";
+                displayWord = w.word || extractPrimaryGloss(translated?.kjv) || extractPrimaryGloss(def?.shortDefinition) || w.originalWord || "";
                 originalChar = w.originalWord || def?.lexeme || "";
               } else {
-                // NT: word from TISCH = Greek text, use shortDefinition as gloss
-                displayWord = def?.shortDefinition || w.originalWord || w.word || "";
+                displayWord = w.word || extractPrimaryGloss(translated?.kjv) || extractPrimaryGloss(def?.shortDefinition) || w.originalWord || "";
                 originalChar = w.word || def?.lexeme || w.originalWord || "";
               }
 
@@ -605,12 +620,13 @@ export default function StrongsLexicon() {
               const defText = translated?.def || def?.definition || "";
               const strongNum = w.strongNumber.replace(/[HG]/, "");
               const langLabel = isHebrew ? "Hebrew" : "Greek";
+              const safeDisplayWord = displayWord || originalChar || `Strong ${w.strongNumber}`;
 
               return (
                 <div key={`${w.strongNumber}-${i}`}>
                   {/* Word (bold) */}
                   <p style={{ fontSize: "15px", fontWeight: 800, color: T.textPrimary, marginBottom: 2 }}>
-                    {displayWord}
+                    {safeDisplayWord}
                   </p>
 
                   {/* Original + transliteration in accent color */}

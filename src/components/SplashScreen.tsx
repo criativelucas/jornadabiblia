@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { BookOpen } from "lucide-react";
 import { fetchTranslation, type BibleVersion } from "@/hooks/useBibleData";
-import { warmLexiconChapter } from "@/components/StrongsLexicon";
+import {
+  LEXICON_BACKGROUND_CHAPTERS,
+  LEXICON_STARTUP_CHAPTERS,
+  warmLexiconChapter,
+} from "@/components/StrongsLexicon";
 
 const CURIOSIDADES = [
   "A Bíblia foi escrita ao longo de aproximadamente 1.500 anos por mais de 40 autores diferentes.",
@@ -19,15 +23,6 @@ const CURIOSIDADES = [
   "O Salmo 117 é o capítulo mais curto e também o capítulo central de toda a Bíblia.",
   "Daniel é o único livro do Antigo Testamento escrito em dois idiomas: hebraico e aramaico.",
 ];
-
-const LEXICON_PRIORITY_CHAPTERS = [
-  [1, 1],
-  [19, 1],
-  [40, 1],
-  [43, 1],
-] as const;
-
-const LEXICON_BACKGROUND_QUEUE = Array.from({ length: 66 }, (_, index) => [index + 1, 1] as const);
 
 interface Props { onReady: () => void; }
 
@@ -54,7 +49,7 @@ export default function SplashScreen({ onReady }: Props) {
   useEffect(() => {
     const startTime = Date.now();
     const versions: BibleVersion[] = ["nvi", "naa", "ntlh"];
-    const totalSteps = versions.length + 1; // +1 for Strong's preload
+    const totalSteps = versions.length + 4;
     let settledCount = 0;
 
     const advance = (msg: string) => {
@@ -71,24 +66,34 @@ export default function SplashScreen({ onReady }: Props) {
         .catch(() => advance("Continuando..."))
     );
 
-    // Preload Strong's data for both testaments and keep warming all books in background
+    // Preload Strong's data before app entry, then continue full background warming.
     const strongsPreload = (async () => {
       try {
-        await Promise.allSettled(
-          LEXICON_PRIORITY_CHAPTERS.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
-        );
-        advance("Léxico AT + NT pré-carregado ✓");
+        const startupBatches = [
+          LEXICON_STARTUP_CHAPTERS.slice(0, 24),
+          LEXICON_STARTUP_CHAPTERS.slice(24, 72),
+          LEXICON_STARTUP_CHAPTERS.slice(72),
+        ];
+
+        for (const [index, batch] of startupBatches.entries()) {
+          await Promise.allSettled(
+            batch.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
+          );
+          advance(`Léxico carregado ${index + 1}/${startupBatches.length} ✓`);
+        }
 
         void (async () => {
           const batchSize = 4;
-          for (let index = 0; index < LEXICON_BACKGROUND_QUEUE.length; index += batchSize) {
-            const batch = LEXICON_BACKGROUND_QUEUE.slice(index, index + batchSize);
+          for (let index = 0; index < LEXICON_BACKGROUND_CHAPTERS.length; index += batchSize) {
+            const batch = LEXICON_BACKGROUND_CHAPTERS.slice(index, index + batchSize);
             await Promise.allSettled(
               batch.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
             );
           }
         })();
       } catch {
+        advance("Léxico parcialmente carregado ✓");
+        advance("Continuando...");
         advance("Continuando...");
       }
     })();
@@ -97,7 +102,7 @@ export default function SplashScreen({ onReady }: Props) {
       setStatusMsg("Tudo pronto ✓");
       setProgress(100);
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 2000 - elapsed);
+      const remaining = Math.max(0, 4000 - elapsed);
       setTimeout(() => {
         setExiting(true);
         setTimeout(onReady, 600);
