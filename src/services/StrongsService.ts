@@ -59,7 +59,7 @@ function parseVerse(html: string, isNT: boolean): StrongsWord[] {
   let order = 0;
 
   while ((match = regex.exec(html)) !== null) {
-    const rawWord = match[1].replace(/[.,;:!?"'()\[\]{}]/g, '').trim();
+    const rawWord = match[1].replace(/[.,;:!?"'(){}]/g, '').trim();
     const num = match[2];
     if (!rawWord && !num) continue;
 
@@ -76,6 +76,27 @@ function parseVerse(html: string, isNT: boolean): StrongsWord[] {
   }
 
   return words;
+}
+
+function mergeNtVerseWords(greekWords: StrongsWord[], kjvWords: StrongsWord[]): StrongsWord[] {
+  if (greekWords.length === 0) return [];
+  if (kjvWords.length === 0) return greekWords;
+
+  let kjvIndex = 0;
+
+  return greekWords.map((greekWord, order) => {
+    while (kjvIndex < kjvWords.length && kjvWords[kjvIndex].strongNumber !== greekWord.strongNumber) {
+      kjvIndex += 1;
+    }
+
+    const matchedWord = kjvIndex < kjvWords.length ? kjvWords[kjvIndex++] : undefined;
+
+    return {
+      ...greekWord,
+      word: matchedWord?.word || greekWord.word,
+      order,
+    };
+  });
 }
 
 /**
@@ -100,15 +121,41 @@ export async function fetchChapterStrongs(
 
   const promise = (async () => {
     try {
-      const url = `https://bolls.life/get-chapter/${translation}/${bookNumber}/${chapter}/`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = isNT
+        ? await (async () => {
+            const [greekRes, kjvRes] = await Promise.all([
+              fetch(`https://bolls.life/get-chapter/TISCH/${bookNumber}/${chapter}/`),
+              fetch(`https://bolls.life/get-chapter/KJV/${bookNumber}/${chapter}/`),
+            ]);
 
-      const verses: { verse: number; text: string }[] = await res.json();
-      if (!verses || verses.length === 0) return [];
+            if (!greekRes.ok) throw new Error(`HTTP ${greekRes.status}`);
+            if (!kjvRes.ok) throw new Error(`HTTP ${kjvRes.status}`);
 
-      verses.sort((a, b) => a.verse - b.verse);
-      const result = verses.map(v => parseVerse(v.text, isNT));
+            const greekVerses: { verse: number; text: string }[] = await greekRes.json();
+            const kjvVerses: { verse: number; text: string }[] = await kjvRes.json();
+            if (!greekVerses || greekVerses.length === 0) return [];
+
+            greekVerses.sort((a, b) => a.verse - b.verse);
+            kjvVerses.sort((a, b) => a.verse - b.verse);
+
+            return greekVerses.map((verse) => {
+              const greekWords = parseVerse(verse.text, true);
+              const kjvVerse = kjvVerses.find((item) => item.verse === verse.verse);
+              const kjvWords = kjvVerse ? parseVerse(kjvVerse.text, false) : [];
+              return mergeNtVerseWords(greekWords, kjvWords);
+            });
+          })()
+        : await (async () => {
+            const res = await fetch(`https://bolls.life/get-chapter/${translation}/${bookNumber}/${chapter}/`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const verses: { verse: number; text: string }[] = await res.json();
+            if (!verses || verses.length === 0) return [];
+
+            verses.sort((a, b) => a.verse - b.verse);
+            return verses.map(v => parseVerse(v.text, false));
+          })();
+
       chapterCache.set(cacheKey, result);
       writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, result);
       return result;
