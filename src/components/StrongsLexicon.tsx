@@ -611,7 +611,7 @@ export default function StrongsLexicon() {
                 displayWord = w.word || extractPrimaryGloss(translated?.kjv) || extractPrimaryGloss(def?.shortDefinition) || w.originalWord || "";
                 originalChar = w.originalWord || def?.lexeme || "";
               } else {
-                displayWord = extractPrimaryGloss(translated?.kjv) || extractPrimaryGloss(def?.shortDefinition) || w.originalWord || w.word || "";
+                displayWord = w.word || extractPrimaryGloss(translated?.kjv) || extractPrimaryGloss(def?.shortDefinition) || w.originalWord || "";
                 originalChar = w.word || def?.lexeme || w.originalWord || "";
               }
 
