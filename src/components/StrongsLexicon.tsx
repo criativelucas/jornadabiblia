@@ -16,6 +16,11 @@ import {
   type StrongsWord,
   type StrongsDefinition,
 } from "@/services/StrongsService";
+import {
+  offlineGetAllTranslations,
+  offlineGetTranslation,
+  offlineSetTranslation,
+} from "@/services/lexiconOfflineStore";
 
 type LexView = "testament" | "books" | "chapters" | "verses" | "detail";
 
