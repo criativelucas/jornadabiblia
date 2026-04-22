@@ -201,6 +201,14 @@ export async function fetchStrongsDefinition(
     return persistedDefinition;
   }
 
+  // Try IndexedDB (persistent offline storage)
+  const offlineDef = await offlineGetDefinition<StrongsDefinition>(strongNumber);
+  if (offlineDef) {
+    definitionCache.set(strongNumber, offlineDef);
+    writeSessionCache(`${DEFINITION_STORAGE_PREFIX}${strongNumber}`, offlineDef);
+    return offlineDef;
+  }
+
   const promise = (async () => {
     try {
       const url = `https://bolls.life/dictionary-definition/BDBT/${strongNumber}/`;
