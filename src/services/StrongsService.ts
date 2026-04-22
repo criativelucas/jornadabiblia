@@ -170,6 +170,9 @@ export async function fetchChapterStrongs(
 
       chapterCache.set(cacheKey, result);
       writeSessionCache(`${CHAPTER_STORAGE_PREFIX}${cacheKey}`, result);
+      if (result.length > 0) {
+        void offlineSetChapter(cacheKey, result);
+      }
       return result;
     } catch (err) {
       console.error('[StrongsService] chapter fetch error:', err);
