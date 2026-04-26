@@ -95,8 +95,8 @@ export async function fetchTranslation(version: BibleVersion): Promise<BibleBook
   // 1. Memória — 0ms
   if (memoryCache[version]) return memoryCache[version];
 
-  // 2. localStorage — ~10-20ms, persiste entre sessões
-  const cached = lsGet(version);
+  // 2. IndexedDB — persiste entre sessões, suporta grandes volumes sem quota issues
+  const cached = await idbGetVersion(version);
   if (cached) {
     memoryCache[version] = cached;
     return cached;
@@ -112,7 +112,7 @@ export async function fetchTranslation(version: BibleVersion): Promise<BibleBook
       const data: BibleBook[] = normalizeRaw(raw as RawBibleBook[]);
 
       memoryCache[version] = data;
-      lsSet(version, data);
+      void idbSetVersion(version, data);
       return data;
     } finally {
       delete inFlight[version];
@@ -122,13 +122,15 @@ export async function fetchTranslation(version: BibleVersion): Promise<BibleBook
   return inFlight[version];
 }
 
+// Synchronous (memory-only) check — used for instant UI hints
 export function isVersionCached(version: BibleVersion): boolean {
+  return Boolean(memoryCache[version]);
+}
+
+// Async check that consults IndexedDB (use when you can await)
+export async function isVersionCachedAsync(version: BibleVersion): Promise<boolean> {
   if (memoryCache[version]) return true;
-  try {
-    return localStorage.getItem(LS_PREFIX + version) !== null;
-  } catch {
-    return false;
-  }
+  return bibleIdbHas(IDB_KEY_PREFIX + version);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
