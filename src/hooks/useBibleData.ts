@@ -50,30 +50,26 @@ export const VERSION_DESCRIPTIONS: Record<BibleVersion, string> = {
   ntlh: "Ling. Hoje",
 };
 
-// ── Cache duplo: memória + localStorage ───────────────────────────────────
-const memoryCache: Record<string, BibleBook[]> = {};
-const LS_PREFIX = "jb_bible_v3_";
+// ── Cache duplo: memória + IndexedDB ──────────────────────────────────────
+import { bibleIdbGet, bibleIdbPut, bibleIdbHas } from "@/services/bibleOfflineStore";
 
-function lsGet(version: BibleVersion): BibleBook[] | null {
-  try {
-    const raw = localStorage.getItem(LS_PREFIX + version);
-    return raw ? (JSON.parse(raw) as BibleBook[]) : null;
-  } catch {
-    return null;
-  }
+const memoryCache: Record<string, BibleBook[]> = {};
+const IDB_KEY_PREFIX = "bible_v4_";
+const LEGACY_LS_PREFIX = "jb_bible_v3_";
+
+// Migrate / cleanup legacy localStorage entries (offload to IndexedDB silently)
+try {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith("jb_bible_"))
+    .forEach((k) => localStorage.removeItem(k));
+} catch {}
+
+async function idbGetVersion(version: BibleVersion): Promise<BibleBook[] | null> {
+  return bibleIdbGet<BibleBook[]>(IDB_KEY_PREFIX + version);
 }
 
-function lsSet(version: BibleVersion, data: BibleBook[]): void {
-  try {
-    localStorage.setItem(LS_PREFIX + version, JSON.stringify(data));
-  } catch {
-    try {
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith("jb_bible_"))
-        .forEach((k) => localStorage.removeItem(k));
-      localStorage.setItem(LS_PREFIX + version, JSON.stringify(data));
-    } catch {}
-  }
+async function idbSetVersion(version: BibleVersion, data: BibleBook[]): Promise<void> {
+  return bibleIdbPut(IDB_KEY_PREFIX + version, data);
 }
 
 // ── Evita downloads paralelos duplicados ──────────────────────────────────
