@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BookOpen } from "lucide-react";
 import { fetchTranslation, type BibleVersion } from "@/hooks/useBibleData";
 import {
@@ -32,9 +32,12 @@ export default function SplashScreen({ onReady }: Props) {
   );
   const [fade, setFade] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [statusMsg, setStatusMsg] = useState("Preparando seu app...");
+  const [statusMsg, setStatusMsg] = useState("Iniciando...");
   const [exiting, setExiting] = useState(false);
+  const [canSkip, setCanSkip] = useState(false);
+  const skippedRef = useRef(false);
 
+  // Rotate trivia card
   useEffect(() => {
     const interval = setInterval(() => {
       setFade(false);
@@ -46,68 +49,82 @@ export default function SplashScreen({ onReady }: Props) {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const startTime = Date.now();
-    const versions: BibleVersion[] = ["nvi", "naa", "ntlh"];
-    const totalSteps = versions.length + 4;
-    let settledCount = 0;
+  const finish = () => {
+    if (skippedRef.current) return;
+    skippedRef.current = true;
+    setExiting(true);
+    setTimeout(onReady, 500);
+  };
 
-    const advance = (msg: string) => {
-      settledCount += 1;
-      setProgress(Math.round((settledCount / totalSteps) * 100));
+  useEffect(() => {
+    // Allow skip after a small minimum window (UX safety so it doesn't flash)
+    const skipTimer = setTimeout(() => setCanSkip(true), 1200);
+
+    // ── ESSENTIAL preload (blocks splash) ─────────────────────────────────
+    // Only the default Bible version + tiny lexicon warm-up.
+    // Everything else loads in the background after the app opens.
+    let done = 0;
+    const total = 3; // NVI + lexicon-essential + small-buffer
+    const tick = (msg: string) => {
+      done = Math.min(done + 1, total);
+      setProgress(Math.round((done / total) * 95)); // cap at 95%, finish() sets 100%
       setStatusMsg(msg);
     };
 
-    setStatusMsg("Baixando traduções da Bíblia...");
+    setStatusMsg("Carregando Bíblia...");
 
-    const biblePromises = versions.map((v) =>
-      fetchTranslation(v)
-        .then(() => advance(`${settledCount + 1}ª versão carregada ✓`))
-        .catch(() => advance("Continuando..."))
-    );
+    const essentialBible = fetchTranslation("nvi" as BibleVersion)
+      .then(() => tick("Bíblia pronta ✓"))
+      .catch(() => tick("Continuando offline..."));
 
-    // Preload Strong's data before app entry, then continue full background warming.
-    const strongsPreload = (async () => {
-      try {
-        const startupBatches = [
-          LEXICON_STARTUP_CHAPTERS.slice(0, 24),
-          LEXICON_STARTUP_CHAPTERS.slice(24, 72),
-          LEXICON_STARTUP_CHAPTERS.slice(72),
-        ];
+    // Only warm a tiny set up-front (Genesis 1, John 1, Psalm 1) so the lexicon
+    // opens instantly on common entry points. Everything else streams later.
+    const essentialLexicon = (async () => {
+      const essential = LEXICON_STARTUP_CHAPTERS.slice(0, 6);
+      await Promise.allSettled(
+        essential.map(([book, chap]) => warmLexiconChapter(book, chap))
+      );
+      tick("Léxico essencial pronto ✓");
+    })();
 
-        for (const [index, batch] of startupBatches.entries()) {
-          await Promise.allSettled(
-            batch.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
-          );
-          advance(`Léxico carregado ${index + 1}/${startupBatches.length} ✓`);
-        }
+    Promise.allSettled([essentialBible, essentialLexicon]).then(() => {
+      tick("Tudo pronto ✓");
+      setProgress(100);
+      // Auto-finish quickly once essentials are ready
+      setTimeout(finish, 350);
+    });
 
-        void (async () => {
-          const batchSize = 4;
-          for (let index = 0; index < LEXICON_BACKGROUND_CHAPTERS.length; index += batchSize) {
-            const batch = LEXICON_BACKGROUND_CHAPTERS.slice(index, index + batchSize);
-            await Promise.allSettled(
-              batch.map(([bookNumber, chapter]) => warmLexiconChapter(bookNumber, chapter))
-            );
-          }
-        })();
-      } catch {
-        advance("Léxico parcialmente carregado ✓");
-        advance("Continuando...");
-        advance("Continuando...");
+    // ── BACKGROUND warm-up (non-blocking) ─────────────────────────────────
+    // Other Bible versions + remaining lexicon chapters load silently
+    // after the user is already in the app.
+    void (async () => {
+      const otherVersions: BibleVersion[] = ["naa", "ntlh"];
+      for (const v of otherVersions) {
+        try { await fetchTranslation(v); } catch {}
+      }
+      const allRemaining = [
+        ...LEXICON_STARTUP_CHAPTERS.slice(6),
+        ...LEXICON_BACKGROUND_CHAPTERS,
+      ];
+      const batchSize = 4;
+      for (let i = 0; i < allRemaining.length; i += batchSize) {
+        const batch = allRemaining.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map(([book, chap]) => warmLexiconChapter(book, chap))
+        );
       }
     })();
 
-    Promise.allSettled([...biblePromises, strongsPreload]).then(() => {
-      setStatusMsg("Tudo pronto ✓");
+    // Hard ceiling: never block the user more than 6 seconds.
+    const ceiling = setTimeout(() => {
       setProgress(100);
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 4000 - elapsed);
-      setTimeout(() => {
-        setExiting(true);
-        setTimeout(onReady, 600);
-      }, remaining);
-    });
+      finish();
+    }, 6000);
+
+    return () => {
+      clearTimeout(skipTimer);
+      clearTimeout(ceiling);
+    };
   }, []);
 
   return (
@@ -122,7 +139,7 @@ export default function SplashScreen({ onReady }: Props) {
         justifyContent: "center",
         background: "linear-gradient(165deg, #1a2200 0%, #0d1500 40%, #080c00 100%)",
         opacity: exiting ? 0 : 1,
-        transition: "opacity 0.6s ease",
+        transition: "opacity 0.5s ease",
         padding: "24px",
       }}
     >
@@ -168,7 +185,7 @@ export default function SplashScreen({ onReady }: Props) {
           background: "rgba(255,255,255,0.05)",
           borderRadius: 16,
           padding: "20px 24px",
-          marginBottom: 48,
+          marginBottom: 32,
           border: "1px solid rgba(255,255,255,0.08)",
         }}
       >
@@ -202,13 +219,40 @@ export default function SplashScreen({ onReady }: Props) {
               width: `${progress}%`,
               background: "#c8f000",
               borderRadius: 2,
-              transition: "width 0.5s ease",
+              transition: "width 0.4s ease",
             }}
           />
         </div>
         <p style={{ fontSize: "11px", color: "#8a8f7a", marginTop: 8, opacity: 0.7 }}>
           {progress}%
         </p>
+
+        {/* Skip button — appears after short delay */}
+        <button
+          type="button"
+          onClick={finish}
+          disabled={!canSkip}
+          style={{
+            marginTop: 24,
+            padding: "10px 22px",
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: canSkip ? "#0d1500" : "#5a6048",
+            background: canSkip ? "#c8f000" : "rgba(200,240,0,0.15)",
+            border: "none",
+            borderRadius: 999,
+            cursor: canSkip ? "pointer" : "default",
+            opacity: canSkip ? 1 : 0.5,
+            transition: "opacity 0.3s ease, transform 0.15s ease",
+          }}
+          onMouseDown={(e) => canSkip && (e.currentTarget.style.transform = "scale(0.97)")}
+          onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          Entrar agora →
+        </button>
       </div>
     </div>
   );
