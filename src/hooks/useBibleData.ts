@@ -55,7 +55,7 @@ import { bibleIdbGet, bibleIdbPut, bibleIdbHas } from "@/services/bibleOfflineSt
 
 const memoryCache: Record<string, BibleBook[]> = {};
 const IDB_KEY_PREFIX = "bible_v4_";
-const LEGACY_LS_PREFIX = "jb_bible_v3_";
+
 
 // Migrate / cleanup legacy localStorage entries (offload to IndexedDB silently)
 try {
